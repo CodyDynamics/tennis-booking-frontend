@@ -209,8 +209,8 @@ export function StudentDashboard() {
                           </p>
                         </div>
                       </div>
-                      <Badge variant={booking.status === "confirmed" ? "default" : "outline"}>
-                        {booking.status}
+                      <Badge variant={booking.bookingStatus === "confirmed" ? "default" : "outline"}>
+                        {booking.bookingStatus}
                       </Badge>
                     </div>
                   ))}

@@ -8,21 +8,92 @@ import type {
   CoachSession,
   ProgressReport,
 } from "@/types";
-import {
-  mockCourts,
-  mockCoaches,
-  mockBookings,
-  mockSessions,
-  mockReports,
-} from "./mock-data";
+import type { CourtBookingApi, CoachSessionApi } from "@/types/api";
+import { api } from "@/lib/api";
+import type { CourtApi } from "@/lib/api/endpoints/courts";
+import type { CoachApi } from "@/lib/api/endpoints/coaches";
+import { mockReports } from "./mock-data";
+
+function mapCourtApiToCourt(c: CourtApi): Court {
+  return {
+    id: c.id,
+    name: c.name,
+    type: c.type === "indoor" ? "indoor" : "outdoor",
+    pricePerHour: typeof c.pricePerHour === "string" ? parseFloat(c.pricePerHour) : c.pricePerHour,
+    description: c.description ?? undefined,
+    status: c.status === "active" ? "active" : "maintenance",
+    branchId: c.branchId,
+  };
+}
+
+function mapCoachApiToCoach(c: CoachApi): Coach {
+  return {
+    id: c.id,
+    userId: c.userId,
+    experienceYears: c.experienceYears,
+    bio: c.bio ?? undefined,
+    hourlyRate: typeof c.hourlyRate === "string" ? parseFloat(c.hourlyRate) : c.hourlyRate,
+    user: c.user
+      ? {
+          id: c.user.id,
+          fullName: c.user.fullName ?? "",
+          email: c.user.email ?? "",
+          role: "coach",
+          organizationId: "",
+        }
+      : undefined,
+  };
+}
+
+function mapCourtBookingApiToCourtBooking(b: CourtBookingApi): CourtBooking {
+  const dateStr = typeof b.bookingDate === "string" ? b.bookingDate : (b.bookingDate as unknown as Date)?.toString?.()?.slice(0, 10) ?? "";
+  const totalPrice = typeof b.totalPrice === "string" ? parseFloat(b.totalPrice) : (b.totalPrice ?? 0);
+  return {
+    id: b.id,
+    organizationId: b.organizationId ?? "",
+    branchId: b.branchId ?? "",
+    userId: b.userId,
+    courtId: b.courtId,
+    coachId: b.coachId ?? null,
+    bookingType: (b.bookingType as CourtBooking["bookingType"]) ?? "COURT_ONLY",
+    bookingDate: dateStr,
+    startTime: b.startTime,
+    endTime: b.endTime,
+    durationMinutes: b.durationMinutes,
+    totalPrice,
+    paymentStatus: (b.paymentStatus as CourtBooking["paymentStatus"]) ?? "unpaid",
+    bookingStatus: (b.bookingStatus as CourtBooking["bookingStatus"]) ?? "pending",
+    createdAt: b.createdAt ?? new Date().toISOString(),
+    updatedAt: b.updatedAt,
+  };
+}
+
+function mapCoachSessionApiToCoachSession(s: CoachSessionApi): CoachSession {
+  const dateStr = typeof s.sessionDate === "string" ? s.sessionDate : (s.sessionDate as unknown as Date)?.toString?.()?.slice(0, 10) ?? "";
+  return {
+    id: s.id,
+    organizationId: s.organizationId ?? "",
+    branchId: s.branchId ?? "",
+    coachId: s.coachId,
+    courtId: s.courtId ?? null,
+    sessionDate: dateStr,
+    startTime: s.startTime,
+    durationMinutes: s.durationMinutes,
+    sessionType: (s.sessionType as "private" | "group") ?? "private",
+    status: (s.status as CoachSession["status"]) ?? "scheduled",
+    studentIds: [],
+    createdAt: s.createdAt,
+    updatedAt: s.updatedAt,
+  };
+}
 
 // Courts queries
-export function useCourts() {
+export function useCourts(params?: { branchId?: string; status?: string }) {
   return useQuery<Court[]>({
-    queryKey: ["courts"],
+    queryKey: ["courts", params?.branchId, params?.status],
     queryFn: async () => {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      return mockCourts;
+      const list = await api.courts.getCourts(params);
+      return list.map(mapCourtApiToCourt);
     },
   });
 }
@@ -32,43 +103,40 @@ export function useCoaches() {
   return useQuery<Coach[]>({
     queryKey: ["coaches"],
     queryFn: async () => {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      return mockCoaches;
+      const list = await api.coaches.getCoaches();
+      return list.map(mapCoachApiToCoach);
     },
   });
 }
 
-// Bookings queries
+// Bookings queries (court bookings for current user)
 export function useBookings(userId?: string) {
   return useQuery<CourtBooking[]>({
     queryKey: ["bookings", userId],
     queryFn: async () => {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      if (userId) {
-        return mockBookings.filter((b) => b.userId === userId);
-      }
-      return mockBookings;
+      const res = await api.bookings.getMyBookings();
+      return (res.courtBookings ?? []).map(mapCourtBookingApiToCourtBooking);
     },
     enabled: !!userId,
   });
 }
 
-// Sessions queries
+// Sessions queries (coach sessions for current user)
 export function useSessions(coachId?: string, studentId?: string) {
   return useQuery<CoachSession[]>({
     queryKey: ["sessions", coachId, studentId],
     queryFn: async () => {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      let sessions = mockSessions;
+      const res = await api.bookings.getMyBookings();
+      let sessions = (res.coachSessions ?? []).map(mapCoachSessionApiToCoachSession);
       if (coachId) {
         sessions = sessions.filter((s) => s.coachId === coachId);
       }
       if (studentId) {
-        sessions = sessions.filter((s) => s.studentIds.includes(studentId));
+        sessions = sessions.filter((s) => s.studentIds?.includes(studentId));
       }
       return sessions;
     },
-    enabled: !!coachId || !!studentId, // Only query when at least one of the two is provided
+    enabled: !!coachId || !!studentId,
   });
 }
 
@@ -96,42 +164,44 @@ export function useCreateCourtBooking() {
 
   return useMutation({
     mutationFn: async (data: {
-      userId: string;
+      userId?: string;
       courtId: string;
       coachId?: string | null;
-      bookingType: "COURT_ONLY" | "COURT_COACH" | "TRAINING";
+      bookingType?: "COURT_ONLY" | "COURT_COACH" | "TRAINING";
       bookingDate: string;
       startTime: string;
       endTime: string;
-      durationMinutes: number;
-      totalPrice: number;
+      durationMinutes?: number;
+      totalPrice?: number;
     }) => {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      const newBooking: CourtBooking = {
-        id: Date.now().toString(),
-        organizationId: "org1",
-        branchId: "branch1",
-        userId: data.userId,
+      const payload = {
         courtId: data.courtId,
-        coachId: data.coachId || null,
-        bookingType: data.bookingType,
         bookingDate: data.bookingDate,
         startTime: data.startTime,
         endTime: data.endTime,
-        durationMinutes: data.durationMinutes,
-        totalPrice: data.totalPrice,
-        paymentStatus: "unpaid",
-        bookingStatus: "confirmed",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        ...(data.coachId && { coachId: data.coachId }),
+        ...(data.durationMinutes != null && { durationMinutes: data.durationMinutes }),
       };
-      return newBooking;
+      return api.bookings.createCourtBooking(payload);
     },
-    onSuccess: (newBooking) => {
+    onSuccess: (_result, variables) => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
-      queryClient.setQueryData<CourtBooking[]>(["bookings", newBooking.userId], (old) => {
-        return old ? [...old, newBooking] : [newBooking];
-      });
+      if (variables.userId) {
+        queryClient.invalidateQueries({ queryKey: ["bookings", variables.userId] });
+      }
+    },
+  });
+}
+
+// Cancel booking mutation
+export function useCancelBooking() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ kind, id }: { kind: "court" | "coach"; id: string }) =>
+      api.bookings.cancelBooking(kind, id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
     },
   });
 }
@@ -147,28 +217,22 @@ export function useCreateCoachSession() {
       startTime: string;
       durationMinutes: number;
       sessionType: "private" | "group";
-      studentIds: string[];
+      studentIds?: string[];
+      courtId?: string | null;
     }) => {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      const newSession: CoachSession = {
-        id: Date.now().toString(),
-        organizationId: "org1",
-        branchId: "branch1",
+      const payload = {
         coachId: data.coachId,
-        courtId: null,
         sessionDate: data.sessionDate,
         startTime: data.startTime,
         durationMinutes: data.durationMinutes,
         sessionType: data.sessionType,
-        status: "scheduled",
-        studentIds: data.studentIds,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        ...(data.courtId && { courtId: data.courtId }),
       };
-      return newSession;
+      return api.bookings.createCoachSession(payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
     },
   });
 }

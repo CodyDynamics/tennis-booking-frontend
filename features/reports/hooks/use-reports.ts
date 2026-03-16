@@ -13,9 +13,11 @@ export function useReports(studentId?: string) {
     // TODO: API call
     const newReport: ProgressReport = {
       id: Date.now().toString(),
+      organizationId: reportData.organizationId || "",
+      branchId: reportData.branchId || "",
       coachId: reportData.coachId || "",
       studentId: reportData.studentId || "",
-      sessionId: reportData.sessionId,
+      sessionId: reportData.sessionId ?? null,
       sessionDate: reportData.sessionDate || new Date().toISOString().split("T")[0],
       forehandScore: reportData.forehandScore || 5,
       backhandScore: reportData.backhandScore || 5,

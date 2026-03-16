@@ -1,17 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { User, Mail, Lock } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
+import { useRoles } from "@/lib/hooks/use-roles";
 import { registerSchema, type RegisterFormValues } from "@/features/auth/schemas/register.schema";
+import { ApiError } from "@/lib/api";
 
 interface RegisterFormProps {
   onSwitchToLogin?: () => void;
@@ -26,20 +28,28 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
     resolver: zodResolver(registerSchema),
   });
 
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const { register: registerUser, isRegistering } = useAuth();
+  const { data: roles, isLoading: rolesLoading, isError: rolesError, refetch: refetchRoles } = useRoles();
   const router = useRouter();
 
   const onSubmit = async (data: RegisterFormValues) => {
+    setSubmitError(null);
     try {
       await registerUser({
         email: data.email,
         password: data.password,
         fullName: data.fullName,
-        role: data.role,
+        roleId: data.roleId,
       });
       router.push("/dashboard");
     } catch (error) {
-      console.error("Registration failed:", error);
+      if (error instanceof ApiError) {
+        const msg = error.body?.message;
+        setSubmitError(Array.isArray(msg) ? msg[0] : (msg ?? "Registration failed."));
+      } else {
+        setSubmitError("Registration failed. Please try again.");
+      }
     }
   };
 
@@ -89,18 +99,32 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
+              <Label htmlFor="roleId">Role</Label>
               <select
-                id="role"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                {...register("role")}
+                id="roleId"
+                disabled={rolesLoading}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
+                {...register("roleId")}
               >
-                <option value="player">Casual Player</option>
-                <option value="student">Student (Training Member)</option>
-                <option value="coach">Coach</option>
+                <option value="">
+                  {rolesLoading ? "Loading roles..." : "Select role..."}
+                </option>
+                {roles?.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name === "player" ? "Casual Player" : r.name === "student" ? "Student (Training Member)" : r.name}
+                  </option>
+                ))}
               </select>
-              {errors.role && (
-                <p className="text-sm text-destructive">{errors.role.message}</p>
+              {rolesError && (
+                <p className="text-sm text-destructive">
+                  Could not load roles.{" "}
+                  <button type="button" onClick={() => refetchRoles()} className="underline">
+                    Retry
+                  </button>
+                </p>
+              )}
+              {errors.roleId && (
+                <p className="text-sm text-destructive">{errors.roleId.message}</p>
               )}
             </div>
             <div className="space-y-2">
@@ -133,7 +157,10 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
                 <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
               )}
             </div>
-            <Button type="submit" className="w-full" disabled={isRegistering}>
+            {submitError && (
+              <p className="text-sm text-destructive">{submitError}</p>
+            )}
+            <Button type="submit" className="w-full" disabled={isRegistering || rolesLoading}>
               {isRegistering ? "Registering..." : "Register"}
             </Button>
             <Button type="button" variant="outline" className="w-full">

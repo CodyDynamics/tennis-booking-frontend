@@ -24,9 +24,9 @@ export function AdminDashboard() {
 
   // Booking status distribution
   const bookingStatusData = [
-    { name: "Confirmed", value: mockBookings.filter((b) => b.status === "confirmed").length },
-    { name: "Pending", value: mockBookings.filter((b) => b.status === "pending").length },
-    { name: "Completed", value: mockBookings.filter((b) => b.status === "completed").length },
+    { name: "Confirmed", value: mockBookings.filter((b) => b.bookingStatus === "confirmed").length },
+    { name: "Pending", value: mockBookings.filter((b) => b.bookingStatus === "pending").length },
+    { name: "Completed", value: mockBookings.filter((b) => b.bookingStatus === "completed").length },
   ];
 
   const COLORS = ["#3b82f6", "#60a5fa", "#93c5fd"];

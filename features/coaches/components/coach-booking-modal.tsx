@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { ApiError } from "@/lib/api";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
 import {
@@ -42,6 +43,7 @@ export function CoachBookingModal({
   });
   const [selectedStartTime, setSelectedStartTime] = useState<string>();
   const [selectedDuration, setSelectedDuration] = useState<string>("60");
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const { user } = useAuth();
   const createSession = useCreateCoachSession();
   const router = useRouter();
@@ -64,8 +66,8 @@ export function CoachBookingModal({
     const duration = parseInt(data.duration);
     const days = differenceInDays(data.dateRange.to, data.dateRange.from) + 1;
 
+    setSubmitError(null);
     try {
-      // Create session for each day in range
       const dates = eachDayOfInterval({
         start: data.dateRange.from,
         end: data.dateRange.to,
@@ -86,10 +88,16 @@ export function CoachBookingModal({
       setDateRange({ from: undefined, to: undefined });
       setSelectedStartTime(undefined);
       setSelectedDuration("60");
+      setSubmitError(null);
       onOpenChange(false);
       router.push("/dashboard");
     } catch (error) {
-      console.error("Session booking failed:", error);
+      if (error instanceof ApiError) {
+        const msg = error.body?.message;
+        setSubmitError(Array.isArray(msg) ? msg[0] : (msg ?? "Session booking failed."));
+      } else {
+        setSubmitError("Session booking failed. Please try again.");
+      }
     }
   };
 
@@ -142,6 +150,9 @@ export function CoachBookingModal({
             )}
           </motion.div>
 
+          {submitError && (
+            <p className="text-sm text-destructive">{submitError}</p>
+          )}
           {dateRange.from && dateRange.to && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}

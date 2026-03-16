@@ -14,13 +14,19 @@ export function useBooking() {
       // TODO: API call
       const newBooking: CourtBooking = {
         id: Date.now().toString(),
+        organizationId: bookingData.organizationId || "",
+        branchId: bookingData.branchId || "",
         userId: bookingData.userId || "",
         courtId: bookingData.courtId || "",
+        coachId: bookingData.coachId ?? null,
+        bookingType: bookingData.bookingType || "COURT_ONLY",
         bookingDate: bookingData.bookingDate || "",
         startTime: bookingData.startTime || "",
         endTime: bookingData.endTime || "",
+        durationMinutes: bookingData.durationMinutes || 60,
         totalPrice: bookingData.totalPrice || 0,
-        status: "pending",
+        paymentStatus: bookingData.paymentStatus || "unpaid",
+        bookingStatus: bookingData.bookingStatus || "pending",
         createdAt: new Date().toISOString(),
       };
       setBookings([...bookings, newBooking]);
@@ -40,7 +46,10 @@ export function useBooking() {
       // TODO: API call
       const newSession: CoachSession = {
         id: Date.now().toString(),
+        organizationId: sessionData.organizationId || "",
+        branchId: sessionData.branchId || "",
         coachId: sessionData.coachId || "",
+        courtId: sessionData.courtId ?? null,
         sessionDate: sessionData.sessionDate || "",
         startTime: sessionData.startTime || "",
         durationMinutes: sessionData.durationMinutes || 60,

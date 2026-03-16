@@ -2,6 +2,8 @@ export type UserRole = "admin" | "coach" | "student" | "parent" | "player";
 
 export type BookingType = "COURT_ONLY" | "COURT_COACH" | "TRAINING";
 
+export type { AuthResponse, AuthUser, LoginInput, RegisterInput, RoleDto, ApiErrorBody } from "./api";
+
 export interface User {
   id: string;
   email: string;

@@ -1,17 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mail, Lock } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
 import { loginSchema, type LoginFormValues } from "@/features/auth/schemas/login.schema";
+import { ApiError } from "@/lib/api";
 
 interface LoginFormProps {
   onSwitchToRegister?: () => void;
@@ -26,15 +27,22 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
     resolver: zodResolver(loginSchema),
   });
 
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const { login, isLoggingIn } = useAuth();
   const router = useRouter();
 
   const onSubmit = async (data: LoginFormValues) => {
+    setSubmitError(null);
     try {
       await login(data.email, data.password);
       router.push("/dashboard");
     } catch (error) {
-      console.error("Login failed:", error);
+      if (error instanceof ApiError) {
+        const msg = error.body?.message;
+        setSubmitError(Array.isArray(msg) ? msg[0] : (msg ?? error.message));
+      } else {
+        setSubmitError("Invalid email or password.");
+      }
     }
   };
 
@@ -83,6 +91,9 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
                 <p className="text-sm text-destructive">{errors.password.message}</p>
               )}
             </div>
+            {submitError && (
+              <p className="text-sm text-destructive">{submitError}</p>
+            )}
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <input

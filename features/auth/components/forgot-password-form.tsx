@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
@@ -10,8 +11,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowLeft, Mail } from "lucide-react";
 import Link from "next/link";
 import { forgotPasswordSchema, type ForgotPasswordFormValues } from "@/features/auth/schemas/forgot-password.schema";
+import { api, ApiError } from "@/lib/api";
 
 export function ForgotPasswordForm() {
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -21,9 +25,19 @@ export function ForgotPasswordForm() {
   });
 
   const onSubmit = async (data: ForgotPasswordFormValues) => {
-    console.log("Reset password for:", data.email);
-    // TODO: Implement password reset logic
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    setSubmitError(null);
+    setSuccessMessage(null);
+    try {
+      const res = await api.auth.forgotPassword({ email: data.email });
+      setSuccessMessage(res.message ?? "If the email exists, a password reset link has been sent.");
+    } catch (error) {
+      if (error instanceof ApiError) {
+        const msg = error.body?.message;
+        setSubmitError(Array.isArray(msg) ? msg[0] : (msg ?? "Request failed. Please try again."));
+      } else {
+        setSubmitError("Request failed. Please try again.");
+      }
+    }
   };
 
   return (
@@ -57,6 +71,12 @@ export function ForgotPasswordForm() {
                 <p className="text-sm text-destructive">{errors.email.message}</p>
               )}
             </div>
+            {successMessage && (
+              <p className="text-sm text-green-600 dark:text-green-400">{successMessage}</p>
+            )}
+            {submitError && (
+              <p className="text-sm text-destructive">{submitError}</p>
+            )}
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? "Sending..." : "Send Reset Link"}
             </Button>

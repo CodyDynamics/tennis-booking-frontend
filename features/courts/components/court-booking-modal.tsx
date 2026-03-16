@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { ApiError } from "@/lib/api";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
 import {
@@ -47,7 +48,8 @@ export function CourtBookingModal({
   const [selectedEndTime, setSelectedEndTime] = useState<string>();
   const [bookingType, setBookingType] = useState<"COURT_ONLY" | "COURT_COACH" | "TRAINING">("COURT_ONLY");
   const [selectedCoachId, setSelectedCoachId] = useState<string>("");
-  
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   const { user } = useAuth();
   const createBooking = useCreateCourtBooking();
   const { data: coaches } = useCoaches();
@@ -88,8 +90,8 @@ export function CourtBookingModal({
     const hours = endHour - startHour;
     const durationMinutes = hours * 60;
 
+    setSubmitError(null);
     try {
-      // Create booking for each day in range
       const dates = eachDayOfInterval({
         start: data.dateRange.from,
         end: data.dateRange.to,
@@ -115,10 +117,16 @@ export function CourtBookingModal({
       setSelectedEndTime(undefined);
       setBookingType("COURT_ONLY");
       setSelectedCoachId("");
+      setSubmitError(null);
       onOpenChange(false);
       router.push("/dashboard");
     } catch (error) {
-      console.error("Booking failed:", error);
+      if (error instanceof ApiError) {
+        const msg = error.body?.message;
+        setSubmitError(Array.isArray(msg) ? msg[0] : (msg ?? "Booking failed."));
+      } else {
+        setSubmitError("Booking failed. Please try again.");
+      }
     }
   };
 
@@ -258,6 +266,9 @@ export function CourtBookingModal({
             </motion.div>
           )}
 
+          {submitError && (
+            <p className="text-sm text-destructive">{submitError}</p>
+          )}
           {dateRange.from && dateRange.to && selectedStartTime && selectedEndTime && priceBreakdown && (
             <motion.div
               initial={{ opacity: 0 }}

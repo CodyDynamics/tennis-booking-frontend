@@ -85,14 +85,14 @@ export default function BookingHistoryPage() {
                       </div>
                       <Badge
                         variant={
-                          booking.status === "confirmed"
+                          booking.bookingStatus === "confirmed"
                             ? "default"
-                            : booking.status === "completed"
+                            : booking.bookingStatus === "completed"
                             ? "secondary"
                             : "outline"
                         }
                       >
-                        {booking.status}
+                        {booking.bookingStatus}
                       </Badge>
                     </div>
                   </CardHeader>
