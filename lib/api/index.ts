@@ -5,6 +5,8 @@ import { createRolesEndpoints } from "./endpoints/roles";
 import { createBookingsEndpoints } from "./endpoints/bookings";
 import { createCourtsEndpoints } from "./endpoints/courts";
 import { createCoachesEndpoints } from "./endpoints/coaches";
+import { createUsersEndpoints } from "./endpoints/users";
+import { createBranchesEndpoints } from "./endpoints/branches";
 
 let accessTokenGetter: GetAccessToken = () => null;
 
@@ -27,6 +29,8 @@ export const api = {
   bookings: createBookingsEndpoints(client),
   courts: createCourtsEndpoints(client),
   coaches: createCoachesEndpoints(client),
+  users: createUsersEndpoints(client),
+  branches: createBranchesEndpoints(client),
 };
 
 export { ApiError } from "./client";

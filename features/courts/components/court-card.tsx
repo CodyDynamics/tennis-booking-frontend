@@ -5,8 +5,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { Court } from "@/types";
+import { formatCurrency } from "@/lib/format";
 import { Calendar, MapPin, CheckCircle2 } from "lucide-react";
-import Image from "next/image";
 
 interface CourtCardProps {
   court: Court;
@@ -54,7 +54,9 @@ export function CourtCard({ court, onBook, index = 0 }: CourtCardProps) {
               </CardDescription>
             </div>
             <div className="text-right">
-              <span className="text-3xl font-bold text-primary">${court.pricePerHour}</span>
+              <span className="text-3xl font-bold text-primary">
+                {formatCurrency(Number(court.pricePerHour))}
+              </span>
               <p className="text-xs text-muted-foreground">per hour</p>
             </div>
           </div>

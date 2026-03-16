@@ -6,15 +6,30 @@ import type { User } from "@/types";
 import type { AuthUser } from "@/types/api";
 import { api, ApiError } from "@/lib/api";
 
+function parseRolePermissions(role: unknown): string[] {
+  if (!role || typeof role !== "object" || !("permissions" in role)) return [];
+  const p = (role as { permissions?: string | null }).permissions;
+  if (typeof p !== "string" || !p.trim()) return [];
+  return p.split(",").map((s) => s.trim()).filter(Boolean);
+}
+
 function mapAuthUserToUser(a: AuthUser): User {
+  const rawRole = a.role as string | { name?: string; permissions?: string | null } | undefined;
+  const roleValue =
+    typeof rawRole === "object" && rawRole && "name" in rawRole
+      ? rawRole.name
+      : (rawRole as User["role"]);
+  const permissions = typeof rawRole === "object" && rawRole ? parseRolePermissions(rawRole) : undefined;
   return {
     id: a.id,
     email: a.email,
     fullName: a.fullName,
-    role: (a.role as User["role"]) ?? "player",
+    role: (roleValue as User["role"]) ?? "player",
+    phone: (a as { phone?: string }).phone ?? undefined,
     organizationId: a.organizationId ?? "",
     branchId: a.branchId,
     status: "active",
+    permissions: permissions?.length ? permissions : undefined,
   };
 }
 

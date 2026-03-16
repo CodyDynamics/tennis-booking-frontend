@@ -1,16 +1,48 @@
 "use client";
 
+import { useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { User, Mail, Phone, Save } from "lucide-react";
-import { mockUsers } from "@/lib/mock-data";
+import { Badge } from "@/components/ui/badge";
+import { User, Mail, Phone, KeyRound, Shield } from "lucide-react";
+import { useAuth } from "@/lib/auth-store";
+
+function roleLabel(role: string): string {
+  const labels: Record<string, string> = {
+    admin: "Admin",
+    coach: "Coach",
+    student: "Student",
+    parent: "Parent",
+    player: "Player",
+  };
+  return labels[role] ?? role;
+}
 
 export default function ProfilePage() {
-  const currentUser = mockUsers[0]; // TODO: Get from auth context
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push("/login");
+    }
+  }, [authLoading, isAuthenticated, router]);
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <p className="text-muted-foreground">Loading profile...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-4xl">
@@ -20,9 +52,9 @@ export default function ProfilePage() {
         className="mb-8"
       >
         <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
-          Profile Settings
+          Profile
         </h1>
-        <p className="text-muted-foreground">Manage your account information</p>
+        <p className="text-muted-foreground">View and manage your account information</p>
       </motion.div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -33,56 +65,41 @@ export default function ProfilePage() {
         >
           <Card className="shadow-soft">
             <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
-              <CardDescription>Update your personal details</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Profile Information
+              </CardTitle>
+              <CardDescription>Your personal details</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-center mb-6">
-                <Avatar className="h-24 w-24">
+              <div className="flex items-center justify-center pb-4">
+                <Avatar className="h-24 w-24 border-4 border-primary/10">
                   <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
-                    {currentUser.fullName.charAt(0)}
+                    {user.fullName?.charAt(0)?.toUpperCase() ?? user.email?.charAt(0)?.toUpperCase() ?? "?"}
                   </AvatarFallback>
                 </Avatar>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="fullName"
-                    defaultValue={currentUser.fullName}
-                    className="pl-10"
-                  />
+                <label className="text-sm font-medium text-muted-foreground">Full Name</label>
+                <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2">
+                  <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="font-medium">{user.fullName || "—"}</span>
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    defaultValue={currentUser.email}
-                    className="pl-10"
-                  />
+                <label className="text-sm font-medium text-muted-foreground">Email</label>
+                <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2">
+                  <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span>{user.email}</span>
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="phone"
-                    type="tel"
-                    defaultValue={currentUser.phone || ""}
-                    className="pl-10"
-                  />
+                <label className="text-sm font-medium text-muted-foreground">Phone</label>
+                <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2">
+                  <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span>{user.phone || "—"}</span>
                 </div>
               </div>
-              <Button className="w-full">
-                <Save className="mr-2 h-4 w-4" />
-                Save Changes
-              </Button>
             </CardContent>
           </Card>
         </motion.div>
@@ -94,26 +111,47 @@ export default function ProfilePage() {
         >
           <Card className="shadow-soft">
             <CardHeader>
-              <CardTitle>Account Details</CardTitle>
-              <CardDescription>Your account information</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Account Details
+              </CardTitle>
+              <CardDescription>Role and account status</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Role</Label>
-                <div className="p-3 bg-muted rounded-md capitalize">
-                  {currentUser.role}
+                <label className="text-sm font-medium text-muted-foreground">Role</label>
+                <div className="rounded-md border bg-muted/50 px-3 py-2">
+                  <Badge variant="secondary" className="font-normal capitalize">
+                    {roleLabel(user.role)}
+                  </Badge>
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Account Status</Label>
-                <div className="p-3 bg-green-50 text-green-700 rounded-md capitalize">
-                  Active
+                <label className="text-sm font-medium text-muted-foreground">Status</label>
+                <div className="rounded-md border bg-muted/50 px-3 py-2">
+                  <Badge
+                    variant={user.status === "active" ? "default" : "secondary"}
+                    className="capitalize"
+                  >
+                    {user.status ?? "active"}
+                  </Badge>
                 </div>
               </div>
-              <div className="pt-4 border-t">
-                <Button variant="outline" className="w-full">
-                  Change Password
-                </Button>
+              {user.organizationId && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Organization ID</label>
+                  <div className="rounded-md border bg-muted/50 px-3 py-2 font-mono text-xs truncate">
+                    {user.organizationId}
+                  </div>
+                </div>
+              )}
+              <div className="pt-4 border-t space-y-2">
+                <Link href="/forgot-password">
+                  <Button variant="outline" className="w-full">
+                    <KeyRound className="mr-2 h-4 w-4" />
+                    Change Password
+                  </Button>
+                </Link>
               </div>
             </CardContent>
           </Card>

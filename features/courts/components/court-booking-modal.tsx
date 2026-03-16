@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { ApiError } from "@/lib/api";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,6 +26,7 @@ import { useBookingCalculations } from "@/features/booking/hooks/use-booking-cal
 import { bookingSchema } from "@/features/booking/schemas/booking.schema";
 import type { BookingFormValues } from "@/features/booking/schemas/booking.schema";
 import type { Court } from "@/types";
+import { formatCurrency } from "@/lib/format";
 import { format, differenceInDays, eachDayOfInterval } from "date-fns";
 import { useRouter } from "next/navigation";
 
@@ -65,13 +66,20 @@ export function CourtBookingModal({
     formState: { errors },
     reset,
     setValue,
-    watch,
   } = useForm<BookingFormValues>({
     resolver: zodResolver(bookingSchema),
     defaultValues: {
       bookingType: "COURT_ONLY",
+      courtId: "",
     },
   });
+
+  // Set courtId when modal opens so schema validation passes (court is from props, not user input)
+  useEffect(() => {
+    if (open && court) {
+      setValue("courtId", court.id);
+    }
+  }, [open, court, setValue]);
 
   const priceBreakdown = useBookingCalculations(
     court,
@@ -181,7 +189,7 @@ export function CourtBookingModal({
         <DialogHeader>
           <DialogTitle className="text-2xl">Book {court.name}</DialogTitle>
           <DialogDescription>
-            Select your preferred date and time slot. {court.type === "indoor" ? "Indoor" : "Outdoor"} court - ${court.pricePerHour}/hour
+            Select your preferred date and time slot. {court.type === "indoor" ? "Indoor" : "Outdoor"} court - {formatCurrency(Number(court.pricePerHour))}/hour
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -213,7 +221,7 @@ export function CourtBookingModal({
                 <SelectContent>
                   {coaches?.map((coach) => (
                     <SelectItem key={coach.id} value={coach.id}>
-                      {coach.user?.fullName || `Coach ${coach.id}`} - ${coach.hourlyRate}/hr
+                      {coach.user?.fullName || `Coach ${coach.id}`} - {formatCurrency(Number(coach.hourlyRate))}/hr
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -288,18 +296,18 @@ export function CourtBookingModal({
                   </div>
                   <div className="text-right">
                     <p className="text-sm text-muted-foreground">Total</p>
-                    <p className="text-2xl font-bold text-primary">${priceBreakdown.total}</p>
+                    <p className="text-2xl font-bold text-primary">{formatCurrency(priceBreakdown.total)}</p>
                   </div>
                 </div>
                 <div className="pt-3 border-t border-blue-200 space-y-1">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Court ({priceBreakdown.days} days × ${priceBreakdown.courtPrice})</span>
-                    <span className="font-medium">${priceBreakdown.courtPrice * priceBreakdown.days}</span>
+                    <span className="text-muted-foreground">Court ({priceBreakdown.days} days × {formatCurrency(priceBreakdown.courtPrice)})</span>
+                    <span className="font-medium">{formatCurrency(priceBreakdown.courtPrice * priceBreakdown.days)}</span>
                   </div>
                   {priceBreakdown.coachPrice && (
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Coach ({priceBreakdown.days} days × ${priceBreakdown.coachPrice})</span>
-                      <span className="font-medium">${priceBreakdown.coachPrice * priceBreakdown.days}</span>
+                      <span className="text-muted-foreground">Coach ({priceBreakdown.days} days × {formatCurrency(priceBreakdown.coachPrice)})</span>
+                      <span className="font-medium">{formatCurrency(priceBreakdown.coachPrice * priceBreakdown.days)}</span>
                     </div>
                   )}
                 </div>
@@ -307,7 +315,12 @@ export function CourtBookingModal({
             </motion.div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            {(!dateRange.from || !dateRange.to || !selectedStartTime || !selectedEndTime) && !createBooking.isPending && (
+              <p className="text-sm text-muted-foreground order-last sm:order-first sm:mr-auto">
+                Select date range and time slot to enable booking.
+              </p>
+            )}
             <Button type="button" variant="outline" onClick={() => {
               reset();
               setDateRange({ from: undefined, to: undefined });

@@ -14,6 +14,8 @@ export interface User {
   organizationId: string;
   branchId?: string;
   status?: "active" | "inactive";
+  /** Permission codes from role (e.g. courts:view, users:create). Used for RBAC. */
+  permissions?: string[];
 }
 
 export interface Court {

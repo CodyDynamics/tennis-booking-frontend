@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Home, Calendar, Users, FileText, LogIn, User, LogOut } from "lucide-react";
+import { Home, Calendar, Users, FileText, LogIn, User, LogOut, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-store";
 import { useRouter } from "next/navigation";
@@ -70,6 +70,14 @@ export function Navbar() {
                 </Link>
               );
             })}
+            {showAuthButtons && (user?.role === "admin" || (user?.permissions && ["courts:view", "users:view", "roles:view", "branches:view", "bookings:view"].some((p) => user.permissions!.includes(p)))) && (
+              <Link href="/admin">
+                <Button variant="outline" className={cn(pathname.startsWith("/admin") && "bg-primary/10 text-primary")}>
+                  <Shield className="mr-2 h-4 w-4" />
+                  Admin
+                </Button>
+              </Link>
+            )}
             {showAuthButtons && (
               <>
                 {isAuthenticated && user && (

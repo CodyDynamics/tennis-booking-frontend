@@ -10,19 +10,43 @@ export interface CourtApi {
   status: string;
   createdAt?: string;
   updatedAt?: string;
+  branch?: { id: string; name: string; address?: string } | null;
+}
+
+export interface CreateCourtBody {
+  branchId: string;
+  name: string;
+  type?: string;
+  pricePerHour?: number;
+  description?: string;
+  status?: string;
+}
+
+export interface UpdateCourtBody {
+  branchId?: string;
+  name?: string;
+  type?: string;
+  pricePerHour?: number;
+  description?: string;
+  status?: string;
 }
 
 export function createCourtsEndpoints(client: ApiClient) {
   return {
-    getCourts: (params?: { branchId?: string; status?: string }) => {
+    getCourts: (params?: { branchId?: string; status?: string; search?: string }) => {
       const q: Record<string, string> = {};
       if (params?.branchId) q.branchId = params.branchId;
       if (params?.status) q.status = params.status;
+      if (params?.search) q.search = params.search;
       return client.get<CourtApi[]>("/courts", {
         params: Object.keys(q).length ? q : undefined,
       });
     },
     getCourt: (id: string) => client.get<CourtApi>(`/courts/${id}`),
+    createCourt: (body: CreateCourtBody) => client.post<CourtApi>("/courts", body),
+    updateCourt: (id: string, body: UpdateCourtBody) =>
+      client.patch<CourtApi>(`/courts/${id}`, body),
+    deleteCourt: (id: string) => client.delete<{ deleted: boolean }>(`/courts/${id}`),
   };
 }
 

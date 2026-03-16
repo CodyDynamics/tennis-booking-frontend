@@ -12,6 +12,8 @@ import type { CourtBookingApi, CoachSessionApi } from "@/types/api";
 import { api } from "@/lib/api";
 import type { CourtApi } from "@/lib/api/endpoints/courts";
 import type { CoachApi } from "@/lib/api/endpoints/coaches";
+import type { UserApi } from "@/lib/api/endpoints/users";
+import type { PermissionSchemaItem } from "@/lib/api/endpoints/roles";
 import { mockReports } from "./mock-data";
 
 function mapCourtApiToCourt(c: CourtApi): Court {
@@ -88,9 +90,9 @@ function mapCoachSessionApiToCoachSession(s: CoachSessionApi): CoachSession {
 }
 
 // Courts queries
-export function useCourts(params?: { branchId?: string; status?: string }) {
+export function useCourts(params?: { branchId?: string; status?: string; search?: string }) {
   return useQuery<Court[]>({
-    queryKey: ["courts", params?.branchId, params?.status],
+    queryKey: ["courts", params?.branchId, params?.status, params?.search],
     queryFn: async () => {
       const list = await api.courts.getCourts(params);
       return list.map(mapCourtApiToCourt);
@@ -288,6 +290,108 @@ export function useCreateReport() {
           return old ? [...old, newReport] : [newReport];
         }
       );
+    },
+  });
+}
+
+// ----- Admin: Branches -----
+export function useBranches(organizationId?: string) {
+  return useQuery({
+    queryKey: ["branches", organizationId],
+    queryFn: () => api.branches.getBranches(organizationId ? { organizationId } : undefined),
+  });
+}
+
+// ----- Admin: Users (list with filters) -----
+export function useUsers(params?: { roleId?: string; search?: string }) {
+  return useQuery<UserApi[]>({
+    queryKey: ["users", params?.roleId, params?.search],
+    queryFn: () => api.users.getUsers(params),
+  });
+}
+
+// ----- Admin: Court mutations -----
+export function useCreateCourt() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Parameters<typeof api.courts.createCourt>[0]) =>
+      api.courts.createCourt(body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["courts"] }),
+  });
+}
+
+export function useUpdateCourt() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Parameters<typeof api.courts.updateCourt>[1] }) =>
+      api.courts.updateCourt(id, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["courts"] }),
+  });
+}
+
+export function useDeleteCourt() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.courts.deleteCourt(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["courts"] }),
+  });
+}
+
+// ----- Admin: User mutations -----
+export function useCreateUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Parameters<typeof api.users.createUser>[0]) => api.users.createUser(body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
+export function useUpdateUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string;
+      body: Parameters<typeof api.users.updateUser>[1];
+    }) => api.users.updateUser(id, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
+export function useDeleteUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.users.deleteUser(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
+// ----- Admin: Roles list (for filters and permissions page) -----
+export function useRolesList() {
+  return useQuery({
+    queryKey: ["roles-list"],
+    queryFn: () => api.roles.getRoles(),
+  });
+}
+
+// ----- Admin: Permissions schema & role permissions -----
+export function usePermissionsSchema() {
+  return useQuery<PermissionSchemaItem[]>({
+    queryKey: ["permissions-schema"],
+    queryFn: () => api.roles.getPermissionsSchema(),
+  });
+}
+
+export function useUpdateRolePermissions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ roleId, permissions }: { roleId: string; permissions: string[] }) =>
+      api.roles.updateRolePermissions(roleId, permissions),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["roles"] });
+      queryClient.invalidateQueries({ queryKey: ["permissions-schema"] });
     },
   });
 }
