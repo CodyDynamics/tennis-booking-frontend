@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { User } from "@/types";
 import type { AuthUser } from "@/types/api";
@@ -38,20 +39,33 @@ async function fetchUserFromProfile(): Promise<User | null> {
     const profile = await api.auth.getProfile();
     return profile ? mapAuthUserToUser(profile) : null;
   } catch (e) {
-    if (e instanceof ApiError && e.status === 401) return null;
-    throw e;
+    if (!(e instanceof ApiError) || e.status !== 401) throw e;
+    // On 401: try refresh token once (e.g. access token expired, cookie still valid)
+    try {
+      await api.auth.refresh();
+      const profile = await api.auth.getProfile();
+      return profile ? mapAuthUserToUser(profile) : null;
+    } catch {
+      return null;
+    }
   }
 }
 
+const PUBLIC_AUTH_PATHS = ["/login", "/register"];
+
 export function useAuth() {
   const queryClient = useQueryClient();
+  const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+
+  const isPublicAuthPage =
+    typeof pathname === "string" && PUBLIC_AUTH_PATHS.includes(pathname);
 
   const { data: user, isLoading } = useQuery<User | null>({
     queryKey: ["auth", "user"],
     queryFn: fetchUserFromProfile,
-    enabled: mounted,
+    enabled: mounted && !isPublicAuthPage,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     retry: false,
