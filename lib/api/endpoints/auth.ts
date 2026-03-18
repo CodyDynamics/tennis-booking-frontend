@@ -1,4 +1,5 @@
 import type {
+  AuthConfig,
   AuthResponse,
   LoginInput,
   RegisterInput,
@@ -15,6 +16,7 @@ const PATHS = {
   refresh: "/auth/refresh",
   logout: "/auth/logout",
   profile: "/users/profile",
+  config: "/auth/config",
   forgotPassword: "/auth/forgot-password",
   requestLoginOtp: "/auth/request-login-otp",
   verifyLoginOtp: "/auth/verify-login-otp",
@@ -22,6 +24,7 @@ const PATHS = {
 
 export function createAuthEndpoints(client: ApiClient) {
   return {
+    getConfig: () => client.get<AuthConfig>(PATHS.config),
     login: (body: LoginInput) => client.post<AuthResponse>(PATHS.login, body),
     register: (body: RegisterInput) => client.post<AuthResponse>(PATHS.register, body),
     refresh: () => client.post<AuthResponse>(PATHS.refresh, {}),

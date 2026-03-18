@@ -53,6 +53,11 @@ export interface VerifyLoginOtpInput {
   rememberMe?: boolean;
 }
 
+/** Response from GET /auth/config */
+export interface AuthConfig {
+  loginOtpEnabled: boolean;
+}
+
 /** Body for POST /auth/forgot-password */
 export interface ForgotPasswordInput {
   email: string;
