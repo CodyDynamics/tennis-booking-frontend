@@ -48,7 +48,7 @@ export function Navbar() {
               <Activity className="h-6 w-6" />
             </motion.div>
             <span className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-              Vigor<span className="text-blue-600">Sports</span>
+              Collinmatch<span className="text-blue-600">Sports</span>
             </span>
           </Link>
           

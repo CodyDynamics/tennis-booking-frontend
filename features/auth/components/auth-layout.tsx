@@ -96,7 +96,7 @@ export function AuthLayout({ initialMode = "login" }: AuthLayoutProps) {
               <Activity className="h-5 w-5" />
             </div>
             <span className="text-xl font-black tracking-tight text-white">
-              Vigor<span className="text-blue-500">Sports</span>
+              Collinmatch<span className="text-blue-500">Sports</span>
             </span>
           </Link>
         </div>
@@ -154,7 +154,7 @@ export function AuthLayout({ initialMode = "login" }: AuthLayoutProps) {
           <Link href="/" className="flex items-center space-x-2">
             <Activity className="h-6 w-6 text-blue-600 dark:text-blue-500" />
             <span className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
-              Vigor<span className="text-blue-600">Sports</span>
+              Collinmatch<span className="text-blue-600">Sports</span>
             </span>
           </Link>
         </div>
