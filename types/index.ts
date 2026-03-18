@@ -22,10 +22,13 @@ export interface Court {
   id: string;
   name: string;
   type: "indoor" | "outdoor";
+  sport: "tennis" | "pickleball";
   pricePerHour: number;
   description?: string;
   status: "active" | "maintenance";
   branchId: string;
+  users?: string[]; // IDs of users added to this court
+  timeSlots?: { startTime: string; endTime: string }[];
 }
 
 export interface CourtBooking {

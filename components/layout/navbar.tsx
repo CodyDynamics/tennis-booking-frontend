@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Home, Calendar, Users, FileText, LogIn, User, LogOut, Shield } from "lucide-react";
+import { Home, Calendar, Users, FileText, LogIn, User, LogOut, Shield, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-store";
 import { useRouter } from "next/navigation";
@@ -36,22 +36,23 @@ export function Navbar() {
   ];
 
   return (
-    <nav className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur-sm shadow-soft">
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2 group">
+    <nav className="sticky top-0 z-50 border-b border-slate-200/50 dark:border-slate-800/50 bg-white/70 dark:bg-slate-950/70 backdrop-blur-xl">
+      <div className="container mx-auto px-4 max-w-7xl">
+        <div className="flex h-20 items-center justify-between">
+          <Link href="/" className="flex items-center space-x-3 group">
             <motion.div
-              whileHover={{ rotate: 360 }}
-              transition={{ duration: 0.5 }}
+              whileHover={{ rotate: 180, scale: 1.1 }}
+              transition={{ duration: 0.3 }}
+              className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl p-2 text-white shadow-lg shadow-blue-500/30"
             >
-              <Home className="h-6 w-6 text-primary" />
+              <Activity className="h-6 w-6" />
             </motion.div>
-            <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
-              Tennis Booking
+            <span className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+              Vigor<span className="text-blue-600">Sports</span>
             </span>
           </Link>
           
-          <div className="flex items-center space-x-2">
+          <div className="hidden md:flex items-center space-x-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
@@ -60,20 +61,25 @@ export function Navbar() {
                   <Button
                     variant={isActive ? "default" : "ghost"}
                     className={cn(
-                      "transition-all",
-                      isActive && "shadow-md"
+                      "transition-all duration-300 rounded-full px-5",
+                      isActive 
+                        ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 hover:bg-slate-800 shadow-md" 
+                        : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                     )}
                   >
                     <Icon className="mr-2 h-4 w-4" />
-                    {item.label}
+                    <span className="font-semibold">{item.label}</span>
                   </Button>
                 </Link>
               );
             })}
+            
+            <div className="w-px h-8 bg-slate-200 dark:bg-slate-800 mx-2"></div>
+
             {showAuthButtons && (user?.role === "admin" || (user?.permissions && ["courts:view", "users:view", "roles:view", "branches:view", "bookings:view"].some((p) => user.permissions!.includes(p)))) && (
               <Link href="/admin">
-                <Button variant="outline" className={cn(pathname.startsWith("/admin") && "bg-primary/10 text-primary")}>
-                  <Shield className="mr-2 h-4 w-4" />
+                <Button variant="outline" className={cn("rounded-full border-blue-200 dark:border-blue-900", pathname.startsWith("/admin") && "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400")}>
+                  <Shield className="mr-2 h-4 w-4 text-blue-500" />
                   Admin
                 </Button>
               </Link>
@@ -81,23 +87,21 @@ export function Navbar() {
             {showAuthButtons && (
               <>
                 {isAuthenticated && user && (
-                  <>
+                  <div className="flex items-center space-x-2 ml-2">
                     <Link href="/profile">
-                      <Button variant="ghost" size="icon">
-                        <User className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" className="rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
+                        <User className="h-5 w-5" />
                       </Button>
                     </Link>
-                    <Button variant="ghost" onClick={handleLogout}>
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Logout
+                    <Button variant="ghost" onClick={handleLogout} className="rounded-full text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30">
+                      <LogOut className="h-4 w-4" />
                     </Button>
-                  </>
+                  </div>
                 )}
                 {!isAuthenticated && (
-                  <Link href="/login">
-                    <Button>
-                      <LogIn className="mr-2 h-4 w-4" />
-                      Login
+                  <Link href="/login" className="ml-2">
+                    <Button className="rounded-full bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 px-6 font-bold">
+                      Sign In <LogIn className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>
                 )}

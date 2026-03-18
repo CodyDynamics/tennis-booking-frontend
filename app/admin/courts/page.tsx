@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useAuth } from "@/lib/auth-store";
+import { useAdmin } from "../admin-context";
 import { useCourts, useBranches, useCreateCourt, useUpdateCourt, useDeleteCourt } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ function can(permissions: string[] | undefined, permission: string, role: string
 
 export default function AdminCourtsPage() {
   const { user } = useAuth();
+  const { sport } = useAdmin();
   const [search, setSearch] = useState("");
   const [branchId, setBranchId] = useState<string>("all");
   const [status, setStatus] = useState<string>("all");
@@ -47,6 +49,7 @@ export default function AdminCourtsPage() {
     branchId: branchId && branchId !== "all" ? branchId : undefined,
     status: status && status !== "all" ? status : undefined,
     search: search || undefined,
+    sport,
   });
   const { data: branches = [] } = useBranches();
   const createCourt = useCreateCourt();
@@ -61,6 +64,8 @@ export default function AdminCourtsPage() {
       pricePerHour: editingCourt?.pricePerHour ?? 0,
       description: editingCourt?.description ?? "",
       status: (editingCourt?.status ?? "active") as "active" | "maintenance",
+      users: editingCourt?.users ?? [],
+      timeSlots: editingCourt?.timeSlots ?? [],
     }),
     [editingCourt, branches]
   );
@@ -76,6 +81,8 @@ export default function AdminCourtsPage() {
       pricePerHour: 0,
       description: "",
       status: "active",
+      users: [],
+      timeSlots: [],
     });
   };
 
@@ -93,6 +100,8 @@ export default function AdminCourtsPage() {
       pricePerHour: court.pricePerHour,
       description: court.description ?? "",
       status: court.status,
+      users: court.users ?? [],
+      timeSlots: court.timeSlots ?? [],
     });
     setModalOpen(true);
   };
@@ -107,10 +116,13 @@ export default function AdminCourtsPage() {
               branchId: form.branchId,
               name: form.name,
               type: form.type,
+              sport,
               pricePerHour: form.pricePerHour,
               description: form.description || undefined,
               status: form.status,
-            },
+              users: form.users,
+              timeSlots: form.timeSlots,
+            } as any, // Cast body to any due to mock properties
           })
           .then(() => null)
           .catch((e) => e)
@@ -119,10 +131,13 @@ export default function AdminCourtsPage() {
             branchId: form.branchId,
             name: form.name,
             type: form.type,
+            sport,
             pricePerHour: form.pricePerHour,
             description: form.description || undefined,
             status: form.status,
-          })
+            users: form.users,
+            timeSlots: form.timeSlots,
+          } as any)
           .then(() => null)
           .catch((e) => e);
 
@@ -278,7 +293,7 @@ export default function AdminCourtsPage() {
           <DialogHeader>
             <DialogTitle>{editingCourt ? "Edit Court" : "Create Court"}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4 pr-2">
             {submitError && (
               <p className="text-sm text-destructive">
                 {submitError.body?.message ?? submitError.message}
@@ -372,7 +387,118 @@ export default function AdminCourtsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <DialogFooter>
+
+            {/* Added: Add Users */}
+            <div className="space-y-2 border-t pt-4">
+              <Label className="text-md font-semibold">Assign Users</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Type user ID to assign"
+                  id="userInput"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const val = e.currentTarget.value.trim();
+                      if (val && !form.users.includes(val)) {
+                        setForm((f) => ({ ...f, users: [...f.users, val] }));
+                        e.currentTarget.value = "";
+                      }
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  onClick={() => {
+                    const input = document.getElementById("userInput") as HTMLInputElement;
+                    const val = input.value.trim();
+                    if (val && !form.users.includes(val)) {
+                      setForm((f) => ({ ...f, users: [...f.users, val] }));
+                      input.value = "";
+                    }
+                  }}
+                >
+                  Add
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {form.users.map((userId) => (
+                  <div key={userId} className="flex items-center gap-1 bg-secondary text-secondary-foreground px-2 py-1 rounded text-sm">
+                    {userId}
+                    <button
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, users: f.users.filter((id) => id !== userId) }))}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Added: Dynamic Time Slots */}
+            <div className="space-y-2 border-t pt-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-md font-semibold">Time Slots (Max 1.5 hrs/slot)</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setForm((f) => ({ ...f, timeSlots: [...f.timeSlots, { startTime: "08:00", endTime: "09:30" }] }))}
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Add Slot
+                </Button>
+              </div>
+              <div className="space-y-3 mt-3">
+                {form.timeSlots.map((slot, index) => (
+                  <div key={index} className="flex items-end gap-3">
+                    <div className="flex-1 space-y-1">
+                      <Label className="text-xs">Start Time</Label>
+                      <Input
+                        type="time"
+                        value={slot.startTime}
+                        onChange={(e) => {
+                          const newSlots = [...form.timeSlots];
+                          newSlots[index].startTime = e.target.value;
+                          setForm((f) => ({ ...f, timeSlots: newSlots }));
+                        }}
+                        required
+                      />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <Label className="text-xs">End Time</Label>
+                      <Input
+                        type="time"
+                        value={slot.endTime}
+                        onChange={(e) => {
+                          const newSlots = [...form.timeSlots];
+                          newSlots[index].endTime = e.target.value;
+                          setForm((f) => ({ ...f, timeSlots: newSlots }));
+                        }}
+                        required
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive mb-0.5"
+                      onClick={() => {
+                        const newSlots = form.timeSlots.filter((_, i) => i !== index);
+                        setForm((f) => ({ ...f, timeSlots: newSlots }));
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                {form.timeSlots.length === 0 && (
+                  <p className="text-sm text-muted-foreground italic">No time slots added. Court will have default availability.</p>
+                )}
+              </div>
+            </div>
+            
+            <DialogFooter className="border-t pt-4">
               <Button type="button" variant="outline" onClick={() => setModalOpen(false)} disabled={createCourt.isPending || updateCourt.isPending}>
                 Cancel
               </Button>

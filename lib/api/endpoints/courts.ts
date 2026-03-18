@@ -8,6 +8,7 @@ export interface CourtApi {
   pricePerHour: string | number;
   description?: string | null;
   status: string;
+  sport: "tennis" | "pickleball";
   createdAt?: string;
   updatedAt?: string;
   branch?: { id: string; name: string; address?: string } | null;
@@ -17,6 +18,7 @@ export interface CreateCourtBody {
   branchId: string;
   name: string;
   type?: string;
+  sport?: "tennis" | "pickleball";
   pricePerHour?: number;
   description?: string;
   status?: string;
@@ -26,6 +28,7 @@ export interface UpdateCourtBody {
   branchId?: string;
   name?: string;
   type?: string;
+  sport?: "tennis" | "pickleball";
   pricePerHour?: number;
   description?: string;
   status?: string;
@@ -33,11 +36,12 @@ export interface UpdateCourtBody {
 
 export function createCourtsEndpoints(client: ApiClient) {
   return {
-    getCourts: (params?: { branchId?: string; status?: string; search?: string }) => {
+    getCourts: (params?: { branchId?: string; status?: string; search?: string; sport?: string }) => {
       const q: Record<string, string> = {};
       if (params?.branchId) q.branchId = params.branchId;
       if (params?.status) q.status = params.status;
       if (params?.search) q.search = params.search;
+      if (params?.sport) q.sport = params.sport;
       return client.get<CourtApi[]>("/courts", {
         params: Object.keys(q).length ? q : undefined,
       });

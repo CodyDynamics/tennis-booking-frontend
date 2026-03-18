@@ -21,6 +21,7 @@ function mapCourtApiToCourt(c: CourtApi): Court {
     id: c.id,
     name: c.name,
     type: c.type === "indoor" ? "indoor" : "outdoor",
+    sport: c.sport === "pickleball" ? "pickleball" : "tennis",
     pricePerHour: typeof c.pricePerHour === "string" ? parseFloat(c.pricePerHour) : c.pricePerHour,
     description: c.description ?? undefined,
     status: c.status === "active" ? "active" : "maintenance",
@@ -90,9 +91,9 @@ function mapCoachSessionApiToCoachSession(s: CoachSessionApi): CoachSession {
 }
 
 // Courts queries
-export function useCourts(params?: { branchId?: string; status?: string; search?: string }) {
+export function useCourts(params?: { branchId?: string; status?: string; search?: string; sport?: string }) {
   return useQuery<Court[]>({
-    queryKey: ["courts", params?.branchId, params?.status, params?.search],
+    queryKey: ["courts", params?.branchId, params?.status, params?.search, params?.sport],
     queryFn: async () => {
       const list = await api.courts.getCourts(params);
       return list.map(mapCourtApiToCourt);
