@@ -105,11 +105,11 @@ export default function AdminLayout({
                 <Activity className="h-6 w-6" />
               </motion.div>
               <span className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-                Collinmatch<span className="text-blue-600">Admin</span>
+                CodyReserve<span className="text-blue-600">Admin</span>
               </span>
             </Link>
           </div>
-          
+
           <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800">
             <SportSelector />
           </div>
@@ -125,8 +125,8 @@ export default function AdminLayout({
                     variant={isActive ? "default" : "ghost"}
                     className={cn(
                       "w-full justify-start h-12 text-md transition-all rounded-xl font-medium",
-                      isActive 
-                        ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20" 
+                      isActive
+                        ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20"
                         : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                     )}
                   >
@@ -151,7 +151,7 @@ export default function AdminLayout({
             </Button>
           </div>
         </aside>
-        
+
         <main className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-950 relative">
           <div className="absolute top-0 left-0 right-0 h-64 bg-gradient-to-b from-blue-100/50 to-transparent dark:from-blue-900/10 pointer-events-none z-0"></div>
           <div className="container py-8 px-8 lg:px-12 relative z-10 max-w-7xl">

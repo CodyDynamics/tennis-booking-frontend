@@ -13,7 +13,7 @@ export function Navbar() {
   const pathname = usePathname();
   const { user, logout, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
-  
+
   // Hide navbar on auth pages
   if (pathname === "/login" || pathname === "/register" || pathname === "/forgot-password") {
     return null;
@@ -48,10 +48,10 @@ export function Navbar() {
               <Activity className="h-6 w-6" />
             </motion.div>
             <span className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-              Collinmatch<span className="text-blue-600">Sports</span>
+              CodyReserve<span className="text-blue-600">Sports</span>
             </span>
           </Link>
-          
+
           <div className="hidden md:flex items-center space-x-1">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -62,8 +62,8 @@ export function Navbar() {
                     variant={isActive ? "default" : "ghost"}
                     className={cn(
                       "transition-all duration-300 rounded-full px-5",
-                      isActive 
-                        ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 hover:bg-slate-800 shadow-md" 
+                      isActive
+                        ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 hover:bg-slate-800 shadow-md"
                         : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                     )}
                   >
@@ -73,7 +73,7 @@ export function Navbar() {
                 </Link>
               );
             })}
-            
+
             <div className="w-px h-8 bg-slate-200 dark:bg-slate-800 mx-2"></div>
 
             {showAuthButtons && (user?.role === "admin" || (user?.permissions && ["courts:view", "users:view", "roles:view", "branches:view", "bookings:view"].some((p) => user.permissions!.includes(p)))) && (

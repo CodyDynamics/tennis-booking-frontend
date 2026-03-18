@@ -48,7 +48,7 @@ export function AuthLayout({ initialMode = "login" }: AuthLayoutProps) {
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute top-[-10%] left-[-20%] w-[60%] h-[60%] rounded-full bg-blue-600/20 blur-[100px]" />
           <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-emerald-600/20 blur-[100px]" />
-          
+
           <motion.div
             animate={{
               y: [0, -30, 0],
@@ -63,7 +63,7 @@ export function AuthLayout({ initialMode = "login" }: AuthLayoutProps) {
           >
             <Circle className="h-32 w-32 text-indigo-500/10 fill-indigo-500/10 blur-sm" />
           </motion.div>
-          
+
           {mounted && confettiPositions.map((pos, i) => (
             <motion.div
               key={i}
@@ -96,7 +96,7 @@ export function AuthLayout({ initialMode = "login" }: AuthLayoutProps) {
               <Activity className="h-5 w-5" />
             </div>
             <span className="text-xl font-black tracking-tight text-white">
-              Collinmatch<span className="text-blue-500">Sports</span>
+              CodyReserve<span className="text-blue-500">Sports</span>
             </span>
           </Link>
         </div>
@@ -112,11 +112,11 @@ export function AuthLayout({ initialMode = "login" }: AuthLayoutProps) {
             <div className="inline-block p-4 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md mb-4 shadow-2xl">
               <Activity className="h-12 w-12 text-blue-400" />
             </div>
-            
+
             <h2 className="text-5xl font-black leading-tight tracking-tight">
               {mode === "login" ? "Welcome back to the court." : "Join the elite club."}
             </h2>
-            
+
             <p className="text-lg text-slate-400 max-w-md leading-relaxed">
               {mode === "login"
                 ? "Sign in to manage your bookings, discover premier tennis & pickleball courts, and elevate your game."
@@ -154,7 +154,7 @@ export function AuthLayout({ initialMode = "login" }: AuthLayoutProps) {
           <Link href="/" className="flex items-center space-x-2">
             <Activity className="h-6 w-6 text-blue-600 dark:text-blue-500" />
             <span className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
-              Collinmatch<span className="text-blue-600">Sports</span>
+              CodyReserve<span className="text-blue-600">Sports</span>
             </span>
           </Link>
         </div>
