@@ -24,6 +24,8 @@ export interface AuthResponse {
 export interface LoginInput {
   email: string;
   password: string;
+  /** When true, refresh token cookie is set for 30 days (otherwise 7 days). */
+  rememberMe?: boolean;
 }
 
 /** Body for POST /auth/register */

@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/lib/auth-store";
 import { useRolesList, usePermissionsSchema, useUpdateRolePermissions } from "@/lib/queries";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -25,7 +26,7 @@ function parsePermissions(permissions: string | null | undefined): string[] {
 }
 
 function can(permissions: string[] | undefined, permission: string, role: string) {
-  return role === "admin" || (permissions?.includes(permission) ?? false);
+  return role === "super_admin" || (permissions?.includes(permission) ?? false);
 }
 
 export default function AdminRolesPage() {
@@ -182,42 +183,42 @@ export default function AdminRolesPage() {
             )}
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-2 font-medium">Resource (Page)</th>
+            <div className="overflow-x-auto rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Resource (Page)</TableHead>
                     {allActions.map((action) => (
-                      <th key={action} className="text-left py-3 px-2 font-medium capitalize">
+                      <TableHead key={action} className="capitalize">
                         {action}
-                      </th>
+                      </TableHead>
                     ))}
-                  </tr>
-                </thead>
-                <tbody>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {schema.map((item: PermissionSchemaItem) => (
-                    <tr key={item.resource} className="border-b last:border-0">
-                      <td className="py-3 px-2 font-medium">{item.label}</td>
+                    <TableRow key={item.resource}>
+                      <TableCell className="font-medium">{item.label}</TableCell>
                       {allActions.map((action) => {
                         if (!hasAction(item, action)) {
-                          return <td key={`${item.resource}-${action}`} className="py-3 px-2 text-muted-foreground">—</td>;
+                          return <TableCell key={`${item.resource}-${action}`} className="text-muted-foreground">—</TableCell>;
                         }
                         const code = `${item.resource}:${action}`;
                         const checked = localPerms.has(code);
                         return (
-                          <td key={code} className="py-3 px-2">
+                          <TableCell key={code}>
                             <Checkbox
                               checked={checked}
                               disabled={!canUpdate}
                               onCheckedChange={() => canUpdate && togglePermission(code)}
                             />
-                          </td>
+                          </TableCell>
                         );
                       })}
-                    </tr>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>

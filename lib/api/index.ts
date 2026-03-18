@@ -7,6 +7,9 @@ import { createCourtsEndpoints } from "./endpoints/courts";
 import { createCoachesEndpoints } from "./endpoints/coaches";
 import { createUsersEndpoints } from "./endpoints/users";
 import { createBranchesEndpoints } from "./endpoints/branches";
+import { createSportsEndpoints } from "./endpoints/sports";
+import { createLocationsEndpoints } from "./endpoints/locations";
+import { createOrganizationsEndpoints } from "./endpoints/organizations";
 
 let accessTokenGetter: GetAccessToken = () => null;
 
@@ -31,6 +34,9 @@ export const api = {
   coaches: createCoachesEndpoints(client),
   users: createUsersEndpoints(client),
   branches: createBranchesEndpoints(client),
+  sports: createSportsEndpoints(client),
+  locations: createLocationsEndpoints(client),
+  organizations: createOrganizationsEndpoints(client),
 };
 
 export { ApiError } from "./client";

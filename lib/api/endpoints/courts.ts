@@ -2,20 +2,21 @@ import type { ApiClient } from "../client";
 
 export interface CourtApi {
   id: string;
-  branchId: string;
+  locationId: string | null;
   name: string;
   type: string;
   pricePerHour: string | number;
   description?: string | null;
+  imageUrl?: string | null;
   status: string;
   sport: "tennis" | "pickleball";
   createdAt?: string;
   updatedAt?: string;
-  branch?: { id: string; name: string; address?: string } | null;
+  location?: { id: string; name: string; address?: string | null; branchId: string } | null;
 }
 
 export interface CreateCourtBody {
-  branchId: string;
+  locationId: string;
   name: string;
   type?: string;
   sport?: "tennis" | "pickleball";
@@ -25,7 +26,7 @@ export interface CreateCourtBody {
 }
 
 export interface UpdateCourtBody {
-  branchId?: string;
+  locationId?: string;
   name?: string;
   type?: string;
   sport?: "tennis" | "pickleball";
@@ -36,8 +37,9 @@ export interface UpdateCourtBody {
 
 export function createCourtsEndpoints(client: ApiClient) {
   return {
-    getCourts: (params?: { branchId?: string; status?: string; search?: string; sport?: string }) => {
+    getCourts: (params?: { locationId?: string; branchId?: string; status?: string; search?: string; sport?: string }) => {
       const q: Record<string, string> = {};
+      if (params?.locationId) q.locationId = params.locationId;
       if (params?.branchId) q.branchId = params.branchId;
       if (params?.status) q.status = params.status;
       if (params?.search) q.search = params.search;

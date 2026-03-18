@@ -27,12 +27,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Search, Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import type { UserApi } from "@/lib/api/endpoints/users";
+import { AdminFilter, AdminTable } from "../components";
 
 function can(permissions: string[] | undefined, permission: string, role: string) {
-  return role === "admin" || (permissions?.includes(permission) ?? false);
+  return role === "super_admin" || (permissions?.includes(permission) ?? false);
 }
 
 export default function AdminUsersPage() {
@@ -160,83 +161,67 @@ export default function AdminUsersPage() {
         )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-4">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by email or name..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <Select value={roleId} onValueChange={setRoleId}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="All roles" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All roles</SelectItem>
-                {roles.map((r) => (
-                  <SelectItem key={r.id} value={r.id}>
-                    {r.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+      <AdminFilter
+        title="Filters"
+        searchPlaceholder="Search by email or name..."
+        searchValue={search}
+        onSearchChange={setSearch}
+      >
+        <Select value={roleId} onValueChange={setRoleId}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="All roles" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All roles</SelectItem>
+            {roles.map((r) => (
+              <SelectItem key={r.id} value={r.id}>
+                {r.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </AdminFilter>
 
       <Card>
         <CardContent className="pt-6">
-          {isLoading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-2 font-medium">Name</th>
-                    <th className="text-left py-3 px-2 font-medium">Email</th>
-                    <th className="text-left py-3 px-2 font-medium">Phone</th>
-                    <th className="text-left py-3 px-2 font-medium">Role</th>
-                    <th className="text-left py-3 px-2 font-medium">Status</th>
-                    {(canUpdate || canDelete) && (
-                      <th className="text-right py-3 px-2 font-medium">Actions</th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((rowUser) => (
-                    <tr key={rowUser.id} className="border-b last:border-0 hover:bg-muted/50">
-                      <td className="py-3 px-2 font-medium">{rowUser.fullName}</td>
-                      <td className="py-3 px-2">{rowUser.email}</td>
-                      <td className="py-3 px-2">{rowUser.phone ?? "—"}</td>
-                      <td className="py-3 px-2 capitalize">
-                        {typeof rowUser.role === "object" && rowUser.role?.name
-                          ? rowUser.role.name
-                          : rowUser.roleId}
-                      </td>
-                      <td className="py-3 px-2">
-                        <span
-                          className={
-                            rowUser.status === "active"
-                              ? "text-green-600"
-                              : "text-amber-600"
-                          }
-                        >
-                          {rowUser.status}
-                        </span>
-                      </td>
-                      {(canUpdate || canDelete) && (
-                        <td className="py-3 px-2 text-right">
+          <AdminTable<UserApi>
+            data={users}
+            keyExtractor={(u) => u.id}
+            emptyMessage="No users found."
+            isLoading={isLoading}
+            loadingNode={
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            }
+            columns={[
+              { key: "fullName", label: "Name", render: (u) => <span className="font-medium">{u.fullName}</span> },
+              { key: "email", label: "Email" },
+              { key: "phone", label: "Phone", render: (u) => u.phone ?? "—" },
+              {
+                key: "role",
+                label: "Role",
+                render: (u) =>
+                  typeof u.role === "object" && u.role?.name ? u.role.name : u.roleId,
+              },
+              {
+                key: "status",
+                label: "Status",
+                render: (u) => (
+                  <span className={u.status === "active" ? "text-green-600" : "text-amber-600"}>
+                    {u.status}
+                  </span>
+                ),
+              },
+              ...(canUpdate || canDelete
+                ? [
+                    {
+                      key: "actions",
+                      label: "Actions",
+                      headClassName: "text-right",
+                      className: "text-right",
+                      render: (rowUser: UserApi) => (
+                        <>
                           {canUpdate && (
                             <Button variant="ghost" size="icon" onClick={() => openEdit(rowUser)}>
                               <Pencil className="h-4 w-4" />
@@ -252,17 +237,13 @@ export default function AdminUsersPage() {
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           )}
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {users.length === 0 && (
-                <p className="py-8 text-center text-muted-foreground">No users found.</p>
-              )}
-            </div>
-          )}
+                        </>
+                      ),
+                    } as { key: string; label: string; headClassName?: string; className?: string; render: (row: UserApi) => React.ReactNode },
+                  ]
+                : []),
+            ]}
+          />
         </CardContent>
       </Card>
 

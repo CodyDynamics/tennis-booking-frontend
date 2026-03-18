@@ -25,6 +25,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
     formState: { errors },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
+    defaultValues: { rememberMe: false },
   });
 
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -34,7 +35,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
   const onSubmit = async (data: LoginFormValues) => {
     setSubmitError(null);
     try {
-      await login(data.email, data.password);
+      await login(data.email, data.password, data.rememberMe);
       router.push("/dashboard");
     } catch (error) {
       if (error instanceof ApiError) {
@@ -91,6 +92,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
                   type="checkbox"
                   id="remember"
                   className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  {...register("rememberMe", { setValueAs: (v) => v === true || v === "on" })}
                 />
                 <Label htmlFor="remember" className="text-sm cursor-pointer">
                   Remember Me

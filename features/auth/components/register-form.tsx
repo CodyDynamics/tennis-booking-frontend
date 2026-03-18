@@ -35,11 +35,12 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
 
   const onSubmit = async (data: RegisterFormValues) => {
     setSubmitError(null);
+    const fullName = `${data.firstName.trim()} ${data.lastName.trim()}`;
     try {
       await registerUser({
         email: data.email,
         password: data.password,
-        fullName: data.fullName,
+        fullName,
         roleId: data.roleId,
       });
       router.push("/dashboard");
@@ -58,20 +59,37 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
       <Card className="w-full shadow-soft-lg border-0 bg-transparent">
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="fullName"
-                  placeholder="John Doe"
-                  className="pl-10"
-                  {...register("fullName")}
-                />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="firstName"
+                    placeholder="John"
+                    className="pl-10"
+                    {...register("firstName")}
+                  />
+                </div>
+                {errors.firstName && (
+                  <p className="text-sm text-destructive">{errors.firstName.message}</p>
+                )}
               </div>
-              {errors.fullName && (
-                <p className="text-sm text-destructive">{errors.fullName.message}</p>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="lastName"
+                    placeholder="Doe"
+                    className="pl-10"
+                    {...register("lastName")}
+                  />
+                </div>
+                {errors.lastName && (
+                  <p className="text-sm text-destructive">{errors.lastName.message}</p>
+                )}
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -100,11 +118,13 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
                 <option value="">
                   {rolesLoading ? "Loading roles..." : "Select role..."}
                 </option>
-                {roles?.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name === "player" ? "Casual Player" : r.name === "student" ? "Student (Training Member)" : r.name}
-                  </option>
-                ))}
+                {roles
+                  ?.filter((r) => r.name !== "admin" && r.name !== "super_admin")
+                  .map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name === "player" ? "Casual Player" : r.name === "student" ? "Student (Training Member)" : r.name}
+                    </option>
+                  ))}
               </select>
               {rolesError && (
                 <p className="text-sm text-destructive">

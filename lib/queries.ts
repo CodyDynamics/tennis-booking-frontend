@@ -24,7 +24,10 @@ function mapCourtApiToCourt(c: CourtApi): Court {
     pricePerHour: typeof c.pricePerHour === "string" ? parseFloat(c.pricePerHour) : c.pricePerHour,
     description: c.description ?? undefined,
     status: c.status === "active" ? "active" : "maintenance",
-    branchId: c.branchId,
+    locationId: c.locationId ?? undefined,
+    branchId: c.location?.branchId ?? undefined,
+    locationName: c.location?.name ?? undefined,
+    imageUrl: c.imageUrl ?? undefined,
   };
 }
 
@@ -90,9 +93,9 @@ function mapCoachSessionApiToCoachSession(s: CoachSessionApi): CoachSession {
 }
 
 // Courts queries
-export function useCourts(params?: { branchId?: string; status?: string; search?: string; sport?: string }) {
+export function useCourts(params?: { locationId?: string; branchId?: string; status?: string; search?: string; sport?: string }) {
   return useQuery<Court[]>({
-    queryKey: ["courts", params?.branchId, params?.status, params?.search, params?.sport],
+    queryKey: ["courts", params?.locationId, params?.branchId, params?.status, params?.search, params?.sport],
     queryFn: async () => {
       const list = await api.courts.getCourts(params);
       return list.map(mapCourtApiToCourt);
@@ -284,11 +287,35 @@ export function useCreateReport() {
   });
 }
 
+// ----- Sports (dynamic list for admin selector) -----
+export function useSports() {
+  return useQuery({
+    queryKey: ["sports"],
+    queryFn: () => api.sports.getSports(),
+  });
+}
+
+// ----- Admin: Locations (by branch) -----
+export function useLocations(branchId?: string) {
+  return useQuery({
+    queryKey: ["locations", branchId],
+    queryFn: () => api.locations.getLocations(branchId ? { branchId } : undefined),
+  });
+}
+
 // ----- Admin: Branches -----
 export function useBranches(organizationId?: string) {
   return useQuery({
     queryKey: ["branches", organizationId],
     queryFn: () => api.branches.getBranches(organizationId ? { organizationId } : undefined),
+  });
+}
+
+// ----- Admin: Organizations -----
+export function useOrganizations() {
+  return useQuery({
+    queryKey: ["organizations"],
+    queryFn: () => api.organizations.getOrganizations(),
   });
 }
 

@@ -1,4 +1,4 @@
-export type UserRole = "admin" | "coach" | "student" | "parent" | "player";
+export type UserRole = "super_admin" | "admin" | "coach" | "student" | "parent" | "player";
 
 export type BookingType = "COURT_ONLY" | "COURT_COACH" | "TRAINING";
 
@@ -26,8 +26,11 @@ export interface Court {
   pricePerHour: number;
   description?: string;
   status: "active" | "maintenance";
-  branchId: string;
-  users?: string[]; // IDs of users added to this court
+  locationId?: string | null;
+  branchId?: string;
+  locationName?: string | null;
+  imageUrl?: string | null;
+  users?: string[];
   timeSlots?: { startTime: string; endTime: string }[];
 }
 

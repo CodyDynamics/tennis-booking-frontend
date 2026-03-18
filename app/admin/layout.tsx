@@ -16,23 +16,27 @@ import {
   ArrowLeft,
   Loader2,
   Activity,
-  LogOut
+  LogOut,
+  Building2,
+  Network,
 } from "lucide-react";
 
-const ADMIN_VIEW_PERMISSIONS = ["courts:view", "users:view", "roles:view", "branches:view", "bookings:view"];
+const ADMIN_VIEW_PERMISSIONS = ["courts:view", "users:view", "roles:view", "branches:view", "organizations:view", "locations:view", "bookings:view"];
 
-/** Required permission (view) per admin path. Admin role bypasses. */
+/** Required permission (view) per admin path. Only super_admin has full access; others need assigned permission. */
 function getRequiredPermissionForPath(path: string): string | null {
   if (path === "/admin" || path === "/admin/") return null;
   if (path.startsWith("/admin/courts")) return "courts:view";
   if (path.startsWith("/admin/users")) return "users:view";
   if (path.startsWith("/admin/roles")) return "roles:view";
+  if (path.startsWith("/admin/branches")) return "branches:view";
+  if (path.startsWith("/admin/organizations")) return "organizations:view";
   return null;
 }
 
 function canAccessAdmin(user: User | null, pathname: string): boolean {
   if (!user) return false;
-  if (user.role === "admin") return true;
+  if (user.role === "super_admin") return true;
   const required = getRequiredPermissionForPath(pathname);
   if (!required) {
     return ADMIN_VIEW_PERMISSIONS.some((p) => user!.permissions?.includes(p));
@@ -78,6 +82,8 @@ export default function AdminLayout({
     { href: "/admin/courts", label: "Courts Management", icon: MapPin },
     { href: "/admin/users", label: "Users & Members", icon: Users },
     { href: "/admin/roles", label: "Roles & Permissions", icon: Shield },
+    { href: "/admin/branches", label: "Branches", icon: Building2 },
+    { href: "/admin/organizations", label: "Organizations", icon: Network },
   ];
 
   const handleLogout = async () => {

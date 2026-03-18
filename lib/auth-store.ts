@@ -72,8 +72,15 @@ export function useAuth() {
   });
 
   const loginMutation = useMutation({
-    mutationFn: ({ email, password }: { email: string; password: string }) =>
-      api.auth.login({ email, password }),
+    mutationFn: ({
+      email,
+      password,
+      rememberMe,
+    }: {
+      email: string;
+      password: string;
+      rememberMe?: boolean;
+    }) => api.auth.login({ email, password, rememberMe }),
     onSuccess: (res) => {
       queryClient.setQueryData(["auth", "user"], mapAuthUserToUser(res.user));
     },
@@ -100,8 +107,10 @@ export function useAuth() {
     },
   });
 
-  const login = (email: string, password: string) => {
-    return loginMutation.mutateAsync({ email, password }).then((res) => mapAuthUserToUser(res.user));
+  const login = (email: string, password: string, rememberMe?: boolean) => {
+    return loginMutation
+      .mutateAsync({ email, password, rememberMe })
+      .then((res) => mapAuthUserToUser(res.user));
   };
 
   const register = (data: {
