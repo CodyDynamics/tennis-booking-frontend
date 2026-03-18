@@ -39,6 +39,20 @@ export interface RegisterInput {
   roleId: string;
 }
 
+/** Body for POST /auth/request-login-otp */
+export interface RequestLoginOtpInput {
+  email: string;
+  password: string;
+}
+
+/** Body for POST /auth/verify-login-otp */
+export interface VerifyLoginOtpInput {
+  email: string;
+  otp: string;
+  /** When true, refresh cookie is set for 30 days */
+  rememberMe?: boolean;
+}
+
 /** Body for POST /auth/forgot-password */
 export interface ForgotPasswordInput {
   email: string;

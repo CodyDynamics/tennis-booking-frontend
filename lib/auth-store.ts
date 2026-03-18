@@ -86,6 +86,26 @@ export function useAuth() {
     },
   });
 
+  const requestLoginOtpMutation = useMutation({
+    mutationFn: ({ email, password }: { email: string; password: string }) =>
+      api.auth.requestLoginOtp({ email, password }),
+  });
+
+  const verifyLoginOtpMutation = useMutation({
+    mutationFn: ({
+      email,
+      otp,
+      rememberMe,
+    }: {
+      email: string;
+      otp: string;
+      rememberMe?: boolean;
+    }) => api.auth.verifyLoginOtp({ email, otp, rememberMe }),
+    onSuccess: (res) => {
+      queryClient.setQueryData(["auth", "user"], mapAuthUserToUser(res.user));
+    },
+  });
+
   const registerMutation = useMutation({
     mutationFn: (data: {
       email: string;
@@ -113,6 +133,18 @@ export function useAuth() {
       .then((res) => mapAuthUserToUser(res.user));
   };
 
+  const requestLoginOtp = (email: string, password: string) =>
+    requestLoginOtpMutation.mutateAsync({ email, password });
+
+  const loginWithOtp = (
+    email: string,
+    otp: string,
+    rememberMe?: boolean,
+  ) =>
+    verifyLoginOtpMutation
+      .mutateAsync({ email, otp, rememberMe })
+      .then((res) => mapAuthUserToUser(res.user));
+
   const register = (data: {
     email: string;
     password: string;
@@ -132,7 +164,11 @@ export function useAuth() {
     login,
     register,
     logout,
+    requestLoginOtp,
+    loginWithOtp,
     isLoggingIn: loginMutation.isPending,
     isRegistering: registerMutation.isPending,
+    isRequestingOtp: requestLoginOtpMutation.isPending,
+    isVerifyingOtp: verifyLoginOtpMutation.isPending,
   };
 }
