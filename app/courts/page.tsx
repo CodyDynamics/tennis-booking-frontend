@@ -14,13 +14,15 @@ export default function CourtsPage() {
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [selectedCourt, setSelectedCourt] = useState<Court | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterType, setFilterType] = useState<"all" | "indoor" | "outdoor" | "tennis" | "pickleball">("all");
+  const [filterType, setFilterType] = useState<
+    "all" | "indoor" | "outdoor" | "tennis" | "pickleball"
+  >("all");
 
   const { data: locations = [], isLoading: loadingLocations } = useBranches();
   const { data: courts = [], isLoading: loadingCourts } = useCourts({
-    branchId: selectedLocation || undefined
+    branchId: selectedLocation || undefined,
   });
 
   const handleBook = (court: Court) => {
@@ -29,30 +31,40 @@ export default function CourtsPage() {
   };
 
   const filteredCourts = courts.filter((court) => {
-    const matchesSearch = court.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch =
+      court.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       court.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     // As mock, if filter is tennis or pickleball, just mock filter by name if actual type doesn't exist
     let matchesType = true;
     if (filterType === "indoor" || filterType === "outdoor") {
-       matchesType = court.type === filterType;
+      matchesType = court.type === filterType;
     } else if (filterType === "tennis") {
-       matchesType = court.name.toLowerCase().includes("tennis") || (court.description?.toLowerCase().includes("tennis") ?? false) || !court.name.toLowerCase().includes("pickleball");
+      matchesType =
+        court.name.toLowerCase().includes("tennis") ||
+        (court.description?.toLowerCase().includes("tennis") ?? false) ||
+        !court.name.toLowerCase().includes("pickleball");
     } else if (filterType === "pickleball") {
-       matchesType = court.name.toLowerCase().includes("pickle") || (court.description?.toLowerCase().includes("pickle") ?? false);
+      matchesType =
+        court.name.toLowerCase().includes("pickle") ||
+        (court.description?.toLowerCase().includes("pickle") ?? false);
     }
-    
+
     return matchesSearch && matchesType;
   });
 
-  const isLoading = Boolean(loadingLocations || (selectedLocation && loadingCourts));
+  const isLoading = Boolean(
+    loadingLocations || (selectedLocation && loadingCourts),
+  );
 
   if (isLoading) {
     return (
       <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground animate-pulse">Loading sports facilities...</p>
+          <p className="text-muted-foreground animate-pulse">
+            Loading sports facilities...
+          </p>
         </div>
       </div>
     );
@@ -75,7 +87,8 @@ export default function CourtsPage() {
                 Find Your Playground
               </h1>
               <p className="text-muted-foreground text-xl">
-                Choose a location to discover premium tennis and pickleball courts near you.
+                Choose a location to discover premium tennis and pickleball
+                courts near you.
               </p>
             </div>
 
@@ -94,7 +107,9 @@ export default function CourtsPage() {
                     <Building2 className="w-20 h-20 text-slate-300 dark:text-slate-700 group-hover:text-blue-500 transition-colors duration-300" />
                   </div>
                   <div className="p-6 bg-white dark:bg-slate-950">
-                    <h3 className="text-2xl font-bold mb-2 group-hover:text-blue-600 transition-colors">{loc.name}</h3>
+                    <h3 className="text-2xl font-bold mb-2 group-hover:text-blue-600 transition-colors">
+                      {loc.name}
+                    </h3>
                     <div className="flex items-center text-muted-foreground text-sm">
                       <MapPin className="w-4 h-4 mr-1" />
                       <span>{loc.address || "Main Facility"}</span>
@@ -115,17 +130,20 @@ export default function CourtsPage() {
           >
             <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
               <div>
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   onClick={() => setSelectedLocation(null)}
                   className="mb-4 hover:bg-slate-100 dark:hover:bg-slate-800 -ml-4"
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" /> Back to Locations
                 </Button>
                 <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
-                  {locations.find(l => l.id === selectedLocation)?.name} Courts
+                  {locations.find((l) => l.id === selectedLocation)?.name}{" "}
+                  Courts
                 </h1>
-                <p className="text-muted-foreground text-lg mt-2">Book your preferred court for your next game</p>
+                <p className="text-muted-foreground text-lg mt-2">
+                  Book your preferred court for your next game
+                </p>
               </div>
             </div>
 
@@ -140,19 +158,54 @@ export default function CourtsPage() {
                 />
               </div>
               <div className="flex flex-wrap gap-2 items-center">
-                <Button variant={filterType === "all" ? "default" : "outline"} onClick={() => setFilterType("all")} className="rounded-full">All</Button>
-                <Button variant={filterType === "tennis" ? "default" : "outline"} onClick={() => setFilterType("tennis")} className="rounded-full">Tennis</Button>
-                <Button variant={filterType === "pickleball" ? "default" : "outline"} onClick={() => setFilterType("pickleball")} className="rounded-full">Pickleball</Button>
+                <Button
+                  variant={filterType === "all" ? "default" : "outline"}
+                  onClick={() => setFilterType("all")}
+                  className="rounded-full"
+                >
+                  All
+                </Button>
+                <Button
+                  variant={filterType === "tennis" ? "default" : "outline"}
+                  onClick={() => setFilterType("tennis")}
+                  className="rounded-full"
+                >
+                  Tennis
+                </Button>
+                <Button
+                  variant={filterType === "pickleball" ? "default" : "outline"}
+                  onClick={() => setFilterType("pickleball")}
+                  className="rounded-full"
+                >
+                  Pickleball
+                </Button>
                 <div className="w-px h-8 bg-slate-300 dark:bg-slate-700 mx-1"></div>
-                <Button variant={filterType === "indoor" ? "default" : "outline"} onClick={() => setFilterType("indoor")} className="rounded-full">Indoor</Button>
-                <Button variant={filterType === "outdoor" ? "default" : "outline"} onClick={() => setFilterType("outdoor")} className="rounded-full">Outdoor</Button>
+                <Button
+                  variant={filterType === "indoor" ? "default" : "outline"}
+                  onClick={() => setFilterType("indoor")}
+                  className="rounded-full"
+                >
+                  Indoor
+                </Button>
+                <Button
+                  variant={filterType === "outdoor" ? "default" : "outline"}
+                  onClick={() => setFilterType("outdoor")}
+                  className="rounded-full"
+                >
+                  Outdoor
+                </Button>
               </div>
             </div>
-            
+
             {filteredCourts.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                 {filteredCourts.map((court, index) => (
-                  <CourtCard key={court.id} court={court} onBook={handleBook} index={index} />
+                  <CourtCard
+                    key={court.id}
+                    court={court}
+                    onBook={handleBook}
+                    index={index}
+                  />
                 ))}
               </div>
             ) : (
@@ -166,12 +219,16 @@ export default function CourtsPage() {
                 </div>
                 <h3 className="text-2xl font-bold mb-2">No Courts Found</h3>
                 <p className="text-muted-foreground text-lg max-w-md mx-auto">
-                  We couldn't find any courts matching your current filters. Try selecting a different sport type or clear your search.
+                  We couldn&apos;t find any courts matching your current filters. Try
+                  selecting a different sport type or clear your search.
                 </p>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="mt-6 rounded-full px-8"
-                  onClick={() => { setSearchQuery(""); setFilterType("all"); }}
+                  onClick={() => {
+                    setSearchQuery("");
+                    setFilterType("all");
+                  }}
                 >
                   Clear Filters
                 </Button>
