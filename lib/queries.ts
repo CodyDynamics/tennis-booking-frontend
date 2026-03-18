@@ -14,7 +14,6 @@ import type { CourtApi } from "@/lib/api/endpoints/courts";
 import type { CoachApi } from "@/lib/api/endpoints/coaches";
 import type { UserApi } from "@/lib/api/endpoints/users";
 import type { PermissionSchemaItem } from "@/lib/api/endpoints/roles";
-import { mockReports } from "./mock-data";
 
 function mapCourtApiToCourt(c: CourtApi): Court {
   return {
@@ -143,21 +142,11 @@ export function useSessions(coachId?: string, studentId?: string) {
   });
 }
 
-// Reports queries
-export function useReports(studentId?: string, coachId?: string) {
+// Reports queries (no API yet – returns empty list)
+export function useReports(_studentId?: string, _coachId?: string) {
   return useQuery<ProgressReport[]>({
-    queryKey: ["reports", studentId, coachId],
-    queryFn: async () => {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      let reports = mockReports;
-      if (studentId) {
-        reports = reports.filter((r) => r.studentId === studentId);
-      }
-      if (coachId) {
-        reports = reports.filter((r) => r.coachId === coachId);
-      }
-      return reports;
-    },
+    queryKey: ["reports", _studentId, _coachId],
+    queryFn: async () => [],
   });
 }
 

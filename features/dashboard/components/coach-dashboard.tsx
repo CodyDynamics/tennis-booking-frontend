@@ -5,18 +5,28 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { mockSessions, mockReports, mockUsers } from "@/lib/mock-data";
-import { Calendar, Users, FileText, Plus, Clock, CheckCircle2 } from "lucide-react";
+import { useAuth } from "@/lib/auth-store";
+import { useCoaches, useSessions, useReports, useUsers } from "@/lib/queries";
+import { Calendar, Users, FileText, Plus, Clock } from "lucide-react";
 import Link from "next/link";
-import { format } from "date-fns";
+
+const todayStr = () => new Date().toISOString().split("T")[0];
 
 export function CoachDashboard() {
-  const todaySessions = mockSessions.filter(
-    (session) => session.sessionDate === new Date().toISOString().split("T")[0]
-  );
-  const pendingReports = mockReports.filter((report) => !report.sessionId);
+  const { user } = useAuth();
+  const { data: coaches = [] } = useCoaches();
+  const coach = coaches.find((c) => c.userId === user?.id);
+  const coachId = coach?.id;
 
-  const students = mockUsers.filter((u) => u.role === "student").slice(0, 5);
+  const { data: sessions = [] } = useSessions(coachId, undefined);
+  const { data: reports = [] } = useReports(undefined, coachId);
+  const { data: users = [] } = useUsers();
+
+  const todaySessions = sessions.filter((s) => s.sessionDate === todayStr());
+  const pendingReports = reports.filter((r) => !r.sessionId);
+  const students = users
+    .filter((u) => (u.role?.name ?? "").toLowerCase() === "student")
+    .slice(0, 5);
 
   return (
     <div className="space-y-6">
@@ -33,7 +43,7 @@ export function CoachDashboard() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Sessions</CardTitle>
+            <CardTitle className="text-sm font-medium">Today&apos;s Sessions</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -59,7 +69,7 @@ export function CoachDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">5</div>
+            <div className="text-2xl font-bold">{students.length}</div>
             <p className="text-xs text-muted-foreground">active students</p>
           </CardContent>
         </Card>
@@ -73,7 +83,7 @@ export function CoachDashboard() {
         >
           <Card className="shadow-soft">
             <CardHeader>
-              <CardTitle>Today's Sessions</CardTitle>
+              <CardTitle>Today&apos;s Sessions</CardTitle>
               <CardDescription>Your scheduled sessions for today</CardDescription>
             </CardHeader>
             <CardContent>
@@ -125,7 +135,7 @@ export function CoachDashboard() {
                       <div className="flex items-center gap-3">
                         <Avatar>
                           <AvatarFallback className="bg-primary text-primary-foreground">
-                            {student.fullName.charAt(0)}
+                            {(student.fullName ?? student.email ?? "?").charAt(0).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <div>

@@ -2,31 +2,38 @@
 
 import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { mockBookings, mockUsers, mockCourts, mockCoaches } from "@/lib/mock-data";
+import { useAuth } from "@/lib/auth-store";
+import { useBookings, useCourts, useCoaches, useUsers } from "@/lib/queries";
 import { DollarSign, Users, Calendar, TrendingUp, Activity } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 export function AdminDashboard() {
-  const totalBookings = mockBookings.length;
-  const totalRevenue = mockBookings.reduce((sum, b) => sum + b.totalPrice, 0);
-  const activeStudents = mockUsers.filter((u) => u.role === "student" && u.status === "active").length;
-  const activeCoaches = mockCoaches.length;
-  const totalCourts = mockCourts.length;
+  const { user } = useAuth();
+  const { data: bookings = [] } = useBookings(user?.id);
+  const { data: courts = [] } = useCourts();
+  const { data: coaches = [] } = useCoaches();
+  const { data: users = [] } = useUsers();
 
-  // Revenue by court
-  const revenueByCourt = mockCourts.map((court) => {
-    const courtBookings = mockBookings.filter((b) => b.courtId === court.id);
+  const totalBookings = bookings.length;
+  const totalRevenue = bookings.reduce((sum, b) => sum + b.totalPrice, 0);
+  const activeStudents = users.filter(
+    (u) => (u.role?.name ?? "").toLowerCase() === "student" && u.status === "active"
+  ).length;
+  const activeCoaches = coaches.length;
+  const totalCourts = courts.length;
+
+  const revenueByCourt = courts.map((court) => {
+    const courtBookings = bookings.filter((b) => b.courtId === court.id);
     return {
       name: court.name,
       revenue: courtBookings.reduce((sum, b) => sum + b.totalPrice, 0),
     };
   });
 
-  // Booking status distribution
   const bookingStatusData = [
-    { name: "Confirmed", value: mockBookings.filter((b) => b.bookingStatus === "confirmed").length },
-    { name: "Pending", value: mockBookings.filter((b) => b.bookingStatus === "pending").length },
-    { name: "Completed", value: mockBookings.filter((b) => b.bookingStatus === "completed").length },
+    { name: "Confirmed", value: bookings.filter((b) => b.bookingStatus === "confirmed").length },
+    { name: "Pending", value: bookings.filter((b) => b.bookingStatus === "pending").length },
+    { name: "Completed", value: bookings.filter((b) => b.bookingStatus === "completed").length },
   ];
 
   const COLORS = ["#3b82f6", "#60a5fa", "#93c5fd"];
