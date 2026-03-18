@@ -23,12 +23,12 @@ export function AuthLayout({ initialMode = "login" }: AuthLayoutProps) {
 
   // Generate fixed positions for confetti stars to avoid hydration mismatch
   const confettiPositions = useMemo(() => {
-    return Array.from({ length: 8 }, (_, i) => ({
-      top: (i * 12.5 + 10) % 100, // Fixed positions based on index
-      left: (i * 15 + 20) % 100,
-      delay: i * 0.3,
-      duration: 3 + (i % 3) * 0.5,
-      xOffset: (i % 5) * 4 - 8,
+    return Array.from({ length: 12 }, (_, i) => ({
+      top: (i * 11 + 5) % 100,
+      left: (i * 17 + 10) % 100,
+      delay: i * 0.2,
+      duration: 3 + (i % 4) * 0.5,
+      xOffset: (i % 3) * 10 - 5,
     }));
   }, []);
 
@@ -37,67 +37,38 @@ export function AuthLayout({ initialMode = "login" }: AuthLayoutProps) {
   };
 
   return (
-    <div className="flex min-h-screen relative">
-      {/* Left Panel - Tennis Illustration */}
+    <div className="flex min-h-screen relative font-sans">
+      {/* Left Panel - Premium Abstract Illustration */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-500 to-blue-700 relative overflow-hidden"
+        className="hidden lg:flex lg:w-5/12 bg-slate-950 relative overflow-hidden"
       >
-        {/* Decorative elements */}
+        {/* Decorative elements & glow */}
         <div className="absolute inset-0 overflow-hidden">
-          {/* Floating tennis balls */}
+          <div className="absolute top-[-10%] left-[-20%] w-[60%] h-[60%] rounded-full bg-blue-600/20 blur-[100px]" />
+          <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-emerald-600/20 blur-[100px]" />
+          
           <motion.div
             animate={{
-              y: [0, -20, 0],
-              rotate: [0, 360],
+              y: [0, -30, 0],
+              rotate: [0, 90],
             }}
             transition={{
-              duration: 4,
+              duration: 8,
               repeat: Infinity,
               ease: "easeInOut",
             }}
-            className="absolute top-20 left-20"
+            className="absolute top-32 left-32"
           >
-            <Circle className="h-16 w-16 text-white/30 fill-white/30" />
-          </motion.div>
-          <motion.div
-            animate={{
-              y: [0, 30, 0],
-              rotate: [360, 0],
-            }}
-            transition={{
-              duration: 5,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: 1,
-            }}
-            className="absolute bottom-32 right-32"
-          >
-            <Circle className="h-12 w-12 text-white/20 fill-white/20" />
-          </motion.div>
-          <motion.div
-            animate={{
-              y: [0, -15, 0],
-              rotate: [0, -360],
-            }}
-            transition={{
-              duration: 6,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: 2,
-            }}
-            className="absolute top-1/2 right-20"
-          >
-            <Activity className="h-20 w-20 text-white/25" />
+            <Circle className="h-32 w-32 text-indigo-500/10 fill-indigo-500/10 blur-sm" />
           </motion.div>
           
-          {/* Confetti-like shapes */}
           {mounted && confettiPositions.map((pos, i) => (
             <motion.div
               key={i}
               animate={{
-                y: [0, -30, 0],
+                y: [0, -40, 0],
                 x: [0, pos.xOffset, 0],
                 rotate: [0, 180, 360],
               }}
@@ -113,86 +84,111 @@ export function AuthLayout({ initialMode = "login" }: AuthLayoutProps) {
                 left: `${pos.left}%`,
               }}
             >
-              <Star className="h-4 w-4 text-white/20" />
+              <Star className="h-3 w-3 text-white/10" />
             </motion.div>
           ))}
         </div>
 
         {/* Logo */}
-        <div className="absolute top-6 left-6 z-20">
-          <Link href="/" className="flex items-center space-x-2">
-            <Activity className="h-6 w-6 text-white" />
-            <span className="text-xl font-bold text-white">Tennis Booking</span>
+        <div className="absolute top-8 left-10 z-20">
+          <Link href="/" className="flex items-center space-x-3 group">
+            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg p-1.5 text-white">
+              <Activity className="h-5 w-5" />
+            </div>
+            <span className="text-xl font-black tracking-tight text-white">
+              Vigor<span className="text-blue-500">Sports</span>
+            </span>
           </Link>
         </div>
 
         {/* Main content */}
-        <div className="relative z-10 flex flex-col justify-center items-center px-12 text-white">
+        <div className="relative z-10 flex flex-col justify-center items-center px-16 w-full text-white">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="text-center space-y-6"
+            transition={{ delay: 0.3 }}
+            className="w-full space-y-8"
           >
-            <div className="flex justify-center mb-8">
-              <motion.div
-                animate={{ rotate: [0, 360] }}
-                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-              >
-                <Activity className="h-32 w-32 text-white" />
-              </motion.div>
+            <div className="inline-block p-4 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md mb-4 shadow-2xl">
+              <Activity className="h-12 w-12 text-blue-400" />
             </div>
             
-            <h2 className="text-4xl font-bold">
-              {mode === "login" ? "Welcome Back!" : "Join Us Today!"}
+            <h2 className="text-5xl font-black leading-tight tracking-tight">
+              {mode === "login" ? "Welcome back to the court." : "Join the elite club."}
             </h2>
             
-            <p className="text-xl text-blue-100 max-w-md mx-auto">
+            <p className="text-lg text-slate-400 max-w-md leading-relaxed">
               {mode === "login"
-                ? "Book your favorite tennis court and improve your game with professional coaching."
-                : "Start your tennis journey with our premium courts and expert coaches."}
+                ? "Sign in to manage your bookings, discover premier tennis & pickleball courts, and elevate your game."
+                : "Create an account to unlock exclusive access to top-tier sports facilities and expert coaching."}
             </p>
 
-            <div className="flex items-center justify-center gap-6 mt-12">
-              <div className="text-center">
-                <Trophy className="h-8 w-8 mx-auto mb-2 text-yellow-300" />
-                <p className="text-sm text-blue-100">Premium Courts</p>
+            <div className="grid grid-cols-2 gap-6 mt-16 pt-10 border-t border-white/10">
+              <div className="flex items-start space-x-4">
+                <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400">
+                  <Trophy className="h-6 w-6" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-200">Premium Courts</h4>
+                  <p className="text-xs text-slate-500 mt-1">Indoor & Outdoor</p>
+                </div>
               </div>
-              <div className="text-center">
-                <Star className="h-8 w-8 mx-auto mb-2 text-yellow-300" />
-                <p className="text-sm text-blue-100">Expert Coaches</p>
-              </div>
-              <div className="text-center">
-                <Circle className="h-8 w-8 mx-auto mb-2 text-yellow-300 fill-yellow-300" />
-                <p className="text-sm text-blue-100">Track Progress</p>
+              <div className="flex items-start space-x-4">
+                <div className="p-2 rounded-lg bg-purple-500/20 text-purple-400">
+                  <Star className="h-6 w-6" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-200">Pro Coaches</h4>
+                  <p className="text-xs text-slate-500 mt-1">Certified Experts</p>
+                </div>
               </div>
             </div>
           </motion.div>
         </div>
       </motion.div>
 
-      {/* Right Panel - Form */}
-      <div className="flex-1 flex items-center justify-center bg-white p-4 lg:p-8">
-        <div className="w-full max-w-md">
+      {/* Right Panel - Form box */}
+      <div className="flex-1 flex items-center justify-center bg-slate-50 dark:bg-slate-900 p-4 lg:p-12 relative overflow-hidden">
+        {/* Mobile Logo */}
+        <div className="lg:hidden absolute top-6 left-6 z-20">
+          <Link href="/" className="flex items-center space-x-2">
+            <Activity className="h-6 w-6 text-blue-600 dark:text-blue-500" />
+            <span className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
+              Vigor<span className="text-blue-600">Sports</span>
+            </span>
+          </Link>
+        </div>
+
+        <div className="w-full max-w-[440px] z-10">
           <AnimatePresence mode="wait">
             {mode === "login" ? (
               <motion.div
                 key="login"
-                initial={{ opacity: 0, x: 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -50 }}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.3 }}
+                className="bg-white dark:bg-slate-950 p-8 sm:p-10 rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800"
               >
+                <div className="mb-8">
+                  <h3 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">Sign In</h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm">Enter your credentials to access your account.</p>
+                </div>
                 <LoginForm onSwitchToRegister={switchMode} />
               </motion.div>
             ) : (
               <motion.div
                 key="register"
-                initial={{ opacity: 0, x: 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -50 }}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.3 }}
+                className="bg-white dark:bg-slate-950 p-8 sm:p-10 rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800"
               >
+                <div className="mb-8">
+                  <h3 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">Create Account</h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm">Join us to start booking and playing.</p>
+                </div>
                 <RegisterForm onSwitchToLogin={switchMode} />
               </motion.div>
             )}

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { ApiError } from "@/lib/api";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +16,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { TimeRangePicker } from "@/components/ui/time-range-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BookingTypeSelector } from "@/features/booking/components/booking-type-selector";
 import { useCreateCourtBooking } from "@/lib/queries";
@@ -27,13 +26,28 @@ import { bookingSchema } from "@/features/booking/schemas/booking.schema";
 import type { BookingFormValues } from "@/features/booking/schemas/booking.schema";
 import type { Court } from "@/types";
 import { formatCurrency } from "@/lib/format";
-import { format, differenceInDays, eachDayOfInterval } from "date-fns";
+import { format, eachDayOfInterval } from "date-fns";
 import { useRouter } from "next/navigation";
+import { Clock, CalendarDays } from "lucide-react";
 
 interface CourtBookingModalProps {
   court: Court | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+const DURATIONS = [30, 60, 90] as const;
+type Duration = typeof DURATIONS[number];
+
+function timeToMinutes(timeStr: string) {
+  const [h, m] = timeStr.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function minutesToTime(mins: number) {
+  const h = Math.floor(mins / 60).toString().padStart(2, "0");
+  const m = (mins % 60).toString().padStart(2, "0");
+  return `${h}:${m}`;
 }
 
 export function CourtBookingModal({
@@ -45,21 +59,44 @@ export function CourtBookingModal({
     from: undefined,
     to: undefined,
   });
-  const [selectedStartTime, setSelectedStartTime] = useState<string>();
-  const [selectedEndTime, setSelectedEndTime] = useState<string>();
+  
   const [bookingType, setBookingType] = useState<"COURT_ONLY" | "COURT_COACH" | "TRAINING">("COURT_ONLY");
   const [selectedCoachId, setSelectedCoachId] = useState<string>("");
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // New states for dynamic time slots
+  const [selectedMainSlot, setSelectedMainSlot] = useState<{ startTime: string; endTime: string } | null>(null);
+  const [duration, setDuration] = useState<Duration>(60);
+  const [selectedBlock, setSelectedBlock] = useState<{ start: string; end: string } | null>(null);
+  const [bookedBlocksInfo, setBookedBlocksInfo] = useState<Record<string, boolean>>({});
 
   const { user } = useAuth();
   const createBooking = useCreateCourtBooking();
   const { data: coaches } = useCoaches();
   const router = useRouter();
 
-  // Early return if modal is closed to prevent hydration issues
+  // Load mocks from localStorage
+  useEffect(() => {
+    if (court) {
+      try {
+        const stored = localStorage.getItem(`booked_${court.id}`);
+        if (stored) {
+          setBookedBlocksInfo(JSON.parse(stored));
+        }
+      } catch (e) {}
+    }
+  }, [court]);
+
   if (!open || !court) return null;
 
-  const selectedCoach = coaches?.find(c => c.id === selectedCoachId);
+  const defaultSlots = [
+    { startTime: "08:00", endTime: "10:30" },
+    { startTime: "14:00", endTime: "15:30" },
+    { startTime: "19:00", endTime: "20:30" },
+  ];
+  const timeSlots = court.timeSlots?.length ? court.timeSlots : defaultSlots;
+
+  const selectedCoach = coaches?.find((c) => c.id === selectedCoachId);
 
   const {
     handleSubmit,
@@ -74,29 +111,32 @@ export function CourtBookingModal({
     },
   });
 
-  // Set courtId when modal opens so schema validation passes (court is from props, not user input)
   useEffect(() => {
     if (open && court) {
       setValue("courtId", court.id);
     }
   }, [open, court, setValue]);
 
+  useEffect(() => {
+    if (selectedBlock) {
+      setValue("startTime", selectedBlock.start);
+      setValue("endTime", selectedBlock.end);
+    }
+  }, [selectedBlock, setValue]);
+
   const priceBreakdown = useBookingCalculations(
     court,
     selectedCoach || null,
     dateRange,
-    selectedStartTime,
-    selectedEndTime,
+    selectedBlock?.start,
+    selectedBlock?.end,
     bookingType
   );
 
   const onSubmit = async (data: BookingFormValues) => {
-    if (!court || !user || !data.dateRange.from || !data.dateRange.to) return;
+    if (!court || !user || !data.dateRange.from || !data.dateRange.to || !selectedBlock) return;
 
-    const startHour = parseInt(data.startTime.split(":")[0]);
-    const endHour = parseInt(data.endTime.split(":")[0]);
-    const hours = endHour - startHour;
-    const durationMinutes = hours * 60;
+    const durationMinutes = timeToMinutes(selectedBlock.end) - timeToMinutes(selectedBlock.start);
 
     setSubmitError(null);
     try {
@@ -112,111 +152,96 @@ export function CourtBookingModal({
           coachId: data.coachId || null,
           bookingType: data.bookingType,
           bookingDate: format(date, "yyyy-MM-dd"),
-          startTime: data.startTime,
-          endTime: data.endTime,
+          startTime: selectedBlock.start,
+          endTime: selectedBlock.end,
           durationMinutes,
           totalPrice: priceBreakdown?.total || 0,
         });
       }
 
+      // Mock disabling functionality by saving booked block in localStorage
+      const newBooked = { ...bookedBlocksInfo };
+      for (const date of dates) {
+         const dateStr = format(date, "yyyy-MM-dd");
+         newBooked[`${dateStr}_${selectedBlock.start}_${selectedBlock.end}`] = true;
+      }
+      localStorage.setItem(`booked_${court.id}`, JSON.stringify(newBooked));
+      setBookedBlocksInfo(newBooked);
+
       reset();
       setDateRange({ from: undefined, to: undefined });
-      setSelectedStartTime(undefined);
-      setSelectedEndTime(undefined);
+      setSelectedMainSlot(null);
+      setSelectedBlock(null);
       setBookingType("COURT_ONLY");
       setSelectedCoachId("");
       setSubmitError(null);
       onOpenChange(false);
       router.push("/dashboard");
     } catch (error) {
-      if (error instanceof ApiError) {
-        const msg = error.body?.message;
-        setSubmitError(Array.isArray(msg) ? msg[0] : (msg ?? "Booking failed."));
-      } else {
-        setSubmitError("Booking failed. Please try again.");
-      }
+       setSubmitError("Booking failed. Please try again.");
     }
   };
+
+  const generatedBlocks = useMemo(() => {
+    if (!selectedMainSlot) return [];
+    const blocks: { start: string; end: string; booked: boolean }[] = [];
+    let startMins = timeToMinutes(selectedMainSlot.startTime);
+    const endSlotMins = timeToMinutes(selectedMainSlot.endTime);
+    
+    while (startMins + duration <= endSlotMins) {
+      const endMins = startMins + duration;
+      const startStr = minutesToTime(startMins);
+      const endStr = minutesToTime(endMins);
+      
+      // Check if this block intersects with any booked block for the selected dates
+      let isBooked = false;
+      if (dateRange.from && dateRange.to) {
+        const dates = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
+        for (const date of dates) {
+           const dStr = format(date, "yyyy-MM-dd");
+           const key = `${dStr}_${startStr}_${endStr}`;
+           if (bookedBlocksInfo[key]) {
+              isBooked = true;
+              break;
+           }
+        }
+      }
+
+      blocks.push({ start: startStr, end: endStr, booked: isBooked });
+      startMins += duration; // or adjust step to allow overlapping choices, e.g. startMins += 30
+    }
+    return blocks;
+  }, [selectedMainSlot, duration, bookedBlocksInfo, dateRange]);
 
   const handleRangeSelect = (range: { from: Date | undefined; to: Date | undefined }) => {
     setDateRange(range);
     if (range.from && range.to) {
       setValue("dateRange", { from: range.from, to: range.to });
     }
-  };
-
-  const handleFromTimeChange = (time: string) => {
-    setSelectedStartTime(time);
-    setValue("startTime", time);
-    // Reset end time if new start time is after current end time
-    if (selectedEndTime) {
-      const startHour = parseInt(time.split(":")[0]);
-      const endHour = parseInt(selectedEndTime.split(":")[0]);
-      if (endHour <= startHour) {
-        setSelectedEndTime(undefined);
-        setValue("endTime", "");
-      }
-    }
-  };
-
-  const handleToTimeChange = (time: string | undefined) => {
-    if (time) {
-      setSelectedEndTime(time);
-      setValue("endTime", time);
-    } else {
-      setSelectedEndTime(undefined);
-      setValue("endTime", "");
-    }
-  };
-
-  const handleBookingTypeChange = (type: "COURT_ONLY" | "COURT_COACH" | "TRAINING") => {
-    setBookingType(type);
-    setValue("bookingType", type);
-    if (type === "COURT_ONLY") {
-      setSelectedCoachId("");
-      setValue("coachId", undefined);
-    }
-  };
-
-  const handleCoachSelect = (coachId: string) => {
-    setSelectedCoachId(coachId);
-    setValue("coachId", coachId);
+    setSelectedBlock(null); // Reset block
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl">Book {court.name}</DialogTitle>
-          <DialogDescription>
-            Select your preferred date and time slot. {court.type === "indoor" ? "Indoor" : "Outdoor"} court - {formatCurrency(Number(court.pricePerHour))}/hour
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <BookingTypeSelector
-              value={bookingType}
-              onChange={handleBookingTypeChange}
-            />
-            {errors.bookingType && (
-              <p className="text-sm text-destructive mt-2">{errors.bookingType.message}</p>
-            )}
-          </motion.div>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 rounded-2xl">
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white rounded-t-2xl">
+           <DialogTitle className="text-3xl font-bold flex items-center gap-2">
+             Book {court.name}
+           </DialogTitle>
+           <DialogDescription className="text-blue-100 mt-2 text-md">
+             {court.type === "indoor" ? "Indoor" : "Outdoor"} facility • {formatCurrency(Number(court.pricePerHour))}/hour
+           </DialogDescription>
+        </div>
+        
+        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-8">
+          <BookingTypeSelector value={bookingType} onChange={(v) => { setBookingType(v); setValue("bookingType", v); }} />
 
           {(bookingType === "COURT_COACH" || bookingType === "TRAINING") && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <Label className="text-base font-semibold mb-3 block">Select Coach</Label>
-              <Select value={selectedCoachId} onValueChange={handleCoachSelect}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a coach" />
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              <Label className="text-base font-semibold mb-3 block">Select Professional Coach</Label>
+              <Select value={selectedCoachId} onValueChange={(id) => { setSelectedCoachId(id); setValue("coachId", id); }}>
+                <SelectTrigger className="h-12 border-slate-200">
+                  <SelectValue placeholder="Choose a coach for your session" />
                 </SelectTrigger>
                 <SelectContent>
                   {coaches?.map((coach) => (
@@ -226,115 +251,125 @@ export function CourtBookingModal({
                   ))}
                 </SelectContent>
               </Select>
-              {errors.coachId && (
-                <p className="text-sm text-destructive mt-2">{errors.coachId.message}</p>
-              )}
             </motion.div>
           )}
 
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Label className="text-base font-semibold mb-3 block">Select Date Range</Label>
-            <DateRangePicker
-              selectedRange={dateRange}
-              onSelectRange={handleRangeSelect}
-              minDate={new Date()}
-            />
-            {errors.dateRange && (
-              <p className="text-sm text-destructive mt-2">
-                {errors.dateRange.from?.message || errors.dateRange.to?.message}
-              </p>
-            )}
-          </motion.div>
-
-          {dateRange.from && dateRange.to && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <TimeRangePicker
-                fromTime={selectedStartTime}
-                toTime={selectedEndTime}
-                onFromTimeChange={handleFromTimeChange}
-                onToTimeChange={handleToTimeChange}
-                startHour={8}
-                endHour={22}
-                intervalMinutes={60}
-              />
-              {errors.startTime && (
-                <p className="text-sm text-destructive mt-2">{errors.startTime.message}</p>
-              )}
-              {errors.endTime && (
-                <p className="text-sm text-destructive mt-2">{errors.endTime.message}</p>
-              )}
-            </motion.div>
-          )}
-
-          {submitError && (
-            <p className="text-sm text-destructive">{submitError}</p>
-          )}
-          {dateRange.from && dateRange.to && selectedStartTime && selectedEndTime && priceBreakdown && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="p-4 bg-blue-50 rounded-lg border border-blue-200"
-            >
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Booking Summary</p>
-                    <p className="font-medium">
-                      {format(dateRange.from, "MMM dd")} - {format(dateRange.to, "MMM dd, yyyy")}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {selectedStartTime} - {selectedEndTime} • {priceBreakdown.days} day(s) • {priceBreakdown.hoursPerDay} hour(s)/day
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Total</p>
-                    <p className="text-2xl font-bold text-primary">{formatCurrency(priceBreakdown.total)}</p>
-                  </div>
-                </div>
-                <div className="pt-3 border-t border-blue-200 space-y-1">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Court ({priceBreakdown.days} days × {formatCurrency(priceBreakdown.courtPrice)})</span>
-                    <span className="font-medium">{formatCurrency(priceBreakdown.courtPrice * priceBreakdown.days)}</span>
-                  </div>
-                  {priceBreakdown.coachPrice && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Coach ({priceBreakdown.days} days × {formatCurrency(priceBreakdown.coachPrice)})</span>
-                      <span className="font-medium">{formatCurrency(priceBreakdown.coachPrice * priceBreakdown.days)}</span>
+          <div className="grid md:grid-cols-2 gap-8">
+            <div className="space-y-4">
+               <Label className="text-base font-semibold flex items-center gap-2"><CalendarDays className="w-5 h-5 text-blue-500" /> Select Date</Label>
+               <div className="p-4 border border-slate-200 rounded-xl bg-slate-50">
+                 <DateRangePicker selectedRange={dateRange} onSelectRange={handleRangeSelect} minDate={new Date()} />
+               </div>
+            </div>
+            
+            <AnimatePresence>
+              {dateRange.from && dateRange.to && (
+                <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                  
+                  <div className="space-y-3">
+                    <Label className="text-base font-semibold flex items-center gap-2"><Clock className="w-5 h-5 text-blue-500" /> Choose Time Slot</Label>
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+                      {timeSlots.map((slot, i) => {
+                        const isSelected = selectedMainSlot?.startTime === slot.startTime;
+                        return (
+                          <Button
+                            key={i}
+                            type="button"
+                            variant={isSelected ? "default" : "outline"}
+                            className={`h-auto py-3 ${isSelected ? 'bg-blue-600 ring-2 ring-blue-200 ring-offset-1' : 'hover:bg-slate-100'}`}
+                            onClick={() => { setSelectedMainSlot(slot); setSelectedBlock(null); }}
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-sm">{slot.startTime}</span>
+                              <span className="text-xs opacity-80">to {slot.endTime}</span>
+                            </div>
+                          </Button>
+                        );
+                      })}
                     </div>
+                  </div>
+
+                  {selectedMainSlot && (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 pt-4 border-t border-slate-100">
+                      <Label className="text-base font-semibold">Select Duration</Label>
+                      <div className="flex gap-3">
+                        {DURATIONS.map(d => (
+                          <Button
+                            key={d}
+                            type="button"
+                            variant={duration === d ? "default" : "secondary"}
+                            onClick={() => { setDuration(d); setSelectedBlock(null); }}
+                            className="flex-1 rounded-full font-semibold"
+                          >
+                            {d} Mins
+                          </Button>
+                        ))}
+                      </div>
+
+                      <div className="pt-2">
+                        <Label className="text-sm text-muted-foreground mb-2 block">Available specific times:</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {generatedBlocks.map((block, i) => {
+                            const isSelected = selectedBlock?.start === block.start;
+                            return (
+                               <Button
+                                 key={i}
+                                 type="button"
+                                 disabled={block.booked}
+                                 variant={isSelected ? "default" : "outline"}
+                                 className={isSelected ? 'bg-green-600 hover:bg-green-700 text-white border-transparent' : (block.booked ? 'opacity-50 cursor-not-allowed bg-slate-100' : 'hover:border-green-500')}
+                                 onClick={() => setSelectedBlock(block)}
+                               >
+                                 {block.start} - {block.end}
+                                 {block.booked && <span className="ml-2 text-xs">(Booked)</span>}
+                               </Button>
+                            );
+                          })}
+                          {generatedBlocks.length === 0 && (
+                             <p className="text-sm text-amber-600 col-span-2 py-2">
+                               Duration is too long for the selected slot. Try a shorter duration.
+                             </p>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
                   )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {submitError && <p className="text-sm text-destructive font-medium bg-red-50 p-3 rounded-lg">{submitError}</p>}
+          
+          {selectedBlock && priceBreakdown && (
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="p-6 bg-slate-900 text-white rounded-xl shadow-inner mt-8">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h4 className="text-lg font-semibold text-blue-300">Booking Summary</h4>
+                  <p className="text-slate-300 mt-1">
+                    {dateRange.from && format(dateRange.from, "MMM dd")} 
+                    {dateRange.to && dateRange.from?.getTime() !== dateRange.to?.getTime() && ` - ${format(dateRange.to, "MMM dd")}`}
+                  </p>
+                  <p className="text-slate-300 font-medium text-lg mt-1 block">
+                    {selectedBlock.start} to {selectedBlock.end} ({duration} mins)
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-slate-400">Total Price</p>
+                  <p className="text-4xl font-black text-white">{formatCurrency(priceBreakdown.total)}</p>
                 </div>
               </div>
             </motion.div>
           )}
 
-          <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            {(!dateRange.from || !dateRange.to || !selectedStartTime || !selectedEndTime) && !createBooking.isPending && (
-              <p className="text-sm text-muted-foreground order-last sm:order-first sm:mr-auto">
-                Select date range and time slot to enable booking.
-              </p>
-            )}
-            <Button type="button" variant="outline" onClick={() => {
-              reset();
-              setDateRange({ from: undefined, to: undefined });
-              setSelectedStartTime(undefined);
-              setSelectedEndTime(undefined);
-              onOpenChange(false);
-            }}>
-              Cancel
-            </Button>
+          <DialogFooter className="pt-6 border-t mt-8 gap-3 sm:gap-0">
+            <Button type="button" variant="ghost" className="text-slate-500" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button 
               type="submit" 
-              disabled={!dateRange.from || !dateRange.to || !selectedStartTime || !selectedEndTime || createBooking.isPending}
+              className="bg-blue-600 hover:bg-blue-700 px-8 py-6 text-lg rounded-full shadow-lg hover:shadow-xl transition-all"
+              disabled={!selectedBlock || createBooking.isPending}
             >
-              {createBooking.isPending ? "Booking..." : "Confirm Booking"}
+              {createBooking.isPending ? "Confirming..." : "Confirm Booking"}
             </Button>
           </DialogFooter>
         </form>
