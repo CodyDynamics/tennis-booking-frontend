@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +23,7 @@ interface CourtCardProps {
 export function CourtCard({ court, onBook, index = 0, showBooking = true, detailHref }: CourtCardProps) {
   const [imgError, setImgError] = useState(false);
   const isPickleball = court.name.toLowerCase().includes("pickle") || court.description?.toLowerCase().includes("pickle");
-  const bgGradient = isPickleball 
+  const bgGradient = isPickleball
     ? "from-emerald-400 to-teal-600"
     : "from-blue-500 to-indigo-600";
   const showImage = court.imageUrl && !imgError;
@@ -30,12 +31,14 @@ export function CourtCard({ court, onBook, index = 0, showBooking = true, detail
   const content = (
     <>
       <div className={`relative h-56 p-6 overflow-hidden flex flex-col justify-between ${!showImage ? `bg-gradient-to-br ${bgGradient}` : ""}`}>
-        {showImage ? (
+        {showImage && court.imageUrl ? (
           <>
-            <img
+            <Image
               src={court.imageUrl}
-              alt=""
-              className="absolute inset-0 w-full h-full object-cover"
+              alt={court.name}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               onError={() => setImgError(true)}
             />
             <div className="absolute inset-0 bg-black/40" />
@@ -47,7 +50,7 @@ export function CourtCard({ court, onBook, index = 0, showBooking = true, detail
           </>
         )}
         <div className="relative z-10 flex justify-between items-start">
-          <Badge 
+          <Badge
             className={`px-3 py-1 text-xs font-semibold backdrop-blur-md bg-white/20 border-white/30 text-white flex items-center gap-1 ${court.status === "active" ? "" : "opacity-80"}`}
           >
             {court.status === "active" ? (
@@ -69,7 +72,7 @@ export function CourtCard({ court, onBook, index = 0, showBooking = true, detail
           </div>
         </div>
       </div>
-      
+
       <div className="p-6 flex flex-col flex-1">
         <div className="flex justify-between items-end mb-4">
           <div>
@@ -82,17 +85,17 @@ export function CourtCard({ court, onBook, index = 0, showBooking = true, detail
             </div>
           </div>
         </div>
-        
+
         {court.description && (
           <p className="text-slate-600 dark:text-slate-300 text-sm line-clamp-2 mb-6 flex-1">
             {court.description}
           </p>
         )}
-        
+
         <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800">
           {showBooking && onBook ? (
-            <Button 
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onBook(court); }} 
+            <Button
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onBook(court); }}
               className={`w-full h-12 text-md rounded-xl font-bold shadow-lg transition-transform ${isPickleball ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20 text-white" : "bg-primary hover:opacity-90 text-primary-foreground shadow-brand"} group-hover:scale-[1.02] active:scale-95`}
               disabled={court.status !== "active"}
             >

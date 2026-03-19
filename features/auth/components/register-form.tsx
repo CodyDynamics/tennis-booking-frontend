@@ -44,7 +44,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
         fullName,
         roleId: data.roleId,
       });
-      router.push("/dashboard");
+      router.push("/");
     } catch (error) {
       if (error instanceof ApiError) {
         const msg = error.body?.message;

@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -9,6 +11,7 @@ import {
   CalendarDays,
   Activity,
   MapPin,
+  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocations } from "@/lib/queries";
@@ -24,30 +27,101 @@ const INTRO_VIDEO_MP4 =
 const MAP_EMBED_URL =
   "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d214587.225799977!2d-97.0!3d32.8!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x864c3e0e575776b5%3A0x2a0e3da9a2e2e2e2!2sDallas-Fort%20Worth%20Metroplex!5e0!3m2!1sen!2sus!4v1234567890";
 
+// Fallback when partner image fails to load (neutral facility vibe)
+const DEFAULT_PARTNER_IMAGE =
+  "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=400&h=300&fit=crop&q=80";
+
 type Partner = { name: string; logo: string; href: string; featured?: boolean };
 const PARTNERS: Partner[] = [
   {
     name: "CodyReserve",
-    logo: "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=200&h=140&fit=crop",
+    logo: "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=400&h=300&fit=crop&q=80",
     href: "#",
     featured: true,
   },
   {
     name: "Vigor Sports",
-    logo: "https://images.unsplash.com/photo-1622163642998-1ee2d2e71c2a?w=200&h=140&fit=crop",
+    logo: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop&q=80",
     href: "#",
   },
   {
     name: "Texas Region",
-    logo: "https://images.unsplash.com/photo-1595435933710-7115915394ef?w=200&h=140&fit=crop",
+    logo: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400&h=300&fit=crop&q=80",
     href: "#",
   },
   {
     name: "Premier Facilities",
-    logo: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=200&h=140&fit=crop",
+    logo: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&h=300&fit=crop&q=80",
     href: "#",
   },
 ];
+
+function PartnerCard({ partner }: { partner: Partner }) {
+  const [imgError, setImgError] = useState(false);
+  const [fallbackAlsoError, setFallbackAlsoError] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const useDefault = imgError && !fallbackAlsoError;
+  const src = useDefault ? DEFAULT_PARTNER_IMAGE : partner.logo;
+  const showPlaceholder = fallbackAlsoError || (!imgLoaded && !imgError);
+  const isFeatured = partner.featured;
+
+  const handleImgError = () => {
+    if (imgError) setFallbackAlsoError(true);
+    else setImgError(true);
+  };
+
+  return (
+    <a
+      href={partner.href}
+      className="group flex-shrink-0 w-[300px] sm:w-[320px] flex flex-col rounded-2xl overflow-hidden border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-primary/40"
+      style={{
+        borderColor: isFeatured ? "hsl(var(--gold-accent))" : "hsl(var(--border))",
+        boxShadow: isFeatured
+          ? "0 8px 32px hsl(var(--gold-accent) / 0.12)"
+          : "0 4px 20px rgba(0,0,0,0.06)",
+      }}
+    >
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+        {showPlaceholder && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-gradient-to-br from-primary/10 via-muted to-primary/5">
+            <Building2 className="h-14 w-14 text-primary/60 mb-2" />
+            <span className="text-xs font-medium text-muted-foreground">{partner.name}</span>
+          </div>
+        )}
+        {!fallbackAlsoError && (
+          <Image
+            src={src}
+            alt={partner.name}
+            fill
+            className="object-cover transition-all duration-500 group-hover:scale-110"
+            sizes="(max-width: 640px) 300px, 320px"
+            onError={handleImgError}
+            onLoad={() => setImgLoaded(true)}
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-gradient-to-t from-black/80 to-transparent">
+          <span className="text-white font-bold text-sm drop-shadow-md">
+            {partner.name}
+          </span>
+        </div>
+        {isFeatured && (
+          <div className="absolute top-3 right-3 rounded-full bg-primary px-2.5 py-1 text-xs font-bold text-primary-foreground shadow-lg">
+            Featured
+          </div>
+        )}
+      </div>
+      <div className="p-5 bg-card border-t border-border">
+        <p className="font-bold text-foreground text-center text-lg tracking-tight">
+          {partner.name}
+        </p>
+        <p className="text-xs text-muted-foreground text-center mt-1">
+          Facility partner
+        </p>
+      </div>
+    </a>
+  );
+}
 
 export default function Home() {
   const { data: locations = [] } = useLocations();
@@ -258,30 +332,7 @@ export default function Home() {
         <div className="relative w-full overflow-hidden">
           <div className="flex w-max flex-nowrap animate-scroll-partners gap-6 pl-4 pr-4">
             {[...PARTNERS, ...PARTNERS].map((partner, i) => (
-              <a
-                key={`${partner.name}-${i}`}
-                href={partner.href}
-                className="group flex-shrink-0 w-[280px] flex flex-col items-center p-6 rounded-2xl border bg-muted/50 transition-all hover:shadow-lg"
-                style={{
-                  borderColor: partner.featured
-                    ? "hsl(var(--gold-accent))"
-                    : "hsl(var(--border))",
-                  boxShadow: partner.featured
-                    ? "0 4px 20px hsl(var(--gold-accent) / 0.15)"
-                    : undefined,
-                }}
-              >
-                <div className="w-full aspect-[4/3] max-w-[160px] rounded-xl overflow-hidden mb-3 bg-muted">
-                  <img
-                    src={partner.logo}
-                    alt={partner.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                  />
-                </div>
-                <span className="font-bold text-foreground text-center">
-                  {partner.name}
-                </span>
-              </a>
+              <PartnerCard key={`${partner.name}-${i}`} partner={partner} />
             ))}
           </div>
         </div>

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, MapPin, Users, Calendar } from "lucide-react";
 import { useCourt, useCoaches } from "@/lib/queries";
-import { useMemo } from "react";
 import { CourtBookingModal } from "@/features/courts/components/court-booking-modal";
 
 const DEFAULT_COACH_AVATAR =
@@ -14,6 +14,56 @@ const DEFAULT_COACH_AVATAR =
 
 const DEFAULT_COURT_IMAGE =
   "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&q=80";
+
+function GalleryImage({
+  src,
+  alt,
+  fallbackSrc,
+}: {
+  src: string;
+  alt: string;
+  fallbackSrc: string;
+}) {
+  const [err, setErr] = useState(false);
+  const actualSrc = err ? fallbackSrc : src;
+  return (
+    <div className="aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 relative">
+      <Image
+        src={actualSrc}
+        alt={alt}
+        fill
+        className="object-cover"
+        sizes="(max-width: 768px) 100vw, 50vw"
+        onError={() => setErr(true)}
+      />
+    </div>
+  );
+}
+
+function CoachAvatar({
+  src,
+  alt,
+  fallbackSrc,
+}: {
+  src: string;
+  alt: string;
+  fallbackSrc: string;
+}) {
+  const [err, setErr] = useState(false);
+  const actualSrc = err ? fallbackSrc : src;
+  return (
+    <div className="relative w-14 h-14 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700 shrink-0">
+      <Image
+        src={actualSrc}
+        alt={alt}
+        fill
+        className="object-cover"
+        sizes="56px"
+        onError={() => setErr(true)}
+      />
+    </div>
+  );
+}
 
 export default function CourtDetailPage() {
   const params = useParams();
@@ -58,17 +108,21 @@ export default function CourtDetailPage() {
       {/* Banner fullwidth + title/description overlay */}
       <section className="relative w-full min-h-[320px] md:min-h-[420px] bg-slate-900">
         {bannerUrl && !bannerError ? (
-          <img
+          <Image
             src={bannerUrl}
             alt=""
-            className="absolute inset-0 w-full h-full object-cover"
+            fill
+            className="object-cover"
+            sizes="100vw"
             onError={() => setBannerError(true)}
           />
         ) : bannerError ? (
-          <img
+          <Image
             src={DEFAULT_COURT_IMAGE}
             alt=""
-            className="absolute inset-0 w-full h-full object-cover"
+            fill
+            className="object-cover"
+            sizes="100vw"
           />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-slate-700 to-slate-900" />
@@ -127,20 +181,12 @@ export default function CourtDetailPage() {
           <h2 className="text-2xl font-bold mb-6">Gallery</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {galleryUrls.map((url, i) => (
-              <div
+              <GalleryImage
                 key={i}
-                className="aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800"
-              >
-                <img
-                  src={url}
-                  alt={`Court ${i + 1}`}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src = DEFAULT_COURT_IMAGE;
-                  }}
-                />
-              </div>
+                src={url}
+                alt={`Court ${i + 1}`}
+                fallbackSrc={DEFAULT_COURT_IMAGE}
+              />
             ))}
           </div>
         </section>
@@ -159,10 +205,10 @@ export default function CourtDetailPage() {
                 className="rounded-xl border border-slate-200 dark:border-slate-800 p-6 bg-white dark:bg-slate-900 shadow-sm"
               >
                 <div className="flex items-center gap-4">
-                  <img
+                  <CoachAvatar
                     src={coach.user?.avatarUrl || DEFAULT_COACH_AVATAR}
                     alt={coach.user?.fullName ?? "Coach"}
-                    className="w-14 h-14 rounded-full object-cover bg-slate-200 dark:bg-slate-700"
+                    fallbackSrc={DEFAULT_COACH_AVATAR}
                   />
                   <div>
                     <p className="font-semibold text-lg">

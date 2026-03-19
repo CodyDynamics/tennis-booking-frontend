@@ -63,7 +63,7 @@ export default function AdminLayout({
       return;
     }
     if (!isLoading && user && !allowed) {
-      router.push("/dashboard");
+      router.push("/");
     }
   }, [isLoading, isAuthenticated, user, allowed, router]);
 
