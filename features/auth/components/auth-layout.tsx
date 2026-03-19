@@ -7,6 +7,10 @@ import { RegisterForm } from "./register-form";
 import Link from "next/link";
 import { Circle, Activity, Trophy, Star } from "lucide-react";
 
+// Hero image: tennis court (Unsplash, free to use)
+const AUTH_HERO_IMAGE =
+  "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=1200&q=80";
+
 type AuthMode = "login" | "register";
 
 interface AuthLayoutProps {
@@ -38,16 +42,22 @@ export function AuthLayout({ initialMode = "login" }: AuthLayoutProps) {
 
   return (
     <div className="flex min-h-screen relative font-sans">
-      {/* Left Panel - Premium Abstract Illustration */}
+      {/* Left Panel - Tennis court hero image + overlay */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className="hidden lg:flex lg:w-5/12 bg-slate-950 relative overflow-hidden"
       >
+        {/* Background image: tennis court */}
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${AUTH_HERO_IMAGE})` }}
+        />
+        <div className="absolute inset-0 bg-slate-950/75" />
         {/* Decorative elements & glow */}
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-[-10%] left-[-20%] w-[60%] h-[60%] rounded-full bg-blue-600/20 blur-[100px]" />
-          <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-emerald-600/20 blur-[100px]" />
+          <div className="absolute top-[-10%] left-[-20%] w-[60%] h-[60%] rounded-full bg-primary/15 blur-[100px]" />
+          <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-emerald-600/15 blur-[100px]" />
 
           <motion.div
             animate={{
@@ -152,7 +162,7 @@ export function AuthLayout({ initialMode = "login" }: AuthLayoutProps) {
         {/* Mobile Logo */}
         <div className="lg:hidden absolute top-6 left-6 z-20">
           <Link href="/" className="flex items-center space-x-2">
-            <Activity className="h-6 w-6 text-blue-600 dark:text-blue-500" />
+            <Activity className="h-6 w-6 text-primary" />
             <span className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
               CodyReserve
             </span>

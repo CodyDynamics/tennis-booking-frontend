@@ -4,15 +4,31 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Home, Calendar, Users, FileText, LogIn, User, LogOut, Shield, Activity } from "lucide-react";
+import { Users, LogIn, User, LogOut, Shield, Activity, MapPin, ChevronDown, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-store";
 import { useRouter } from "next/navigation";
+import { useLocations } from "@/lib/queries";
+import { useState, useRef, useEffect } from "react";
 
 export function Navbar() {
   const pathname = usePathname();
   const { user, logout, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const [locationOpen, setLocationOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const { data: locations = [] } = useLocations();
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setLocationOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Hide navbar on auth pages
   if (pathname === "/login" || pathname === "/register" || pathname === "/forgot-password") {
@@ -28,11 +44,8 @@ export function Navbar() {
   const showAuthButtons = !isLoading;
 
   const navItems = [
-    { href: "/courts", label: "Courts", icon: Calendar },
     { href: "/coaches", label: "Coaches", icon: Users },
-    { href: "/reports", label: "Reports", icon: FileText },
-    { href: "/booking-history", label: "History", icon: Calendar },
-    { href: "/dashboard", label: "Dashboard", icon: Home },
+    { href: "/booking-history", label: "History", icon: History },
   ];
 
   return (
@@ -43,11 +56,11 @@ export function Navbar() {
             <motion.div
               whileHover={{ rotate: 180, scale: 1.1 }}
               transition={{ duration: 0.3 }}
-              className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl p-2 text-white shadow-lg shadow-blue-500/30"
+              className="bg-primary rounded-xl p-2 text-primary-foreground shadow-brand"
             >
               <Activity className="h-6 w-6" />
             </motion.div>
-            <span className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+            <span className="text-2xl font-black tracking-tight text-foreground">
               CodyReserve
             </span>
           </Link>
@@ -63,8 +76,8 @@ export function Navbar() {
                     className={cn(
                       "transition-all duration-300 rounded-full px-5",
                       isActive
-                        ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 hover:bg-slate-800 shadow-md"
-                        : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                        ? "bg-primary text-primary-foreground hover:opacity-90 shadow-brand"
+                        : "text-muted-foreground hover:bg-muted"
                     )}
                   >
                     <Icon className="mr-2 h-4 w-4" />
@@ -74,12 +87,57 @@ export function Navbar() {
               );
             })}
 
+            {/* Location dropdown */}
+            <div className="relative" ref={dropdownRef}>
+              <Button
+                variant={pathname.startsWith("/locations/") ? "default" : "ghost"}
+                className={cn(
+                  "transition-all duration-300 rounded-full px-5",
+                  pathname.startsWith("/locations/")
+                    ? "bg-primary text-primary-foreground hover:opacity-90 shadow-brand"
+                    : "text-muted-foreground hover:bg-muted"
+                )}
+                onClick={() => setLocationOpen((o) => !o)}
+                onMouseEnter={() => setLocationOpen(true)}
+              >
+                <MapPin className="mr-2 h-4 w-4" />
+                <span className="font-semibold">Location</span>
+                <ChevronDown className={cn("ml-1 h-4 w-4 transition-transform", locationOpen && "rotate-180")} />
+              </Button>
+              {locationOpen && (
+                <div
+                  className="absolute top-full left-0 mt-1 py-2 min-w-[220px] rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl z-50"
+                  onMouseLeave={() => setLocationOpen(false)}
+                >
+                  {locations.length === 0 ? (
+                    <div className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">No locations</div>
+                  ) : (
+                    locations.map((loc) => (
+                      <Link
+                        key={loc.id}
+                        href={`/locations/${loc.id}/courts`}
+                        className="block px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        onClick={() => setLocationOpen(false)}
+                      >
+                        {loc.name}
+                        {loc.address && (
+                          <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                            {loc.address}
+                          </span>
+                        )}
+                      </Link>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="w-px h-8 bg-slate-200 dark:bg-slate-800 mx-2"></div>
 
             {showAuthButtons && (user?.role === "admin" || (user?.permissions && ["courts:view", "users:view", "roles:view", "branches:view", "bookings:view"].some((p) => user.permissions!.includes(p)))) && (
               <Link href="/admin">
-                <Button variant="outline" className={cn("rounded-full border-blue-200 dark:border-blue-900", pathname.startsWith("/admin") && "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400")}>
-                  <Shield className="mr-2 h-4 w-4 text-blue-500" />
+                <Button variant="outline" className={cn("rounded-full border-border", pathname.startsWith("/admin") && "bg-primary/10 text-primary border-primary/30")}>
+                  <Shield className="mr-2 h-4 w-4 text-primary" />
                   Admin
                 </Button>
               </Link>
@@ -100,7 +158,7 @@ export function Navbar() {
                 )}
                 {!isAuthenticated && (
                   <Link href="/login" className="ml-2">
-                    <Button className="rounded-full bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 px-6 font-bold">
+                    <Button className="rounded-full bg-primary hover:opacity-90 text-primary-foreground shadow-brand px-6 font-bold">
                       Sign In <LogIn className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>
@@ -131,7 +189,7 @@ export function Navbar() {
                     </Button>
                   </Link>
                   <Link href="/login">
-                    <Button size="sm" className="rounded-full bg-blue-600 hover:bg-blue-700 px-4 font-bold">
+                    <Button size="sm" className="rounded-full bg-primary hover:opacity-90 text-primary-foreground px-4 font-bold">
                       Sign In <LogIn className="ml-1 h-4 w-4" />
                     </Button>
                   </Link>

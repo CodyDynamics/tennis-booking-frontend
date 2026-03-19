@@ -177,7 +177,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
               )}
               <Button
                 type="submit"
-                className="w-full text-md font-bold h-11 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20"
+                className="w-full text-md font-bold h-11 bg-primary hover:opacity-90 text-primary-foreground shadow-brand"
                 disabled={isLoggingIn}
               >
                 {isLoggingIn ? "Logging in..." : "Login"}
@@ -243,7 +243,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
               )}
               <Button
                 type="submit"
-                className="w-full text-md font-bold h-11 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20"
+                className="w-full text-md font-bold h-11 bg-primary hover:opacity-90 text-primary-foreground shadow-brand"
                 disabled={isVerifyingOtp}
               >
                 {isVerifyingOtp ? "Verifying..." : "Verify & sign in"}
@@ -319,7 +319,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
             </p>
             <Button
               type="submit"
-              className="w-full text-md font-bold h-11 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20"
+              className="w-full text-md font-bold h-11 bg-primary hover:opacity-90 text-primary-foreground shadow-brand"
               disabled={isRequestingOtp}
             >
               {isRequestingOtp ? "Sending code..." : "Continue"}

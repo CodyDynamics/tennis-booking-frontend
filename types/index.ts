@@ -30,6 +30,10 @@ export interface Court {
   branchId?: string;
   locationName?: string | null;
   imageUrl?: string | null;
+  /** Array of image URLs for gallery */
+  imageGallery?: string[];
+  /** Google Maps embed URL */
+  mapEmbedUrl?: string | null;
   users?: string[];
   timeSlots?: { startTime: string; endTime: string }[];
 }

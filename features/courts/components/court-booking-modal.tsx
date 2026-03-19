@@ -75,7 +75,28 @@ export function CourtBookingModal({
   const { data: coaches } = useCoaches();
   const router = useRouter();
 
-  // Load mocks from localStorage
+  const defaultSlots = [
+    { startTime: "08:00", endTime: "10:30" },
+    { startTime: "14:00", endTime: "15:30" },
+    { startTime: "19:00", endTime: "20:30" },
+  ];
+  const timeSlots = court?.timeSlots?.length ? court.timeSlots : defaultSlots;
+  const selectedCoach = coaches?.find((c) => c.id === selectedCoachId);
+
+  const {
+    handleSubmit,
+    formState: { errors },
+    reset,
+    setValue,
+  } = useForm<BookingFormValues>({
+    resolver: zodResolver(bookingSchema),
+    mode: "onSubmit",
+    defaultValues: {
+      bookingType: "COURT_ONLY",
+      courtId: "",
+    },
+  });
+
   useEffect(() => {
     if (court) {
       try {
@@ -86,30 +107,6 @@ export function CourtBookingModal({
       } catch (e) {}
     }
   }, [court]);
-
-  if (!open || !court) return null;
-
-  const defaultSlots = [
-    { startTime: "08:00", endTime: "10:30" },
-    { startTime: "14:00", endTime: "15:30" },
-    { startTime: "19:00", endTime: "20:30" },
-  ];
-  const timeSlots = court.timeSlots?.length ? court.timeSlots : defaultSlots;
-
-  const selectedCoach = coaches?.find((c) => c.id === selectedCoachId);
-
-  const {
-    handleSubmit,
-    formState: { errors },
-    reset,
-    setValue,
-  } = useForm<BookingFormValues>({
-    resolver: zodResolver(bookingSchema),
-    defaultValues: {
-      bookingType: "COURT_ONLY",
-      courtId: "",
-    },
-  });
 
   useEffect(() => {
     if (open && court) {
@@ -125,12 +122,12 @@ export function CourtBookingModal({
   }, [selectedBlock, setValue]);
 
   const priceBreakdown = useBookingCalculations(
-    court,
+    court ?? null,
     selectedCoach || null,
     dateRange,
     selectedBlock?.start,
     selectedBlock?.end,
-    bookingType
+    bookingType,
   );
 
   const onSubmit = async (data: BookingFormValues) => {
@@ -176,7 +173,7 @@ export function CourtBookingModal({
       setSelectedCoachId("");
       setSubmitError(null);
       onOpenChange(false);
-      router.push("/dashboard");
+      router.push("/booking-history");
     } catch (error) {
        setSubmitError("Booking failed. Please try again.");
     }
@@ -218,17 +215,19 @@ export function CourtBookingModal({
     if (range.from && range.to) {
       setValue("dateRange", { from: range.from, to: range.to });
     }
-    setSelectedBlock(null); // Reset block
+    setSelectedBlock(null);
   };
+
+  if (!open || !court) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 rounded-2xl">
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white rounded-t-2xl">
+        <div className="bg-primary p-6 text-primary-foreground rounded-t-2xl">
            <DialogTitle className="text-3xl font-bold flex items-center gap-2">
              Book {court.name}
            </DialogTitle>
-           <DialogDescription className="text-blue-100 mt-2 text-md">
+           <DialogDescription className="text-primary-foreground/85 mt-2 text-md">
              {court.type === "indoor" ? "Indoor" : "Outdoor"} facility • {formatCurrency(Number(court.pricePerHour))}/hour
            </DialogDescription>
         </div>
@@ -256,7 +255,7 @@ export function CourtBookingModal({
 
           <div className="grid md:grid-cols-2 gap-8">
             <div className="space-y-4">
-               <Label className="text-base font-semibold flex items-center gap-2"><CalendarDays className="w-5 h-5 text-blue-500" /> Select Date</Label>
+               <Label className="text-base font-semibold flex items-center gap-2"><CalendarDays className="w-5 h-5 text-primary" /> Select Date</Label>
                <div className="p-4 border border-slate-200 rounded-xl bg-slate-50">
                  <DateRangePicker selectedRange={dateRange} onSelectRange={handleRangeSelect} minDate={new Date()} />
                </div>
@@ -267,7 +266,7 @@ export function CourtBookingModal({
                 <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
                   
                   <div className="space-y-3">
-                    <Label className="text-base font-semibold flex items-center gap-2"><Clock className="w-5 h-5 text-blue-500" /> Choose Time Slot</Label>
+                    <Label className="text-base font-semibold flex items-center gap-2"><Clock className="w-5 h-5 text-primary" /> Choose Time Slot</Label>
                     <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
                       {timeSlots.map((slot, i) => {
                         const isSelected = selectedMainSlot?.startTime === slot.startTime;
@@ -276,7 +275,7 @@ export function CourtBookingModal({
                             key={i}
                             type="button"
                             variant={isSelected ? "default" : "outline"}
-                            className={`h-auto py-3 ${isSelected ? 'bg-blue-600 ring-2 ring-blue-200 ring-offset-1' : 'hover:bg-slate-100'}`}
+                            className={`h-auto py-3 ${isSelected ? "bg-primary text-primary-foreground ring-2 ring-primary/30 ring-offset-1" : "hover:bg-muted"}`}
                             onClick={() => { setSelectedMainSlot(slot); setSelectedBlock(null); }}
                           >
                             <div className="flex flex-col">
@@ -326,7 +325,7 @@ export function CourtBookingModal({
                             );
                           })}
                           {generatedBlocks.length === 0 && (
-                             <p className="text-sm text-amber-600 col-span-2 py-2">
+                             <p className="text-sm text-primary col-span-2 py-2">
                                Duration is too long for the selected slot. Try a shorter duration.
                              </p>
                           )}
@@ -345,7 +344,7 @@ export function CourtBookingModal({
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="p-6 bg-slate-900 text-white rounded-xl shadow-inner mt-8">
               <div className="flex justify-between items-start">
                 <div>
-                  <h4 className="text-lg font-semibold text-blue-300">Booking Summary</h4>
+                  <h4 className="text-lg font-semibold text-primary-foreground/90">Booking Summary</h4>
                   <p className="text-slate-300 mt-1">
                     {dateRange.from && format(dateRange.from, "MMM dd")} 
                     {dateRange.to && dateRange.from?.getTime() !== dateRange.to?.getTime() && ` - ${format(dateRange.to, "MMM dd")}`}
@@ -366,7 +365,7 @@ export function CourtBookingModal({
             <Button type="button" variant="ghost" className="text-slate-500" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button 
               type="submit" 
-              className="bg-blue-600 hover:bg-blue-700 px-8 py-6 text-lg rounded-full shadow-lg hover:shadow-xl transition-all"
+              className="bg-primary hover:opacity-90 text-primary-foreground px-8 py-6 text-lg rounded-full shadow-brand transition-all"
               disabled={!selectedBlock || createBooking.isPending}
             >
               {createBooking.isPending ? "Confirming..." : "Confirm Booking"}

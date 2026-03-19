@@ -22,7 +22,7 @@ import { useCreateCoachSession } from "@/lib/queries";
 import { useAuth } from "@/lib/auth-store";
 import type { Coach } from "@/types";
 import { format, differenceInDays, eachDayOfInterval } from "date-fns";
-import { Clock, DollarSign } from "lucide-react";
+import { Clock, DollarSign, CalendarDays } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { coachSessionSchema, type CoachSessionFormValues } from "@/features/coaches/schemas/coach-session.schema";
 
@@ -53,12 +53,17 @@ export function CoachBookingModal({
     formState: { errors },
     reset,
     setValue,
+    watch,
   } = useForm<CoachSessionFormValues>({
     resolver: zodResolver(coachSessionSchema),
+    mode: "onSubmit",
     defaultValues: {
       sessionType: "private",
+      duration: "60",
     },
   });
+
+  const sessionType = watch("sessionType");
 
   const onSubmit = async (data: CoachSessionFormValues) => {
     if (!coach || !user || !data.dateRange.from || !data.dateRange.to) return;
@@ -90,7 +95,7 @@ export function CoachBookingModal({
       setSelectedDuration("60");
       setSubmitError(null);
       onOpenChange(false);
-      router.push("/dashboard");
+      router.push("/booking-history");
     } catch (error) {
       if (error instanceof ApiError) {
         const msg = error.body?.message;
@@ -124,20 +129,22 @@ export function CoachBookingModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl">Book Session with {coach.user?.fullName}</DialogTitle>
-          <DialogDescription>
-            Schedule a coaching session. Rate: ${coach.hourlyRate}/hour
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Label className="text-base font-semibold mb-3 block">Select Date Range</Label>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 rounded-2xl">
+        <div className="bg-primary p-6 text-primary-foreground rounded-t-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+              Book Session with {coach.user?.fullName}
+            </DialogTitle>
+            <DialogDescription className="text-primary-foreground/85 mt-2 text-md">
+              Professional coaching • ${coach.hourlyRate}/hour
+            </DialogDescription>
+          </DialogHeader>
+        </div>
+        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-8">
+          <div className="rounded-xl border border-slate-200 bg-slate-50/50 dark:bg-slate-900/30 p-5 space-y-3">
+            <Label className="text-base font-semibold flex items-center gap-2">
+              <CalendarDays className="w-5 h-5 text-primary" /> Select Date Range
+            </Label>
             <DateRangePicker
               selectedRange={dateRange}
               onSelectRange={handleRangeSelect}
@@ -148,11 +155,8 @@ export function CoachBookingModal({
                 {errors.dateRange.from?.message || errors.dateRange.to?.message}
               </p>
             )}
-          </motion.div>
+          </div>
 
-          {submitError && (
-            <p className="text-sm text-destructive">{submitError}</p>
-          )}
           {dateRange.from && dateRange.to && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -160,7 +164,10 @@ export function CoachBookingModal({
               transition={{ duration: 0.3 }}
               className="grid md:grid-cols-2 gap-6"
             >
-              <div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50/50 dark:bg-slate-900/30 p-5 space-y-3">
+                <Label className="text-base font-semibold flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-primary" /> Select Time
+                </Label>
                 <TimeSlotPicker
                   selectedTime={selectedStartTime}
                   onSelectTime={handleStartTimeSelect}
@@ -172,9 +179,9 @@ export function CoachBookingModal({
                   <p className="text-sm text-destructive mt-2">{errors.startTime.message}</p>
                 )}
               </div>
-              <div className="space-y-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-50/50 dark:bg-slate-900/30 p-5 space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="duration">Duration</Label>
+                  <Label htmlFor="duration" className="text-base font-semibold">Duration</Label>
                   <Select
                     value={selectedDuration}
                     onValueChange={(value) => {
@@ -182,7 +189,7 @@ export function CoachBookingModal({
                       setValue("duration", value);
                     }}
                   >
-                    <SelectTrigger id="duration">
+                    <SelectTrigger id="duration" className="h-11">
                       <SelectValue placeholder="Select duration" />
                     </SelectTrigger>
                     <SelectContent>
@@ -192,15 +199,16 @@ export function CoachBookingModal({
                     </SelectContent>
                   </Select>
                   {errors.duration && (
-                    <p className="text-sm text-destructive">{errors.duration.message}</p>
+                    <p className="text-sm text-destructive mt-2">{errors.duration.message}</p>
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="sessionType">Session Type</Label>
+                  <Label htmlFor="sessionType" className="text-base font-semibold">Session Type</Label>
                   <Select
+                    value={sessionType ?? "private"}
                     onValueChange={(value) => setValue("sessionType", value as "private" | "group")}
                   >
-                    <SelectTrigger id="sessionType">
+                    <SelectTrigger id="sessionType" className="h-11">
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -209,34 +217,38 @@ export function CoachBookingModal({
                     </SelectContent>
                   </Select>
                   {errors.sessionType && (
-                    <p className="text-sm text-destructive">{errors.sessionType.message}</p>
+                    <p className="text-sm text-destructive mt-2">{errors.sessionType.message}</p>
                   )}
                 </div>
               </div>
             </motion.div>
           )}
 
+          {submitError && (
+            <p className="text-sm text-destructive font-medium bg-red-50 dark:bg-red-950/30 p-3 rounded-lg">{submitError}</p>
+          )}
+
           {dateRange.from && dateRange.to && selectedStartTime && selectedDuration && (
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="p-4 bg-blue-50 rounded-lg border border-blue-200"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="p-6 bg-slate-900 text-white rounded-xl shadow-inner"
             >
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-start gap-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Session Summary</p>
-                  <p className="font-medium">
-                    {format(dateRange.from, "MMM dd")} - {format(dateRange.to, "MMM dd, yyyy")}
+                  <h4 className="text-lg font-semibold text-primary-foreground/90">Session Summary</h4>
+                  <p className="text-slate-300 mt-1">
+                    {format(dateRange.from, "MMM dd")} – {format(dateRange.to, "MMM dd, yyyy")}
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedStartTime} • <Clock className="inline h-3 w-3 mr-1" />
-                    {selectedDuration} minutes • {differenceInDays(dateRange.to, dateRange.from) + 1} day(s)
+                  <p className="text-slate-300 font-medium mt-1">
+                    {selectedStartTime} • <Clock className="inline h-4 w-4 mr-1" />
+                    {selectedDuration} min • {differenceInDays(dateRange.to, dateRange.from) + 1} day(s)
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-muted-foreground">Total</p>
-                  <p className="text-2xl font-bold text-primary">
-                    <DollarSign className="inline h-5 w-5" />
+                  <p className="text-sm text-slate-400">Total</p>
+                  <p className="text-3xl font-bold text-white">
+                    <DollarSign className="inline h-6 w-6 mr-1" />
                     {calculateTotal().toFixed(2)}
                   </p>
                 </div>
@@ -244,18 +256,24 @@ export function CoachBookingModal({
             </motion.div>
           )}
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => {
-              reset();
-              setDateRange({ from: undefined, to: undefined });
-              setSelectedStartTime(undefined);
-              setSelectedDuration("60");
-              onOpenChange(false);
-            }}>
+          <DialogFooter className="pt-6 border-t mt-8 gap-3 sm:gap-0">
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-slate-500"
+              onClick={() => {
+                reset();
+                setDateRange({ from: undefined, to: undefined });
+                setSelectedStartTime(undefined);
+                setSelectedDuration("60");
+                onOpenChange(false);
+              }}
+            >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
+              className="bg-primary hover:opacity-90 text-primary-foreground px-8 py-6 text-lg rounded-full shadow-brand transition-all"
               disabled={!dateRange.from || !dateRange.to || !selectedStartTime || !selectedDuration || createSession.isPending}
             >
               {createSession.isPending ? "Booking..." : "Confirm Booking"}

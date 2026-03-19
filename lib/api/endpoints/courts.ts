@@ -8,6 +8,10 @@ export interface CourtApi {
   pricePerHour: string | number;
   description?: string | null;
   imageUrl?: string | null;
+  /** JSON string array of image URLs for gallery */
+  imageGallery?: string | null;
+  /** Google Maps embed URL */
+  mapEmbedUrl?: string | null;
   status: string;
   sport: "tennis" | "pickleball";
   createdAt?: string;

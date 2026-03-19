@@ -158,7 +158,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
             {submitError && (
               <p className="text-sm text-destructive">{submitError}</p>
             )}
-            <Button type="submit" className="w-full text-md font-bold h-11 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20" disabled={isRegistering || rolesLoading}>
+            <Button type="submit" className="w-full text-md font-bold h-11 bg-primary hover:opacity-90 text-primary-foreground shadow-brand" disabled={isRegistering || rolesLoading}>
               {isRegistering ? "Registering..." : "Register"}
             </Button>
             <div className="text-center text-sm text-muted-foreground">

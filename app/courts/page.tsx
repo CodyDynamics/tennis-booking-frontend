@@ -83,7 +83,7 @@ export default function CourtsPage() {
             className="space-y-8"
           >
             <div className="text-center max-w-3xl mx-auto mb-12">
-              <h1 className="text-5xl font-extrabold mb-4 bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 bg-clip-text text-transparent">
+              <h1 className="text-5xl font-extrabold mb-4 text-foreground">
                 Find Your Playground
               </h1>
               <p className="text-muted-foreground text-xl">
@@ -107,7 +107,7 @@ export default function CourtsPage() {
                     <Building2 className="w-20 h-20 text-slate-300 dark:text-slate-700 group-hover:text-blue-500 transition-colors duration-300" />
                   </div>
                   <div className="p-6 bg-white dark:bg-slate-950">
-                    <h3 className="text-2xl font-bold mb-2 group-hover:text-blue-600 transition-colors">
+                    <h3 className="text-2xl font-bold mb-2 group-hover:text-primary transition-colors">
                       {loc.name}
                     </h3>
                     <div className="flex items-center text-muted-foreground text-sm">
@@ -137,7 +137,7 @@ export default function CourtsPage() {
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" /> Back to Locations
                 </Button>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
+                <h1 className="text-4xl font-bold text-foreground">
                   {locations.find((l) => l.id === selectedLocation)?.name}{" "}
                   Courts
                 </h1>

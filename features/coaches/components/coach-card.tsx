@@ -3,9 +3,12 @@
 import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import type { Coach } from "@/types";
-import { Star, Clock, User } from "lucide-react";
+import { Star, User } from "lucide-react";
+
+const DEFAULT_COACH_AVATAR =
+  "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&h=200&fit=crop&q=80";
 
 interface CoachCardProps {
   coach: Coach;
@@ -21,10 +24,11 @@ export function CoachCard({ coach, onBook, index = 0 }: CoachCardProps) {
       transition={{ duration: 0.3, delay: index * 0.1 }}
     >
       <Card className="hover:shadow-soft-lg transition-all duration-300 border-2 hover:border-primary/20 overflow-hidden group">
-        <div className="relative h-32 bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center">
-          <Avatar className="h-20 w-20 border-4 border-white shadow-lg">
+        <div className="relative h-32 bg-gradient-to-br from-blue-100 to-blue-50 dark:from-slate-800 dark:to-slate-900 flex items-center justify-center">
+          <Avatar className="h-20 w-20 border-4 border-white dark:border-slate-700 shadow-lg">
+            <AvatarImage src={coach.user?.avatarUrl || DEFAULT_COACH_AVATAR} alt={coach.user?.fullName} />
             <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
-              {coach.user?.fullName.charAt(0) || "C"}
+              {(coach.user?.fullName || "C").charAt(0)}
             </AvatarFallback>
           </Avatar>
         </div>

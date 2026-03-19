@@ -16,6 +16,15 @@ import type { UserApi } from "@/lib/api/endpoints/users";
 import type { PermissionSchemaItem } from "@/lib/api/endpoints/roles";
 
 function mapCourtApiToCourt(c: CourtApi): Court {
+  let imageGallery: string[] | undefined;
+  if (c.imageGallery) {
+    try {
+      imageGallery = typeof c.imageGallery === "string" ? JSON.parse(c.imageGallery) : c.imageGallery;
+      if (!Array.isArray(imageGallery)) imageGallery = undefined;
+    } catch {
+      imageGallery = undefined;
+    }
+  }
   return {
     id: c.id,
     name: c.name,
@@ -28,6 +37,8 @@ function mapCourtApiToCourt(c: CourtApi): Court {
     branchId: c.location?.branchId ?? undefined,
     locationName: c.location?.name ?? undefined,
     imageUrl: c.imageUrl ?? undefined,
+    imageGallery,
+    mapEmbedUrl: c.mapEmbedUrl ?? undefined,
   };
 }
 
@@ -43,6 +54,7 @@ function mapCoachApiToCoach(c: CoachApi): Coach {
           id: c.user.id,
           fullName: c.user.fullName ?? "",
           email: c.user.email ?? "",
+          avatarUrl: c.user.avatarUrl ?? undefined,
           role: "coach",
           organizationId: "",
         }
@@ -86,7 +98,7 @@ function mapCoachSessionApiToCoachSession(s: CoachSessionApi): CoachSession {
     durationMinutes: s.durationMinutes,
     sessionType: (s.sessionType as "private" | "group") ?? "private",
     status: (s.status as CoachSession["status"]) ?? "scheduled",
-    studentIds: [],
+    studentIds: s.bookedById ? [s.bookedById] : [],
     createdAt: s.createdAt,
     updatedAt: s.updatedAt,
   };
@@ -103,12 +115,23 @@ export function useCourts(params?: { locationId?: string; branchId?: string; sta
   });
 }
 
-// Coaches queries
-export function useCoaches() {
-  return useQuery<Coach[]>({
-    queryKey: ["coaches"],
+export function useCourt(id: string | null | undefined) {
+  return useQuery<Court>({
+    queryKey: ["court", id],
     queryFn: async () => {
-      const list = await api.coaches.getCoaches();
+      const c = await api.courts.getCourt(id!);
+      return mapCourtApiToCourt(c);
+    },
+    enabled: !!id,
+  });
+}
+
+// Coaches queries
+export function useCoaches(branchId?: string) {
+  return useQuery<Coach[]>({
+    queryKey: ["coaches", branchId],
+    queryFn: async () => {
+      const list = await api.coaches.getCoaches(branchId ? { branchId } : undefined);
       return list.map(mapCoachApiToCoach);
     },
   });
@@ -300,6 +323,15 @@ export function useLocations(branchId?: string) {
   return useQuery({
     queryKey: ["locations", branchId],
     queryFn: () => api.locations.getLocations(branchId ? { branchId } : undefined),
+  });
+}
+
+// ----- Single location (for location courts page) -----
+export function useLocation(id: string | null | undefined) {
+  return useQuery({
+    queryKey: ["location", id],
+    queryFn: () => api.locations.getLocation(id!),
+    enabled: !!id,
   });
 }
 

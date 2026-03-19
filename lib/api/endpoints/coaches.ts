@@ -4,6 +4,8 @@ export interface CoachUserApi {
   id: string;
   email?: string;
   fullName?: string;
+  avatarUrl?: string | null;
+  branchId?: string | null;
 }
 
 export interface CoachApi {
@@ -19,7 +21,13 @@ export interface CoachApi {
 
 export function createCoachesEndpoints(client: ApiClient) {
   return {
-    getCoaches: () => client.get<CoachApi[]>("/coaches"),
+    getCoaches: (params?: { branchId?: string }) => {
+      const q: Record<string, string> = {};
+      if (params?.branchId) q.branchId = params.branchId;
+      return client.get<CoachApi[]>("/coaches", {
+        params: Object.keys(q).length ? q : undefined,
+      });
+    },
     getCoach: (id: string) => client.get<CoachApi>(`/coaches/${id}`),
   };
 }

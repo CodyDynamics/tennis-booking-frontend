@@ -43,7 +43,7 @@ export default function CoachesPage() {
         animate={{ opacity: 1, y: 0 }}
         className="mb-8"
       >
-        <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
+        <h1 className="text-4xl font-bold mb-2 text-foreground">
           Available Coaches
         </h1>
         <p className="text-muted-foreground text-lg">Book a session with our professional coaches</p>
