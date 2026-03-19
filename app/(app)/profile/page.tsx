@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { User, Mail, Phone, KeyRound, Shield } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
+import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 
 function roleLabel(role: string): string {
   const labels: Record<string, string> = {
@@ -33,11 +34,7 @@ export default function ProfilePage() {
   }, [authLoading, isAuthenticated, router]);
 
   if (authLoading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <p className="text-muted-foreground">Loading profile...</p>
-      </div>
-    );
+    return <GlobalLoadingPlaceholder minHeight="min-h-[60vh]" />;
   }
 
   if (!user) {

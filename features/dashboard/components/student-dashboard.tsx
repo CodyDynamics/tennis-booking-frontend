@@ -10,6 +10,7 @@ import { Calendar, TrendingUp, CheckCircle, Clock, MapPin, ArrowRight } from "lu
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from "recharts";
 import { format, isAfter, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import Link from "next/link";
+import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 
 export function StudentDashboard() {
   const { user } = useAuth();
@@ -18,7 +19,7 @@ export function StudentDashboard() {
   const { data: sessions = [] } = useSessions(undefined, user?.id);
 
   if (reportsLoading) {
-    return <div className="text-center py-12">Loading...</div>;
+    return <GlobalLoadingPlaceholder minHeight="min-h-[320px]" />;
   }
 
   if (!reports || reports.length === 0) {

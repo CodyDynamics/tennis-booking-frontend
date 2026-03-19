@@ -14,7 +14,6 @@ import {
   Users,
   Shield,
   ArrowLeft,
-  Loader2,
   Activity,
   LogOut,
   Building2,
@@ -46,6 +45,7 @@ function canAccessAdmin(user: User | null, pathname: string): boolean {
 
 import { AdminProvider } from "./admin-context";
 import { SportSelector } from "./components/sport-selector";
+import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 
 export default function AdminLayout({
   children,
@@ -69,8 +69,8 @@ export default function AdminLayout({
 
   if (isLoading || !user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+        <GlobalLoadingPlaceholder minHeight="min-h-screen" />
       </div>
     );
   }

@@ -7,7 +7,8 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { LoadingLabel, LoadingShell } from "@/components/ui/loading-label";
+import { LoadingLabel } from "@/components/ui/loading-label";
+import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
@@ -111,9 +112,9 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
 
   if (isLoadingConfig) {
     return (
-      <Card className="w-full shadow-soft-lg border-0 bg-transparent">
+      <Card className="w-full border-0 bg-transparent shadow-soft-lg">
         <CardContent>
-          <LoadingShell message="Preparing sign in" />
+          <GlobalLoadingPlaceholder minHeight="min-h-[200px]" />
         </CardContent>
       </Card>
     );

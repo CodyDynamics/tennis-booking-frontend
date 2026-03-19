@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, MapPin, Users, Calendar } from "lucide-react";
 import { useCourt, useCoaches } from "@/lib/queries";
 import { CourtBookingModal } from "@/features/courts/components/court-booking-modal";
+import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 
 const DEFAULT_COACH_AVATAR =
   "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&h=200&fit=crop&q=80";
@@ -83,11 +84,7 @@ export default function CourtDetailPage() {
   const bannerUrl = court?.imageUrl || (galleryUrls[0] ?? null);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <GlobalLoadingPlaceholder minHeight="min-h-screen" />;
   }
 
   if (error || !court) {
