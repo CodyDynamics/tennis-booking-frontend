@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { LoadingLabel } from "@/components/ui/loading-label";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -189,8 +190,13 @@ export function ReportForm({ studentId, coachId }: ReportFormProps) {
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={createReport.isPending}>
-            {createReport.isPending ? "Submitting..." : "Submit Report"}
+          <Button
+            type="submit"
+            className="w-full bg-primary hover:opacity-90 text-primary-foreground"
+            disabled={createReport.isPending}
+            aria-busy={createReport.isPending}
+          >
+            {createReport.isPending ? <LoadingLabel>Submitting report</LoadingLabel> : "Submit Report"}
           </Button>
         </form>
       </CardContent>

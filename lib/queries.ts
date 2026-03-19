@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useQueries } from "@tanstack/react-query";
 import type {
   Court,
   Coach,
@@ -176,6 +176,33 @@ export function useReports(_studentId?: string, _coachId?: string) {
   });
 }
 
+/**
+ * Fetch server-side court availability for multiple dates (same slot length).
+ * Used so the Book Court modal matches POST /bookings/court validation.
+ */
+export function useCourtAvailabilityForDates(
+  courtId: string | null | undefined,
+  dates: string[],
+  slotMinutes: number,
+  enabled: boolean,
+) {
+  const results = useQueries({
+    queries: dates.map((date) => ({
+      queryKey: ["courtAvailability", courtId, date, slotMinutes] as const,
+      queryFn: () => api.bookings.getCourtAvailability(courtId!, date, slotMinutes),
+      enabled: Boolean(enabled && courtId && dates.length > 0),
+      staleTime: 15_000,
+    })),
+  });
+
+  const isLoading = results.some((r) => r.isPending);
+  const isError = results.some((r) => r.isError);
+  const error = results.find((r) => r.isError)?.error;
+  const data = results.map((r) => r.data ?? []);
+
+  return { isLoading, isError, error, data, results };
+}
+
 // Create court booking mutation
 export function useCreateCourtBooking() {
   const queryClient = useQueryClient();
@@ -204,6 +231,7 @@ export function useCreateCourtBooking() {
     },
     onSuccess: (_result, variables) => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["courtAvailability"] });
       if (variables.userId) {
         queryClient.invalidateQueries({ queryKey: ["bookings", variables.userId] });
       }

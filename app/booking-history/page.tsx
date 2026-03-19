@@ -10,6 +10,7 @@ import { useBookings, useSessions, useCourts, useCoaches } from "@/lib/queries";
 import { useAuth } from "@/lib/auth-store";
 import { Calendar, Clock, DollarSign, MapPin, User, History } from "lucide-react";
 import { format } from "date-fns";
+import { LoadingShell } from "@/components/ui/loading-label";
 
 export default function BookingHistoryPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -28,9 +29,7 @@ export default function BookingHistoryPage() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
+        <LoadingShell message="Loading your account" />
       </div>
     );
   }

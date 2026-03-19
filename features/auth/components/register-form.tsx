@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { LoadingLabel } from "@/components/ui/loading-label";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -158,8 +159,19 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
             {submitError && (
               <p className="text-sm text-destructive">{submitError}</p>
             )}
-            <Button type="submit" className="w-full text-md font-bold h-11 bg-primary hover:opacity-90 text-primary-foreground shadow-brand" disabled={isRegistering || rolesLoading}>
-              {isRegistering ? "Registering..." : "Register"}
+            <Button
+              type="submit"
+              className="w-full text-md font-bold h-11 bg-primary hover:opacity-90 text-primary-foreground shadow-brand"
+              disabled={isRegistering || rolesLoading}
+              aria-busy={isRegistering}
+            >
+              {rolesLoading ? (
+                <LoadingLabel>Loading roles</LoadingLabel>
+              ) : isRegistering ? (
+                <LoadingLabel>Creating account</LoadingLabel>
+              ) : (
+                "Register"
+              )}
             </Button>
             <div className="text-center text-sm text-muted-foreground">
               Already have an account?{" "}

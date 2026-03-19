@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { LoadingLabel } from "@/components/ui/loading-label";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -77,8 +78,13 @@ export function ForgotPasswordForm() {
             {submitError && (
               <p className="text-sm text-destructive">{submitError}</p>
             )}
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Sending..." : "Send Reset Link"}
+            <Button
+              type="submit"
+              className="w-full bg-primary hover:opacity-90 text-primary-foreground"
+              disabled={isSubmitting}
+              aria-busy={isSubmitting}
+            >
+              {isSubmitting ? <LoadingLabel>Sending email</LoadingLabel> : "Send Reset Link"}
             </Button>
             <Link href="/login">
               <Button type="button" variant="ghost" className="w-full">

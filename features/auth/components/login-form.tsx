@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { LoadingLabel, LoadingShell } from "@/components/ui/loading-label";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
@@ -111,8 +112,8 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
   if (isLoadingConfig) {
     return (
       <Card className="w-full shadow-soft-lg border-0 bg-transparent">
-        <CardContent className="py-8 text-center text-muted-foreground">
-          Loading...
+        <CardContent>
+          <LoadingShell message="Preparing sign in" />
         </CardContent>
       </Card>
     );
@@ -179,8 +180,9 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
                 type="submit"
                 className="w-full text-md font-bold h-11 bg-primary hover:opacity-90 text-primary-foreground shadow-brand"
                 disabled={isLoggingIn}
+                aria-busy={isLoggingIn}
               >
-                {isLoggingIn ? "Logging in..." : "Login"}
+                {isLoggingIn ? <LoadingLabel>Signing in</LoadingLabel> : "Login"}
               </Button>
               <div className="text-center text-sm text-muted-foreground">
                 Don&apos;t have an account?{" "}
@@ -245,8 +247,9 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
                 type="submit"
                 className="w-full text-md font-bold h-11 bg-primary hover:opacity-90 text-primary-foreground shadow-brand"
                 disabled={isVerifyingOtp}
+                aria-busy={isVerifyingOtp}
               >
-                {isVerifyingOtp ? "Verifying..." : "Verify & sign in"}
+                {isVerifyingOtp ? <LoadingLabel>Verifying code</LoadingLabel> : "Verify & sign in"}
               </Button>
               <Button
                 type="button"
@@ -321,8 +324,9 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
               type="submit"
               className="w-full text-md font-bold h-11 bg-primary hover:opacity-90 text-primary-foreground shadow-brand"
               disabled={isRequestingOtp}
+              aria-busy={isRequestingOtp}
             >
-              {isRequestingOtp ? "Sending code..." : "Continue"}
+              {isRequestingOtp ? <LoadingLabel>Sending code</LoadingLabel> : "Continue"}
             </Button>
             <div className="text-center text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}

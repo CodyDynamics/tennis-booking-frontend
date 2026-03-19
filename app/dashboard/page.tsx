@@ -7,6 +7,7 @@ import { CoachDashboard } from "@/features/dashboard/components/coach-dashboard"
 import { AdminDashboard } from "@/features/dashboard/components/admin-dashboard";
 import { PlayerDashboard } from "@/features/dashboard/components/player-dashboard";
 import { useAuth } from "@/lib/auth-store";
+import { LoadingShell } from "@/components/ui/loading-label";
 
 export default function DashboardPage() {
   const { user, isLoading, isAuthenticated } = useAuth();
@@ -21,9 +22,7 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
+        <LoadingShell message="Loading dashboard" />
       </div>
     );
   }

@@ -78,4 +78,30 @@
   .animate-scroll-partners {
     animation: scroll-partners 35s linear infinite;
   }
+
+  /* Booking modals — thin track, brand-colored thumb */
+  .scrollbar-booking {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--primary) / 0.45) hsl(var(--muted));
+  }
+  .scrollbar-booking::-webkit-scrollbar {
+    width: 10px;
+  }
+  .scrollbar-booking::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+    border-radius: 9999px;
+    margin: 4px 0;
+  }
+  .scrollbar-booking::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+      180deg,
+      hsl(var(--primary) / 0.55),
+      hsl(var(--primary) / 0.35)
+    );
+    border-radius: 9999px;
+    border: 2px solid hsl(var(--muted));
+  }
+  .scrollbar-booking::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.75);
+  }
 }

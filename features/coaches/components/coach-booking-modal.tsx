@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { LoadingLabel } from "@/components/ui/loading-label";
 import { Label } from "@/components/ui/label";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { TimeSlotPicker } from "@/components/ui/time-slot-picker";
@@ -129,7 +130,7 @@ export function CoachBookingModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 rounded-2xl">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto scrollbar-booking p-0 rounded-2xl">
         <div className="bg-primary p-6 text-primary-foreground rounded-t-2xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold flex items-center gap-2">
@@ -273,10 +274,15 @@ export function CoachBookingModal({
             </Button>
             <Button
               type="submit"
-              className="bg-primary hover:opacity-90 text-primary-foreground px-8 py-6 text-lg rounded-full shadow-brand transition-all"
+              className="bg-primary hover:opacity-90 text-primary-foreground px-8 py-6 text-lg rounded-full shadow-brand transition-all min-w-[200px]"
               disabled={!dateRange.from || !dateRange.to || !selectedStartTime || !selectedDuration || createSession.isPending}
+              aria-busy={createSession.isPending}
             >
-              {createSession.isPending ? "Booking..." : "Confirm Booking"}
+              {createSession.isPending ? (
+                <LoadingLabel>Booking session</LoadingLabel>
+              ) : (
+                "Confirm Booking"
+              )}
             </Button>
           </DialogFooter>
         </form>

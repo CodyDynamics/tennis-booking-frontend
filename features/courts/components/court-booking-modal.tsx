@@ -14,11 +14,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { LoadingLabel } from "@/components/ui/loading-label";
 import { Label } from "@/components/ui/label";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BookingTypeSelector } from "@/features/booking/components/booking-type-selector";
-import { useCreateCourtBooking } from "@/lib/queries";
+import { useCreateCourtBooking, useCourtAvailabilityForDates } from "@/lib/queries";
 import { useCoaches } from "@/lib/queries";
 import { useAuth } from "@/lib/auth-store";
 import { useBookingCalculations } from "@/features/booking/hooks/use-booking-calculations";
@@ -28,7 +29,7 @@ import type { Court } from "@/types";
 import { formatCurrency } from "@/lib/format";
 import { format, eachDayOfInterval } from "date-fns";
 import { useRouter } from "next/navigation";
-import { Clock, CalendarDays } from "lucide-react";
+import { Clock, CalendarDays, MapPin } from "lucide-react";
 
 interface CourtBookingModalProps {
   court: Court | null;
@@ -42,12 +43,6 @@ type Duration = typeof DURATIONS[number];
 function timeToMinutes(timeStr: string) {
   const [h, m] = timeStr.split(":").map(Number);
   return h * 60 + m;
-}
-
-function minutesToTime(mins: number) {
-  const h = Math.floor(mins / 60).toString().padStart(2, "0");
-  const m = (mins % 60).toString().padStart(2, "0");
-  return `${h}:${m}`;
 }
 
 export function CourtBookingModal({
@@ -68,7 +63,6 @@ export function CourtBookingModal({
   const [selectedMainSlot, setSelectedMainSlot] = useState<{ startTime: string; endTime: string } | null>(null);
   const [duration, setDuration] = useState<Duration>(60);
   const [selectedBlock, setSelectedBlock] = useState<{ start: string; end: string } | null>(null);
-  const [bookedBlocksInfo, setBookedBlocksInfo] = useState<Record<string, boolean>>({});
 
   const { user } = useAuth();
   const createBooking = useCreateCourtBooking();
@@ -96,17 +90,6 @@ export function CourtBookingModal({
       courtId: "",
     },
   });
-
-  useEffect(() => {
-    if (court) {
-      try {
-        const stored = localStorage.getItem(`booked_${court.id}`);
-        if (stored) {
-          setBookedBlocksInfo(JSON.parse(stored));
-        }
-      } catch (e) {}
-    }
-  }, [court]);
 
   useEffect(() => {
     if (open && court) {
@@ -156,15 +139,6 @@ export function CourtBookingModal({
         });
       }
 
-      // Mock disabling functionality by saving booked block in localStorage
-      const newBooked = { ...bookedBlocksInfo };
-      for (const date of dates) {
-         const dateStr = format(date, "yyyy-MM-dd");
-         newBooked[`${dateStr}_${selectedBlock.start}_${selectedBlock.end}`] = true;
-      }
-      localStorage.setItem(`booked_${court.id}`, JSON.stringify(newBooked));
-      setBookedBlocksInfo(newBooked);
-
       reset();
       setDateRange({ from: undefined, to: undefined });
       setSelectedMainSlot(null);
@@ -175,40 +149,77 @@ export function CourtBookingModal({
       onOpenChange(false);
       router.push("/booking-history");
     } catch (error) {
-       setSubmitError("Booking failed. Please try again.");
+      if (error instanceof ApiError) {
+        const msg = error.body?.message;
+        const text =
+          typeof msg === "string"
+            ? msg
+            : Array.isArray(msg)
+              ? msg.join(", ")
+              : error.message;
+        setSubmitError(text);
+      } else {
+        setSubmitError("Booking failed. Please try again.");
+      }
     }
   };
 
-  const generatedBlocks = useMemo(() => {
-    if (!selectedMainSlot) return [];
-    const blocks: { start: string; end: string; booked: boolean }[] = [];
-    let startMins = timeToMinutes(selectedMainSlot.startTime);
-    const endSlotMins = timeToMinutes(selectedMainSlot.endTime);
-    
-    while (startMins + duration <= endSlotMins) {
-      const endMins = startMins + duration;
-      const startStr = minutesToTime(startMins);
-      const endStr = minutesToTime(endMins);
-      
-      // Check if this block intersects with any booked block for the selected dates
-      let isBooked = false;
-      if (dateRange.from && dateRange.to) {
-        const dates = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
-        for (const date of dates) {
-           const dStr = format(date, "yyyy-MM-dd");
-           const key = `${dStr}_${startStr}_${endStr}`;
-           if (bookedBlocksInfo[key]) {
-              isBooked = true;
-              break;
-           }
-        }
-      }
+  const datesInRange = useMemo(() => {
+    if (!dateRange.from || !dateRange.to) return [] as string[];
+    return eachDayOfInterval({ start: dateRange.from, end: dateRange.to }).map((d) =>
+      format(d, "yyyy-MM-dd"),
+    );
+  }, [dateRange.from, dateRange.to]);
 
-      blocks.push({ start: startStr, end: endStr, booked: isBooked });
-      startMins += duration; // or adjust step to allow overlapping choices, e.g. startMins += 30
-    }
-    return blocks;
-  }, [selectedMainSlot, duration, bookedBlocksInfo, dateRange]);
+  const {
+    isLoading: availabilityLoading,
+    isError: availabilityQueryError,
+    data: availabilityByDay,
+  } = useCourtAvailabilityForDates(
+    court?.id,
+    datesInRange,
+    duration,
+    open && !!court && datesInRange.length > 0 && !!selectedMainSlot,
+  );
+
+  /** Server truth: slots free on every selected day, inside the chosen time window. */
+  const serverSlotsInWindow = useMemo(() => {
+    if (!selectedMainSlot || datesInRange.length === 0) return [];
+    if (availabilityByDay.length !== datesInRange.length) return [];
+
+    const toHHmm = (t: string) => {
+      const [h, m] = t.split(":").map(Number);
+      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    };
+    const slotKey = (s: { start: string; end: string }) =>
+      `${toHHmm(s.start)}_${toHHmm(s.end)}`;
+
+    const winStart = timeToMinutes(selectedMainSlot.startTime);
+    const winEnd = timeToMinutes(selectedMainSlot.endTime);
+    const inWindow = (s: { start: string; end: string }) => {
+      const a = timeToMinutes(toHHmm(s.start));
+      const b = timeToMinutes(toHHmm(s.end));
+      return a >= winStart && b <= winEnd;
+    };
+
+    const firstDay = availabilityByDay[0] ?? [];
+    const candidates = firstDay.filter(inWindow);
+
+    return candidates
+      .filter((slot) => {
+        const k = slotKey(slot);
+        return availabilityByDay.every((daySlots) => daySlots.some((s) => slotKey(s) === k));
+      })
+      .map((s) => ({ start: toHHmm(s.start), end: toHHmm(s.end) }));
+  }, [selectedMainSlot, datesInRange, availabilityByDay]);
+
+  useEffect(() => {
+    if (availabilityLoading || !selectedBlock) return;
+    const ok = serverSlotsInWindow.some(
+      (s) => s.start === selectedBlock.start && s.end === selectedBlock.end,
+    );
+    if (!ok) setSelectedBlock(null);
+  }, [availabilityLoading, serverSlotsInWindow, selectedBlock]);
 
   const handleRangeSelect = (range: { from: Date | undefined; to: Date | undefined }) => {
     setDateRange(range);
@@ -222,153 +233,262 @@ export function CourtBookingModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 rounded-2xl">
-        <div className="bg-primary p-6 text-primary-foreground rounded-t-2xl">
-           <DialogTitle className="text-3xl font-bold flex items-center gap-2">
-             Book {court.name}
-           </DialogTitle>
-           <DialogDescription className="text-primary-foreground/85 mt-2 text-md">
-             {court.type === "indoor" ? "Indoor" : "Outdoor"} facility • {formatCurrency(Number(court.pricePerHour))}/hour
-           </DialogDescription>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto scrollbar-booking gap-0 p-0 rounded-3xl border-border/60 shadow-2xl">
+        <div className="relative overflow-hidden rounded-t-3xl bg-gradient-to-br from-primary via-primary to-primary/85 px-6 pb-8 pt-7 text-primary-foreground">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-8 left-1/4 h-32 w-64 rounded-full bg-black/10 blur-2xl" />
+          <div className="relative flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-primary-foreground/70">
+                Reserve your court
+              </p>
+              <DialogTitle className="text-2xl font-black tracking-tight sm:text-3xl">
+                Book {court.name}
+              </DialogTitle>
+              <DialogDescription className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-primary-foreground/90">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-black/15 px-3 py-0.5 text-xs font-semibold backdrop-blur-sm">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {court.type === "indoor" ? "Indoor" : "Outdoor"}
+                </span>
+                <span className="font-semibold">{formatCurrency(Number(court.pricePerHour))}/hour</span>
+              </DialogDescription>
+            </div>
+          </div>
         </div>
-        
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-8">
-          <BookingTypeSelector value={bookingType} onChange={(v) => { setBookingType(v); setValue("bookingType", v); }} />
+
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="space-y-8 bg-gradient-to-b from-background to-muted/20 px-5 py-7 sm:px-8"
+        >
+          <section className="rounded-2xl border border-border/80 bg-card p-5 shadow-sm">
+            <BookingTypeSelector
+              value={bookingType}
+              onChange={(v) => {
+                setBookingType(v);
+                setValue("bookingType", v);
+              }}
+            />
+          </section>
 
           {(bookingType === "COURT_COACH" || bookingType === "TRAINING") && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-              <Label className="text-base font-semibold mb-3 block">Select Professional Coach</Label>
-              <Select value={selectedCoachId} onValueChange={(id) => { setSelectedCoachId(id); setValue("coachId", id); }}>
-                <SelectTrigger className="h-12 border-slate-200">
+            <motion.section
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-2xl border border-primary/15 bg-primary/[0.04] p-5"
+            >
+              <Label className="mb-3 block text-sm font-bold text-foreground">Coach</Label>
+              <Select
+                value={selectedCoachId}
+                onValueChange={(id) => {
+                  setSelectedCoachId(id);
+                  setValue("coachId", id);
+                }}
+              >
+                <SelectTrigger className="h-12 rounded-xl border-border bg-background text-left font-medium">
                   <SelectValue placeholder="Choose a coach for your session" />
                 </SelectTrigger>
                 <SelectContent>
                   {coaches?.map((coach) => (
                     <SelectItem key={coach.id} value={coach.id}>
-                      {coach.user?.fullName || `Coach ${coach.id}`} - {formatCurrency(Number(coach.hourlyRate))}/hr
+                      {coach.user?.fullName || `Coach ${coach.id}`} — {formatCurrency(Number(coach.hourlyRate))}/hr
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </motion.div>
+            </motion.section>
           )}
 
-          <div className="grid md:grid-cols-2 gap-8">
-            <div className="space-y-4">
-               <Label className="text-base font-semibold flex items-center gap-2"><CalendarDays className="w-5 h-5 text-primary" /> Select Date</Label>
-               <div className="p-4 border border-slate-200 rounded-xl bg-slate-50">
-                 <DateRangePicker selectedRange={dateRange} onSelectRange={handleRangeSelect} minDate={new Date()} />
-               </div>
-            </div>
-            
+          <div className="grid gap-8 md:grid-cols-2 md:items-start">
+            <section className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <CalendarDays className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-foreground">Dates</h3>
+                  <p className="text-xs text-muted-foreground">Tap start, then end of your range</p>
+                </div>
+              </div>
+              <DateRangePicker selectedRange={dateRange} onSelectRange={handleRangeSelect} minDate={new Date()} />
+            </section>
+
             <AnimatePresence>
               {dateRange.from && dateRange.to && (
-                <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-                  
-                  <div className="space-y-3">
-                    <Label className="text-base font-semibold flex items-center gap-2"><Clock className="w-5 h-5 text-primary" /> Choose Time Slot</Label>
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
-                      {timeSlots.map((slot, i) => {
-                        const isSelected = selectedMainSlot?.startTime === slot.startTime;
-                        return (
-                          <Button
-                            key={i}
-                            type="button"
-                            variant={isSelected ? "default" : "outline"}
-                            className={`h-auto py-3 ${isSelected ? "bg-primary text-primary-foreground ring-2 ring-primary/30 ring-offset-1" : "hover:bg-muted"}`}
-                            onClick={() => { setSelectedMainSlot(slot); setSelectedBlock(null); }}
-                          >
-                            <div className="flex flex-col">
-                              <span className="font-semibold text-sm">{slot.startTime}</span>
-                              <span className="text-xs opacity-80">to {slot.endTime}</span>
-                            </div>
-                          </Button>
-                        );
-                      })}
+                <motion.section
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="space-y-6 rounded-2xl border border-border/80 bg-card p-5 shadow-sm"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Clock className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-foreground">Time window</h3>
+                      <p className="text-xs text-muted-foreground">Pick a block, then length & slot</p>
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {timeSlots.map((slot, i) => {
+                      const isSelected = selectedMainSlot?.startTime === slot.startTime;
+                      return (
+                        <Button
+                          key={i}
+                          type="button"
+                          variant={isSelected ? "default" : "outline"}
+                          className={`h-auto flex-col gap-0.5 rounded-xl py-3 ${
+                            isSelected
+                              ? "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/25"
+                              : "border-dashed hover:border-primary/40 hover:bg-primary/5"
+                          }`}
+                          onClick={() => {
+                            setSelectedMainSlot(slot);
+                            setSelectedBlock(null);
+                          }}
+                        >
+                          <span className="text-sm font-bold">{slot.startTime}</span>
+                          <span className="text-[11px] opacity-80">→ {slot.endTime}</span>
+                        </Button>
+                      );
+                    })}
+                  </div>
+
                   {selectedMainSlot && (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 pt-4 border-t border-slate-100">
-                      <Label className="text-base font-semibold">Select Duration</Label>
-                      <div className="flex gap-3">
-                        {DURATIONS.map(d => (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="space-y-4 border-t border-border pt-5"
+                    >
+                      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Duration</p>
+                      <div className="flex flex-wrap gap-2">
+                        {DURATIONS.map((d) => (
                           <Button
                             key={d}
                             type="button"
-                            variant={duration === d ? "default" : "secondary"}
-                            onClick={() => { setDuration(d); setSelectedBlock(null); }}
-                            className="flex-1 rounded-full font-semibold"
+                            variant={duration === d ? "default" : "outline"}
+                            onClick={() => {
+                              setDuration(d);
+                              setSelectedBlock(null);
+                            }}
+                            className={`min-w-[4.5rem] rounded-full px-4 font-bold ${
+                              duration === d ? "bg-primary shadow-sm" : "border-muted-foreground/20"
+                            }`}
                           >
-                            {d} Mins
+                            {d} min
                           </Button>
                         ))}
                       </div>
 
-                      <div className="pt-2">
-                        <Label className="text-sm text-muted-foreground mb-2 block">Available specific times:</Label>
-                        <div className="grid grid-cols-2 gap-2">
-                          {generatedBlocks.map((block, i) => {
-                            const isSelected = selectedBlock?.start === block.start;
-                            return (
-                               <Button
-                                 key={i}
-                                 type="button"
-                                 disabled={block.booked}
-                                 variant={isSelected ? "default" : "outline"}
-                                 className={isSelected ? 'bg-green-600 hover:bg-green-700 text-white border-transparent' : (block.booked ? 'opacity-50 cursor-not-allowed bg-slate-100' : 'hover:border-green-500')}
-                                 onClick={() => setSelectedBlock(block)}
-                               >
-                                 {block.start} - {block.end}
-                                 {block.booked && <span className="ml-2 text-xs">(Booked)</span>}
-                               </Button>
-                            );
-                          })}
-                          {generatedBlocks.length === 0 && (
-                             <p className="text-sm text-primary col-span-2 py-2">
-                               Duration is too long for the selected slot. Try a shorter duration.
-                             </p>
+                      <div>
+                        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                          Available slots
+                        </p>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                          {availabilityLoading && (
+                            <p className="col-span-full rounded-lg bg-muted/60 px-3 py-3 text-sm text-muted-foreground">
+                              Loading available slots from server…
+                            </p>
                           )}
+                          {!availabilityLoading && availabilityQueryError && (
+                            <p className="col-span-full rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                              Could not load availability. Refresh or try again in a moment.
+                            </p>
+                          )}
+                          {!availabilityLoading &&
+                            !availabilityQueryError &&
+                            serverSlotsInWindow.map((block, i) => {
+                              const isSelected = selectedBlock?.start === block.start;
+                              return (
+                                <Button
+                                  key={`${block.start}-${block.end}-${i}`}
+                                  type="button"
+                                  variant={isSelected ? "default" : "outline"}
+                                  className={
+                                    isSelected
+                                      ? "rounded-xl border-transparent bg-primary text-primary-foreground shadow-md"
+                                      : "rounded-xl border-dashed hover:border-primary/50 hover:bg-primary/5"
+                                  }
+                                  onClick={() => setSelectedBlock(block)}
+                                >
+                                  <span className="font-mono text-xs font-semibold">
+                                    {block.start} – {block.end}
+                                  </span>
+                                </Button>
+                              );
+                            })}
+                          {!availabilityLoading &&
+                            !availabilityQueryError &&
+                            serverSlotsInWindow.length === 0 && (
+                              <p className="col-span-full rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+                                No open slots in this window for every selected day (or they may be taken). Try
+                                another date range, time window, or duration.
+                              </p>
+                            )}
                         </div>
                       </div>
                     </motion.div>
                   )}
-                </motion.div>
+                </motion.section>
               )}
             </AnimatePresence>
           </div>
 
-          {submitError && <p className="text-sm text-destructive font-medium bg-red-50 p-3 rounded-lg">{submitError}</p>}
-          
+          {submitError && (
+            <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
+              {submitError}
+            </p>
+          )}
+
           {selectedBlock && priceBreakdown && (
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="p-6 bg-slate-900 text-white rounded-xl shadow-inner mt-8">
-              <div className="flex justify-between items-start">
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-foreground via-foreground to-foreground/95 p-6 text-primary-foreground shadow-xl"
+            >
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <h4 className="text-lg font-semibold text-primary-foreground/90">Booking Summary</h4>
-                  <p className="text-slate-300 mt-1">
-                    {dateRange.from && format(dateRange.from, "MMM dd")} 
-                    {dateRange.to && dateRange.from?.getTime() !== dateRange.to?.getTime() && ` - ${format(dateRange.to, "MMM dd")}`}
+                  <p className="text-xs font-bold uppercase tracking-widest text-primary-foreground/60">Summary</p>
+                  <p className="mt-1 text-lg font-bold">
+                    {dateRange.from && format(dateRange.from, "MMM d")}
+                    {dateRange.to &&
+                      dateRange.from?.getTime() !== dateRange.to?.getTime() &&
+                      ` → ${format(dateRange.to, "MMM d")}`}
                   </p>
-                  <p className="text-slate-300 font-medium text-lg mt-1 block">
-                    {selectedBlock.start} to {selectedBlock.end} ({duration} mins)
+                  <p className="mt-0.5 text-sm text-primary-foreground/80">
+                    {selectedBlock.start} – {selectedBlock.end} · {duration} min
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm text-slate-400">Total Price</p>
-                  <p className="text-4xl font-black text-white">{formatCurrency(priceBreakdown.total)}</p>
+                <div className="text-left sm:text-right">
+                  <p className="text-xs font-medium text-primary-foreground/60">Total</p>
+                  <p className="text-3xl font-black tracking-tight sm:text-4xl">
+                    {formatCurrency(priceBreakdown.total)}
+                  </p>
                 </div>
               </div>
             </motion.div>
           )}
 
-          <DialogFooter className="pt-6 border-t mt-8 gap-3 sm:gap-0">
-            <Button type="button" variant="ghost" className="text-slate-500" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button 
-              type="submit" 
-              className="bg-primary hover:opacity-90 text-primary-foreground px-8 py-6 text-lg rounded-full shadow-brand transition-all"
-              disabled={!selectedBlock || createBooking.isPending}
+          <DialogFooter className="flex-col-reverse gap-3 border-t border-border/80 pt-6 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full rounded-full border-2 sm:w-auto"
+              onClick={() => onOpenChange(false)}
             >
-              {createBooking.isPending ? "Confirming..." : "Confirm Booking"}
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              className="w-full rounded-full bg-primary px-10 py-6 text-base font-bold shadow-brand transition-all hover:opacity-95 sm:min-w-[220px]"
+              disabled={!selectedBlock || createBooking.isPending}
+              aria-busy={createBooking.isPending}
+            >
+              {createBooking.isPending ? (
+                <LoadingLabel>Confirming booking</LoadingLabel>
+              ) : (
+                "Confirm booking"
+              )}
             </Button>
           </DialogFooter>
         </form>
