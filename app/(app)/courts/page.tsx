@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Court } from "@/types";
 import { Search, MapPin, ArrowLeft, Building2 } from "lucide-react";
+import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 
 export default function CourtsPage() {
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
@@ -59,13 +60,8 @@ export default function CourtsPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground animate-pulse">
-            Loading sports facilities...
-          </p>
-        </div>
+      <div className="container mx-auto px-4 py-8">
+        <GlobalLoadingPlaceholder minHeight="min-h-[60vh]" />
       </div>
     );
   }

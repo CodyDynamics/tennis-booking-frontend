@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Search, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 
 export default function LocationCourtsPage() {
   const params = useParams();
@@ -47,11 +48,8 @@ export default function LocationCourtsPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground animate-pulse">Loading courts...</p>
-        </div>
+      <div className="container mx-auto px-4 py-8">
+        <GlobalLoadingPlaceholder minHeight="min-h-[60vh]" />
       </div>
     );
   }

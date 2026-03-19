@@ -7,7 +7,7 @@ import { CoachDashboard } from "@/features/dashboard/components/coach-dashboard"
 import { AdminDashboard } from "@/features/dashboard/components/admin-dashboard";
 import { PlayerDashboard } from "@/features/dashboard/components/player-dashboard";
 import { useAuth } from "@/lib/auth-store";
-import { LoadingShell } from "@/components/ui/loading-label";
+import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 
 export default function DashboardPage() {
   const { user, isLoading, isAuthenticated } = useAuth();
@@ -20,11 +20,7 @@ export default function DashboardPage() {
   }, [isLoading, isAuthenticated, router]);
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <LoadingShell message="Loading dashboard" />
-      </div>
-    );
+    return <GlobalLoadingPlaceholder minHeight="min-h-screen" />;
   }
 
   if (!user) {

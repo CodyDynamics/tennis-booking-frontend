@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth-store";
 import { useSessions } from "@/lib/queries";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
-import { LoadingShell } from "@/components/ui/loading-label";
+import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 
 export default function ReportsPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -32,11 +32,7 @@ export default function ReportsPage() {
 
   // Show loading while checking auth
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <LoadingShell message="Loading reports" />
-      </div>
-    );
+    return <GlobalLoadingPlaceholder minHeight="min-h-screen" />;
   }
 
   // If not authenticated or not a coach, render nothing (redirect handled in useEffect)

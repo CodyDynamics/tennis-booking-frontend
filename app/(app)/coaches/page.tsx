@@ -8,6 +8,7 @@ import { useCoaches } from "@/lib/queries";
 import { Input } from "@/components/ui/input";
 import type { Coach } from "@/types";
 import { Search } from "lucide-react";
+import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 
 export default function CoachesPage() {
   const [selectedCoach, setSelectedCoach] = useState<Coach | null>(null);
@@ -28,10 +29,8 @@ export default function CoachesPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Loading coaches...</p>
-        </div>
+      <div className="container mx-auto px-4 py-8">
+        <GlobalLoadingPlaceholder minHeight="min-h-[50vh]" />
       </div>
     );
   }

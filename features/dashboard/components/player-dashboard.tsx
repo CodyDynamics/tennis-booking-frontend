@@ -9,6 +9,7 @@ import { Calendar, Clock, MapPin, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 
 export function PlayerDashboard() {
   const { user } = useAuth();
@@ -68,11 +69,7 @@ export function PlayerDashboard() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    );
+    return <GlobalLoadingPlaceholder minHeight="min-h-[400px]" />;
   }
 
   return (
