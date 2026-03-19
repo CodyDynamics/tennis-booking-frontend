@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Mail, Lock, ShieldCheck } from "lucide-react";
+import { Mail, ShieldCheck } from "lucide-react";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useAuth } from "@/lib/auth-store";
 import { api, ApiError } from "@/lib/api";
 import { requestOtpSchema, type RequestOtpFormValues } from "@/features/auth/schemas/request-otp.schema";
@@ -145,23 +146,13 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
                   </p>
                 )}
               </div>
-              <div className="space-y-2">
+              <div>
                 <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    className="pl-10"
-                    {...normalLoginForm.register("password")}
-                  />
-                </div>
-                {normalLoginForm.formState.errors.password && (
-                  <p className="text-sm text-destructive">
-                    {normalLoginForm.formState.errors.password.message}
-                  </p>
-                )}
+                <PasswordInput
+                  id="password"
+                  register={normalLoginForm.register("password")}
+                  error={normalLoginForm.formState.errors.password?.message}
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
@@ -297,23 +288,13 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
                 </p>
               )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  className="pl-10"
-                  {...emailForm.register("password")}
-                />
-              </div>
-              {emailForm.formState.errors.password && (
-                <p className="text-sm text-destructive">
-                  {emailForm.formState.errors.password.message}
-                </p>
-              )}
+            <div>
+              <Label htmlFor="password-otp">Password</Label>
+              <PasswordInput
+                id="password-otp"
+                register={emailForm.register("password")}
+                error={emailForm.formState.errors.password?.message}
+              />
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">

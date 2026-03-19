@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Mail, Lock } from "lucide-react";
+import { User, Mail } from "lucide-react";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useAuth } from "@/lib/auth-store";
 import { useRoles } from "@/lib/hooks/use-roles";
 import { registerSchema, type RegisterFormValues } from "@/features/auth/schemas/register.schema";
@@ -138,35 +139,21 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
                 <p className="text-sm text-destructive">{errors.roleId.message}</p>
               )}
             </div>
-            <div className="space-y-2">
+            <div>
               <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  className="pl-10"
-                  {...register("password")}
-                />
-              </div>
-              {errors.password && (
-                <p className="text-sm text-destructive">{errors.password.message}</p>
-              )}
+              <PasswordInput
+                id="password"
+                register={register("password")}
+                error={errors.password?.message}
+              />
             </div>
-            <div className="space-y-2">
+            <div>
               <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  className="pl-10"
-                  {...register("confirmPassword")}
-                />
-              </div>
-              {errors.confirmPassword && (
-                <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
-              )}
+              <PasswordInput
+                id="confirmPassword"
+                register={register("confirmPassword")}
+                error={errors.confirmPassword?.message}
+              />
             </div>
             {submitError && (
               <p className="text-sm text-destructive">{submitError}</p>

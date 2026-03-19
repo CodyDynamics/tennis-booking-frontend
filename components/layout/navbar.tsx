@@ -108,6 +108,37 @@ export function Navbar() {
               </>
             )}
           </div>
+
+          {/* Mobile: Sign In / Sign Up and auth always visible (no menu to open) */}
+          {showAuthButtons && (
+            <div className="flex md:hidden items-center gap-2">
+              {isAuthenticated && user ? (
+                <>
+                  <Link href="/profile">
+                    <Button variant="ghost" size="icon" className="rounded-full bg-slate-100 dark:bg-slate-800">
+                      <User className="h-5 w-5" />
+                    </Button>
+                  </Link>
+                  <Button variant="ghost" size="sm" onClick={handleLogout} className="rounded-full text-red-500">
+                    <LogOut className="h-4 w-4" />
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Link href="/register">
+                    <Button variant="outline" size="sm" className="rounded-full">
+                      Sign Up
+                    </Button>
+                  </Link>
+                  <Link href="/login">
+                    <Button size="sm" className="rounded-full bg-blue-600 hover:bg-blue-700 px-4 font-bold">
+                      Sign In <LogIn className="ml-1 h-4 w-4" />
+                    </Button>
+                  </Link>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </nav>
