@@ -1,8 +1,8 @@
 import { RouteSegmentLoadingBridge } from "@/components/layout/app-loading-provider";
 
 /**
- * Next.js: fallback Suspense khi chuyển trang / stream RSC trong nhóm (app).
- * Bridge báo AppLoadingProvider để hiện TennisBallsLoader (một lớp overlay duy nhất).
+ * Next.js segment loading: Suspense fallback while navigating / streaming RSC.
+ * Bridge notifies AppLoadingProvider to show the global tennis overlay.
  */
 export default function AppSegmentLoading() {
   return <RouteSegmentLoadingBridge />;
