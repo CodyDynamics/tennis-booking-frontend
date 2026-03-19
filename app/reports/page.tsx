@@ -24,7 +24,7 @@ export default function ReportsPage() {
       if (!isAuthenticated) {
         router.push("/login");
       } else if (user && user.role !== "coach") {
-        router.push("/dashboard");
+        router.push("/");
       }
     }
   }, [isLoading, isAuthenticated, user, router]);

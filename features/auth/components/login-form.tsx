@@ -76,7 +76,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
     setSubmitError(null);
     try {
       await login(data.email, data.password, data.rememberMe);
-      router.push("/dashboard");
+      router.push("/");
     } catch (error) {
       if (error instanceof ApiError) {
         const msg = error.body?.message;
@@ -91,7 +91,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
     setSubmitError(null);
     try {
       await loginWithOtp(data.email, data.otp, pendingRememberMe);
-      router.push("/dashboard");
+      router.push("/");
     } catch (error) {
       if (error instanceof ApiError) {
         const msg = error.body?.message;

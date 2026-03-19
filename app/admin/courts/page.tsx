@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/lib/auth-store";
 import { useAdmin } from "../admin-context";
 import { useCourts, useBranches, useLocations, useCreateCourt, useUpdateCourt, useDeleteCourt } from "@/lib/queries";
@@ -26,7 +26,9 @@ import { formatCurrency } from "@/lib/format";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import type { Court } from "@/types";
-import { AdminFilter, AdminTable } from "../components";
+import { AdminFilter, AdminTable, AdminPagination } from "../components";
+
+const PAGE_SIZE = 10;
 
 function can(permissions: string[] | undefined, permission: string, role: string) {
   return role === "super_admin" || (permissions?.includes(permission) ?? false);
@@ -42,6 +44,7 @@ export default function AdminCourtsPage() {
   const [editingCourt, setEditingCourt] = useState<Court | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [modalBranchId, setModalBranchId] = useState<string | undefined>(undefined);
+  const [page, setPage] = useState(1);
 
   const canCreate = can(user?.permissions, "courts:create", user?.role ?? "");
   const canUpdate = can(user?.permissions, "courts:update", user?.role ?? "");
@@ -53,6 +56,15 @@ export default function AdminCourtsPage() {
     search: search || undefined,
     sport,
   });
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, branchId, status, sport]);
+
+  const paginatedCourts = useMemo(
+    () => courts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [courts, page]
+  );
   const { data: branches = [] } = useBranches();
   const locationsBranchId = modalOpen ? (modalBranchId ?? (branchId !== "all" ? branchId : branches[0]?.id)) : (branchId !== "all" ? branchId : branches[0]?.id);
   const { data: locations = [] } = useLocations(locationsBranchId);
@@ -192,7 +204,7 @@ export default function AdminCourtsPage() {
       <Card>
         <CardContent className="pt-6">
           <AdminTable<Court>
-            data={courts}
+            data={paginatedCourts}
             keyExtractor={(c) => c.id}
             emptyMessage="No courts found."
             isLoading={isLoading}
@@ -250,6 +262,15 @@ export default function AdminCourtsPage() {
                 : []),
             ]}
           />
+          {!isLoading && courts.length > 0 && (
+            <AdminPagination
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={courts.length}
+              onPageChange={setPage}
+              className="mt-4 border-t pt-4"
+            />
+          )}
         </CardContent>
       </Card>
 

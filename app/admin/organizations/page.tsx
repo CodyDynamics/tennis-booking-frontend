@@ -1,21 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useOrganizations } from "@/lib/queries";
 import { Card, CardContent } from "@/components/ui/card";
-import { AdminFilter, AdminTable } from "../components";
+import { AdminFilter, AdminTable, AdminPagination } from "../components";
+
+const PAGE_SIZE = 10;
 import { Loader2 } from "lucide-react";
 import type { OrganizationApi } from "@/lib/api/endpoints/organizations";
 
 export default function AdminOrganizationsPage() {
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const { data: organizations = [], isLoading } = useOrganizations();
 
-  const filtered = organizations.filter(
-    (o) =>
-      !search.trim() ||
-      o.name.toLowerCase().includes(search.toLowerCase()) ||
-      (o.description ?? "").toLowerCase().includes(search.toLowerCase())
+  const filtered = useMemo(
+    () =>
+      organizations.filter(
+        (o) =>
+          !search.trim() ||
+          o.name.toLowerCase().includes(search.toLowerCase()) ||
+          (o.description ?? "").toLowerCase().includes(search.toLowerCase())
+      ),
+    [organizations, search]
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  const paginated = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page]
   );
 
   return (
@@ -33,7 +49,7 @@ export default function AdminOrganizationsPage() {
       <Card>
         <CardContent className="pt-6">
           <AdminTable<OrganizationApi>
-            data={filtered}
+            data={paginated}
             keyExtractor={(o) => o.id}
             emptyMessage="No organizations found."
             isLoading={isLoading}
@@ -48,6 +64,15 @@ export default function AdminOrganizationsPage() {
               { key: "status", label: "Status", render: (o) => o.status ?? "—" },
             ]}
           />
+          {!isLoading && filtered.length > 0 && (
+            <AdminPagination
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={filtered.length}
+              onPageChange={setPage}
+              className="mt-4 border-t pt-4"
+            />
+          )}
         </CardContent>
       </Card>
     </div>

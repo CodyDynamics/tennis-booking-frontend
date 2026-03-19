@@ -63,7 +63,7 @@ export function ReportForm({ studentId, coachId }: ReportFormProps) {
         improvementPlan: data.improvementPlan,
         nextGoal: data.nextGoal,
       });
-      router.push("/dashboard");
+      router.push("/");
     } catch (error) {
       console.error("Report submission failed:", error);
     }

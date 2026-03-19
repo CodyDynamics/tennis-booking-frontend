@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { AdminPagination } from "../components";
 import { useAuth } from "@/lib/auth-store";
 import { useRolesList, usePermissionsSchema, useUpdateRolePermissions } from "@/lib/queries";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +30,8 @@ function can(permissions: string[] | undefined, permission: string, role: string
   return role === "super_admin" || (permissions?.includes(permission) ?? false);
 }
 
+const PERMISSIONS_PAGE_SIZE = 8;
+
 export default function AdminRolesPage() {
   const { user } = useAuth();
   const [selectedRoleId, setSelectedRoleId] = useState<string>("");
@@ -50,6 +53,7 @@ export default function AdminRolesPage() {
 
   const [localPerms, setLocalPerms] = useState<Set<string>>(new Set());
   const [saveFeedbackUntil, setSaveFeedbackUntil] = useState<number>(0);
+  const [permPage, setPermPage] = useState(1);
 
   // Sync localPerms only when user switches role — do NOT sync when refetch updates selectedRole.permissions
   // (that would overwrite local unsaved changes after a save and make the Save button incorrectly disabled)
@@ -57,6 +61,19 @@ export default function AdminRolesPage() {
     setLocalPerms(new Set(currentPerms));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRoleId]);
+
+  useEffect(() => {
+    setPermPage(1);
+  }, [selectedRoleId]);
+
+  const paginatedSchema = useMemo(
+    () =>
+      schema.slice(
+        (permPage - 1) * PERMISSIONS_PAGE_SIZE,
+        permPage * PERMISSIONS_PAGE_SIZE
+      ),
+    [schema, permPage]
+  );
 
   const isDirty = useMemo(() => {
     if (currentPerms.size !== localPerms.size) return true;
@@ -196,7 +213,7 @@ export default function AdminRolesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {schema.map((item: PermissionSchemaItem) => (
+                  {paginatedSchema.map((item: PermissionSchemaItem) => (
                     <TableRow key={item.resource}>
                       <TableCell className="font-medium">{item.label}</TableCell>
                       {allActions.map((action) => {
@@ -220,6 +237,15 @@ export default function AdminRolesPage() {
                 </TableBody>
               </Table>
             </div>
+            {schema.length > 0 && (
+              <AdminPagination
+                page={permPage}
+                pageSize={PERMISSIONS_PAGE_SIZE}
+                total={schema.length}
+                onPageChange={setPermPage}
+                className="mt-4 border-t pt-4"
+              />
+            )}
           </CardContent>
         </Card>
       ) : selectedRoleId && schema.length === 0 ? (

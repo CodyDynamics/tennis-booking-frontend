@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/lib/auth-store";
 import {
   useUsers,
@@ -30,7 +30,9 @@ import { Label } from "@/components/ui/label";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import type { UserApi } from "@/lib/api/endpoints/users";
-import { AdminFilter, AdminTable } from "../components";
+import { AdminFilter, AdminTable, AdminPagination } from "../components";
+
+const PAGE_SIZE = 10;
 
 function can(permissions: string[] | undefined, permission: string, role: string) {
   return role === "super_admin" || (permissions?.includes(permission) ?? false);
@@ -43,6 +45,7 @@ export default function AdminUsersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserApi | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   const canCreate = can(user?.permissions, "users:create", user?.role ?? "");
   const canUpdate = can(user?.permissions, "users:update", user?.role ?? "");
@@ -52,6 +55,15 @@ export default function AdminUsersPage() {
     roleId: roleId && roleId !== "all" ? roleId : undefined,
     search: search || undefined,
   });
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, roleId]);
+
+  const paginatedUsers = useMemo(
+    () => users.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [users, page]
+  );
   const { data: roles = [] } = useRolesList();
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
@@ -185,7 +197,7 @@ export default function AdminUsersPage() {
       <Card>
         <CardContent className="pt-6">
           <AdminTable<UserApi>
-            data={users}
+            data={paginatedUsers}
             keyExtractor={(u) => u.id}
             emptyMessage="No users found."
             isLoading={isLoading}
@@ -244,6 +256,15 @@ export default function AdminUsersPage() {
                 : []),
             ]}
           />
+          {!isLoading && users.length > 0 && (
+            <AdminPagination
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={users.length}
+              onPageChange={setPage}
+              className="mt-4 border-t pt-4"
+            />
+          )}
         </CardContent>
       </Card>
 
