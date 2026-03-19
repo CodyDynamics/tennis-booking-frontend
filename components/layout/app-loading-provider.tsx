@@ -6,6 +6,7 @@
  * - React Query: initial fetches + mutations (background refetch excluded)
  */
 
+import { useIsFetching, useIsMutating } from "@tanstack/react-query";
 import {
   createContext,
   useCallback,
@@ -15,8 +16,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useIsFetching, useIsMutating } from "@tanstack/react-query";
-import { TennisBallsLoader } from "@/components/ui/tennis-balls-loader";
+import { TennisBallsLoader2 } from "../ui/tennis-balls-loader-2";
 
 type AppLoadingContextValue = {
   registerRouteLoading: (delta: number) => void;
@@ -93,10 +93,10 @@ export function AppLoadingProvider({ children }: { children: React.ReactNode }) 
   }, [rawBusy]);
 
   const message = routeBusy
-    ? "Đang tải trang…"
+    ? "Loading page…"
     : pendingMutations > 0
-      ? "Đang xử lý…"
-      : "Đang tải dữ liệu…";
+      ? "Working…"
+      : "Loading data…";
 
   const contextValue = useMemo<AppLoadingContextValue>(
     () => ({ registerRouteLoading }),
@@ -106,7 +106,7 @@ export function AppLoadingProvider({ children }: { children: React.ReactNode }) 
   return (
     <AppLoadingContext.Provider value={contextValue}>
       {children}
-      <TennisBallsLoader
+      <TennisBallsLoader2
         open={showOverlay}
         message={message}
         lockScroll={showOverlay}
