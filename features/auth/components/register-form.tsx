@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { LoadingLabel } from "@/components/ui/loading-label";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { User, Mail } from "lucide-react";
 import { PasswordInput } from "@/components/ui/password-input";
 import { useAuth } from "@/lib/auth-store";
@@ -19,9 +19,11 @@ import { ApiError } from "@/lib/api";
 
 interface RegisterFormProps {
   onSwitchToLogin?: () => void;
+  /** When set, called after successful registration instead of navigating to `/`. */
+  onRegisterSuccess?: () => void;
 }
 
-export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
+export function RegisterForm({ onSwitchToLogin, onRegisterSuccess }: RegisterFormProps) {
   const {
     register,
     handleSubmit,
@@ -45,7 +47,8 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
         fullName,
         roleId: data.roleId,
       });
-      router.push("/");
+      if (onRegisterSuccess) onRegisterSuccess();
+      else router.push("/");
     } catch (error) {
       if (error instanceof ApiError) {
         const msg = error.body?.message;

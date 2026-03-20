@@ -83,6 +83,7 @@ export function useAuth() {
     }) => api.auth.login({ email, password, rememberMe }),
     onSuccess: (res) => {
       queryClient.setQueryData(["auth", "user"], mapAuthUserToUser(res.user));
+      void queryClient.invalidateQueries({ queryKey: ["auth", "user"] });
     },
   });
 
@@ -103,6 +104,7 @@ export function useAuth() {
     }) => api.auth.verifyLoginOtp({ email, otp, rememberMe }),
     onSuccess: (res) => {
       queryClient.setQueryData(["auth", "user"], mapAuthUserToUser(res.user));
+      void queryClient.invalidateQueries({ queryKey: ["auth", "user"] });
     },
   });
 
@@ -116,6 +118,7 @@ export function useAuth() {
     }) => api.auth.register(data),
     onSuccess: (res) => {
       queryClient.setQueryData(["auth", "user"], mapAuthUserToUser(res.user));
+      void queryClient.invalidateQueries({ queryKey: ["auth", "user"] });
     },
   });
 

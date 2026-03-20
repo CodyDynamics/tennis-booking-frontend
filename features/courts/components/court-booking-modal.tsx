@@ -54,7 +54,7 @@ export function CourtBookingModal({
     from: undefined,
     to: undefined,
   });
-  
+
   const [bookingType, setBookingType] = useState<"COURT_ONLY" | "COURT_COACH" | "TRAINING">("COURT_ONLY");
   const [selectedCoachId, setSelectedCoachId] = useState<string>("");
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -233,8 +233,8 @@ export function CourtBookingModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto scrollbar-booking gap-0 p-0 rounded-3xl border-border/60 shadow-2xl">
-        <div className="relative overflow-hidden rounded-t-3xl bg-gradient-to-br from-primary via-primary to-primary/85 px-6 pb-8 pt-7 text-primary-foreground">
+      <DialogContent className="flex max-h-[90vh] max-w-4xl flex-col gap-0 overflow-hidden rounded-3xl border border-border/60 bg-background p-0 shadow-2xl sm:rounded-3xl">
+        <div className="relative shrink-0 overflow-hidden bg-gradient-to-br from-primary via-primary to-primary/85 px-6 pb-8 pt-7 text-primary-foreground">
           <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-8 left-1/4 h-32 w-64 rounded-full bg-black/10 blur-2xl" />
           <div className="relative flex flex-wrap items-start justify-between gap-4">
@@ -258,7 +258,7 @@ export function CourtBookingModal({
 
         <form
           onSubmit={handleSubmit(onSubmit)}
-          className="space-y-8 bg-gradient-to-b from-background to-muted/20 px-5 py-7 sm:px-8"
+          className="min-h-0 flex-1 space-y-8 overflow-y-auto bg-gradient-to-b from-background to-muted/20 px-5 py-7 scrollbar-booking sm:px-8"
         >
           <section className="rounded-2xl border border-border/80 bg-card p-5 shadow-sm">
             <BookingTypeSelector
@@ -337,11 +337,10 @@ export function CourtBookingModal({
                           key={i}
                           type="button"
                           variant={isSelected ? "default" : "outline"}
-                          className={`h-auto flex-col gap-0.5 rounded-xl py-3 ${
-                            isSelected
+                          className={`h-auto flex-col gap-0.5 rounded-xl py-3 ${isSelected
                               ? "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/25"
                               : "border-dashed hover:border-primary/40 hover:bg-primary/5"
-                          }`}
+                            }`}
                           onClick={() => {
                             setSelectedMainSlot(slot);
                             setSelectedBlock(null);
@@ -371,9 +370,8 @@ export function CourtBookingModal({
                               setDuration(d);
                               setSelectedBlock(null);
                             }}
-                            className={`min-w-[4.5rem] rounded-full px-4 font-bold ${
-                              duration === d ? "bg-primary shadow-sm" : "border-muted-foreground/20"
-                            }`}
+                            className={`min-w-[4.5rem] rounded-full px-4 font-bold ${duration === d ? "bg-primary shadow-sm" : "border-muted-foreground/20"
+                              }`}
                           >
                             {d} min
                           </Button>

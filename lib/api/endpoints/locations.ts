@@ -1,4 +1,5 @@
 import type { ApiClient } from "../client";
+import type { ListResponse } from "../list-response";
 
 export interface LocationApi {
   id: string;
@@ -8,6 +9,10 @@ export interface LocationApi {
   status?: string;
   createdAt?: string;
   updatedAt?: string;
+  latitude?: string | null;
+  longitude?: string | null;
+  /** JSON string: `[{ "lat": number, "lng": number, "label": string }]` */
+  mapMarkers?: string | null;
 }
 
 export interface CreateLocationBody {
@@ -24,10 +29,12 @@ export interface UpdateLocationBody {
 
 export function createLocationsEndpoints(client: ApiClient) {
   return {
-    getLocations: (params?: { branchId?: string }) => {
+    getLocations: (params?: { branchId?: string; page?: string; pageSize?: string }) => {
       const q: Record<string, string> = {};
       if (params?.branchId) q.branchId = params.branchId;
-      return client.get<LocationApi[]>("/locations", {
+      if (params?.page !== undefined) q.page = params.page;
+      if (params?.pageSize !== undefined) q.pageSize = params.pageSize;
+      return client.get<ListResponse<LocationApi>>("/locations", {
         params: Object.keys(q).length ? q : undefined,
       });
     },

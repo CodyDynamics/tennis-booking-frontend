@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -14,7 +16,30 @@ import {
   Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useLocations } from "@/lib/queries";
+import { useAuth } from "@/lib/auth-store";
+import { AuthDialog } from "@/features/auth/components/auth-dialog";
+import { cn } from "@/lib/utils";
+
+const CommunityLocationsMap = dynamic(
+  () =>
+    import("@/components/map/community-locations-map").then(
+      (m) => m.CommunityLocationsMap,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="absolute inset-0 z-0 min-h-[320px] animate-pulse bg-muted" />
+    ),
+  },
+);
 
 // CodyReserve branding — hero: tennis court aerial
 const HERO_BG_IMAGE =
@@ -23,9 +48,6 @@ const HERO_BG_IMAGE =
 // Intro video: direct MP4 for reliable autoplay (muted required by browsers). Tennis courts aerial.
 const INTRO_VIDEO_MP4 =
   "https://assets.mixkit.co/videos/5014/5014-720.mp4";
-
-const MAP_EMBED_URL =
-  "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d214587.225799977!2d-97.0!3d32.8!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x864c3e0e575776b5%3A0x2a0e3da9a2e2e2e2!2sDallas-Fort%20Worth%20Metroplex!5e0!3m2!1sen!2sus!4v1234567890";
 
 // Fallback when partner image fails to load (neutral facility vibe)
 const DEFAULT_PARTNER_IMAGE =
@@ -124,7 +146,57 @@ function PartnerCard({ partner }: { partner: Partner }) {
 }
 
 export default function Home() {
+  const router = useRouter();
   const { data: locations = [] } = useLocations();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+
+  const [showLocationSelect, setShowLocationSelect] = useState(false);
+  const [selectedLocationId, setSelectedLocationId] = useState<string>("");
+  const [pendingLocationId, setPendingLocationId] = useState<string | null>(
+    null,
+  );
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const [selectedMapLocationId, setSelectedMapLocationId] = useState<
+    string | null
+  >(null);
+  const mapDefaultSelectionApplied = useRef(false);
+
+  useEffect(() => {
+    if (locations.length === 0 || mapDefaultSelectionApplied.current) return;
+    mapDefaultSelectionApplied.current = true;
+    setSelectedMapLocationId(locations[0].id);
+  }, [locations]);
+
+  const goToLocationCourts = (locationId: string) => {
+    router.push(`/locations/${locationId}/courts`);
+  };
+
+  const handleLocationChosen = (locationId: string) => {
+    setSelectedLocationId(locationId);
+    if (authLoading) return;
+    if (isAuthenticated) {
+      goToLocationCourts(locationId);
+      return;
+    }
+    setPendingLocationId(locationId);
+    setLoginDialogOpen(true);
+  };
+
+  const handleAuthSuccess = () => {
+    setLoginDialogOpen(false);
+    const id = pendingLocationId;
+    setPendingLocationId(null);
+    setSelectedLocationId("");
+    if (id) goToLocationCourts(id);
+  };
+
+  const handleLoginDialogOpenChange = (open: boolean) => {
+    setLoginDialogOpen(open);
+    if (!open) {
+      setPendingLocationId(null);
+      setSelectedLocationId("");
+    }
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -191,25 +263,43 @@ export default function Home() {
 
             <motion.div
               variants={itemVariants}
-              className="flex flex-col sm:flex-row justify-center gap-4"
+              className="flex flex-col sm:flex-row justify-center items-center gap-3 flex-wrap"
             >
-              <Link href="/coaches">
-                <Button
-                  size="lg"
-                  className="w-full sm:w-auto text-lg h-14 px-8 rounded-full bg-primary hover:opacity-90 text-primary-foreground shadow-brand transition-all font-bold"
+              <Button
+                type="button"
+                size="lg"
+                className="w-full sm:w-auto text-lg h-14 px-8 rounded-full bg-primary hover:opacity-90 text-primary-foreground shadow-brand transition-all font-bold"
+                onClick={() => setShowLocationSelect(true)}
+              >
+                Reserve a court <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
+              {showLocationSelect && (
+                <Select
+                  value={selectedLocationId || undefined}
+                  onValueChange={handleLocationChosen}
+                  disabled={authLoading || locations.length === 0}
                 >
-                  Find a Coach <ArrowRight className="ml-2 w-5 h-5" />
-                </Button>
-              </Link>
-              <Link href="/booking-history">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="w-full sm:w-auto text-lg h-14 px-8 rounded-full border-2 border-border bg-card hover:bg-muted font-bold text-foreground"
-                >
-                  Booking History
-                </Button>
-              </Link>
+                  <SelectTrigger
+                    className="w-full sm:w-[min(100%,280px)] h-14 rounded-full border-2 border-border bg-card font-bold text-foreground shadow-sm"
+                    aria-label="Choose location to reserve"
+                  >
+                    <SelectValue
+                      placeholder={
+                        locations.length === 0
+                          ? "No locations available"
+                          : "Choose a location"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map((loc) => (
+                      <SelectItem key={loc.id} value={loc.id}>
+                        {loc.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </motion.div>
           </motion.div>
         </div>
@@ -364,33 +454,60 @@ export default function Home() {
             viewport={{ once: true }}
             className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-xl"
           >
-            <div className="aspect-[21/9] min-h-[320px] w-full relative">
-              <iframe
-                src={MAP_EMBED_URL}
-                title="Our locations map"
-                className="absolute inset-0 w-full h-full"
-                allowFullScreen
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
+            <div className="aspect-[21/9] min-h-[320px] w-full relative isolate">
+              <CommunityLocationsMap
+                locations={locations}
+                selectedLocationId={selectedMapLocationId}
               />
             </div>
             {locations.length > 0 && (
-              <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex flex-wrap justify-center gap-3">
-                {locations.slice(0, 6).map((loc) => (
-                  <Link
-                    key={loc.id}
-                    href={`/locations/${loc.id}/courts`}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary font-medium hover:bg-primary/20 transition-colors"
-                  >
-                    <MapPin className="w-4 h-4" />
-                    {loc.name}
-                  </Link>
-                ))}
+              <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+                <p className="text-center text-xs text-muted-foreground mb-3">
+                  Tap a location to show demo court markers (fictional addresses).
+                </p>
+                <div className="flex flex-wrap justify-center gap-4">
+                  {locations.slice(0, 6).map((loc) => (
+                    <div
+                      key={loc.id}
+                      className="flex flex-col items-center gap-1.5 min-w-[140px]"
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedMapLocationId((prev) =>
+                            prev === loc.id ? null : loc.id,
+                          )
+                        }
+                        className={cn(
+                          "inline-flex items-center gap-2 px-4 py-2 rounded-full font-medium transition-colors w-full justify-center",
+                          selectedMapLocationId === loc.id
+                            ? "bg-primary text-primary-foreground shadow-brand"
+                            : "bg-primary/10 text-primary hover:bg-primary/20",
+                        )}
+                      >
+                        <MapPin className="w-4 h-4 shrink-0" />
+                        {loc.name}
+                      </button>
+                      <Link
+                        href={`/locations/${loc.id}/courts`}
+                        className="text-xs font-semibold text-primary hover:underline"
+                      >
+                        View courts →
+                      </Link>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </motion.div>
         </div>
       </section>
+
+      <AuthDialog
+        open={loginDialogOpen}
+        onOpenChange={handleLoginDialogOpenChange}
+        onAuthenticated={handleAuthSuccess}
+      />
     </div>
   );
 }

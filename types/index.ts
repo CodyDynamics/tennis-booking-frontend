@@ -34,6 +34,8 @@ export interface Court {
   imageGallery?: string[];
   /** Google Maps embed URL */
   mapEmbedUrl?: string | null;
+  /** Coaches assigned to this court (from GET /courts/:id) */
+  coaches?: Coach[];
   users?: string[];
   timeSlots?: { startTime: string; endTime: string }[];
 }
