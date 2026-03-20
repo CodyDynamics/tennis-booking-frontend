@@ -6,7 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, MapPin, Users, Calendar } from "lucide-react";
-import { useCourt, useCoaches } from "@/lib/queries";
+import { useCourt } from "@/lib/queries";
 import { CourtBookingModal } from "@/features/courts/components/court-booking-modal";
 import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 
@@ -74,8 +74,7 @@ export default function CourtDetailPage() {
   const [bannerError, setBannerError] = useState(false);
 
   const { data: court, isLoading, error } = useCourt(courtId);
-  const branchId = court?.branchId;
-  const { data: coaches = [] } = useCoaches(branchId || undefined);
+  const coaches = court?.coaches ?? [];
   const galleryUrls: string[] = useMemo(() => {
     if (!court?.imageGallery?.length) return [];
     return Array.isArray(court.imageGallery) ? court.imageGallery : [];

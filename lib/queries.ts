@@ -15,33 +15,6 @@ import type { CoachApi } from "@/lib/api/endpoints/coaches";
 import type { UserApi } from "@/lib/api/endpoints/users";
 import type { PermissionSchemaItem } from "@/lib/api/endpoints/roles";
 
-function mapCourtApiToCourt(c: CourtApi): Court {
-  let imageGallery: string[] | undefined;
-  if (c.imageGallery) {
-    try {
-      imageGallery = typeof c.imageGallery === "string" ? JSON.parse(c.imageGallery) : c.imageGallery;
-      if (!Array.isArray(imageGallery)) imageGallery = undefined;
-    } catch {
-      imageGallery = undefined;
-    }
-  }
-  return {
-    id: c.id,
-    name: c.name,
-    type: c.type === "indoor" ? "indoor" : "outdoor",
-    sport: c.sport === "pickleball" ? "pickleball" : "tennis",
-    pricePerHour: typeof c.pricePerHour === "string" ? parseFloat(c.pricePerHour) : c.pricePerHour,
-    description: c.description ?? undefined,
-    status: c.status === "active" ? "active" : "maintenance",
-    locationId: c.locationId ?? undefined,
-    branchId: c.location?.branchId ?? undefined,
-    locationName: c.location?.name ?? undefined,
-    imageUrl: c.imageUrl ?? undefined,
-    imageGallery,
-    mapEmbedUrl: c.mapEmbedUrl ?? undefined,
-  };
-}
-
 function mapCoachApiToCoach(c: CoachApi): Coach {
   return {
     id: c.id,
@@ -60,6 +33,37 @@ function mapCoachApiToCoach(c: CoachApi): Coach {
         }
       : undefined,
   };
+}
+
+function mapCourtApiToCourt(c: CourtApi): Court {
+  let imageGallery: string[] | undefined;
+  if (c.imageGallery) {
+    try {
+      imageGallery = typeof c.imageGallery === "string" ? JSON.parse(c.imageGallery) : c.imageGallery;
+      if (!Array.isArray(imageGallery)) imageGallery = undefined;
+    } catch {
+      imageGallery = undefined;
+    }
+  }
+  const base: Court = {
+    id: c.id,
+    name: c.name,
+    type: c.type === "indoor" ? "indoor" : "outdoor",
+    sport: c.sport === "pickleball" ? "pickleball" : "tennis",
+    pricePerHour: typeof c.pricePerHour === "string" ? parseFloat(c.pricePerHour) : c.pricePerHour,
+    description: c.description ?? undefined,
+    status: c.status === "active" ? "active" : "maintenance",
+    locationId: c.locationId ?? undefined,
+    branchId: c.location?.branchId ?? undefined,
+    locationName: c.location?.name ?? undefined,
+    imageUrl: c.imageUrl ?? undefined,
+    imageGallery,
+    mapEmbedUrl: c.mapEmbedUrl ?? undefined,
+  };
+  if (c.coaches?.length) {
+    base.coaches = c.coaches.map(mapCoachApiToCoach);
+  }
+  return base;
 }
 
 function mapCourtBookingApiToCourtBooking(b: CourtBookingApi): CourtBooking {
@@ -109,8 +113,12 @@ export function useCourts(params?: { locationId?: string; branchId?: string; sta
   return useQuery<Court[]>({
     queryKey: ["courts", params?.locationId, params?.branchId, params?.status, params?.search, params?.sport],
     queryFn: async () => {
-      const list = await api.courts.getCourts(params);
-      return list.map(mapCourtApiToCourt);
+      const res = await api.courts.getCourts({
+        ...params,
+        page: "0",
+        pageSize: "1000",
+      });
+      return res.data.map(mapCourtApiToCourt);
     },
   });
 }
@@ -131,8 +139,12 @@ export function useCoaches(branchId?: string) {
   return useQuery<Coach[]>({
     queryKey: ["coaches", branchId],
     queryFn: async () => {
-      const list = await api.coaches.getCoaches(branchId ? { branchId } : undefined);
-      return list.map(mapCoachApiToCoach);
+      const res = await api.coaches.getCoaches({
+        ...(branchId ? { branchId } : {}),
+        page: "0",
+        pageSize: "200",
+      });
+      return res.data.map(mapCoachApiToCoach);
     },
   });
 }
@@ -350,7 +362,14 @@ export function useSports() {
 export function useLocations(branchId?: string) {
   return useQuery({
     queryKey: ["locations", branchId],
-    queryFn: () => api.locations.getLocations(branchId ? { branchId } : undefined),
+    queryFn: async () => {
+      const res = await api.locations.getLocations({
+        ...(branchId ? { branchId } : {}),
+        page: "0",
+        pageSize: "500",
+      });
+      return res.data;
+    },
   });
 }
 

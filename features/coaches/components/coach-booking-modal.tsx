@@ -130,18 +130,21 @@ export function CoachBookingModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto scrollbar-booking p-0 rounded-2xl">
-        <div className="bg-primary p-6 text-primary-foreground rounded-t-2xl">
+      <DialogContent className="flex max-h-[90vh] max-w-4xl flex-col gap-0 overflow-hidden rounded-3xl border border-border/60 bg-background p-0 shadow-2xl sm:rounded-3xl">
+        <div className="relative shrink-0 overflow-hidden bg-gradient-to-br from-primary via-primary to-primary/85 p-6 text-primary-foreground">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-2xl font-bold">
               Book Session with {coach.user?.fullName}
             </DialogTitle>
-            <DialogDescription className="text-primary-foreground/85 mt-2 text-md">
+            <DialogDescription className="mt-2 text-md text-primary-foreground/85">
               Professional coaching • ${coach.hourlyRate}/hour
             </DialogDescription>
           </DialogHeader>
         </div>
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-8">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="min-h-0 flex-1 space-y-8 overflow-y-auto p-6 scrollbar-booking"
+        >
           <div className="rounded-xl border border-slate-200 bg-slate-50/50 dark:bg-slate-900/30 p-5 space-y-3">
             <Label className="text-base font-semibold flex items-center gap-2">
               <CalendarDays className="w-5 h-5 text-primary" /> Select Date Range

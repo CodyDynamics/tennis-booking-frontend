@@ -1,15 +1,27 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Users, LogIn, User, LogOut, Shield, Activity, MapPin, ChevronDown, History } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-store";
-import { useRouter } from "next/navigation";
 import { useLocations } from "@/lib/queries";
-import { useState, useRef, useEffect } from "react";
+import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
+import { Activity, LogIn, LogOut, Shield, User, Users } from "lucide-react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import type { User as AppUser } from "@/types";
+
+/** Admin area: full admins, super_admin, or staff with any admin-nav permission. */
+function canShowAdminNav(user: AppUser | null | undefined): boolean {
+  if (!user) return false;
+  const role = user.role;
+  if (role === "admin" || role === "super_admin") return true;
+  const perms = user.permissions;
+  if (!perms?.length) return false;
+  return ["courts:view", "users:view", "roles:view", "branches:view", "bookings:view"].some((p) =>
+    perms.includes(p),
+  );
+}
 
 export function Navbar() {
   const pathname = usePathname();
@@ -45,7 +57,7 @@ export function Navbar() {
 
   const navItems = [
     { href: "/coaches", label: "Coaches", icon: Users },
-    { href: "/booking-history", label: "History", icon: History },
+    // { href: "/booking-history", label: "History", icon: History },
   ];
 
   return (
@@ -88,7 +100,7 @@ export function Navbar() {
             })}
 
             {/* Location dropdown */}
-            <div className="relative" ref={dropdownRef}>
+            {/* <div className="relative" ref={dropdownRef}>
               <Button
                 variant={pathname.startsWith("/locations/") ? "default" : "ghost"}
                 className={cn(
@@ -130,11 +142,11 @@ export function Navbar() {
                   )}
                 </div>
               )}
-            </div>
+            </div> */}
 
             <div className="w-px h-8 bg-slate-200 dark:bg-slate-800 mx-2"></div>
 
-            {showAuthButtons && (user?.role === "admin" || (user?.permissions && ["courts:view", "users:view", "roles:view", "branches:view", "bookings:view"].some((p) => user.permissions!.includes(p)))) && (
+            {showAuthButtons && canShowAdminNav(user) && (
               <Link href="/admin">
                 <Button variant="outline" className={cn("rounded-full border-border", pathname.startsWith("/admin") && "bg-primary/10 text-primary border-primary/30")}>
                   <Shield className="mr-2 h-4 w-4 text-primary" />
@@ -151,7 +163,8 @@ export function Navbar() {
                         <User className="h-5 w-5" />
                       </Button>
                     </Link>
-                    <Button variant="ghost" onClick={handleLogout} className="rounded-full text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30">
+                    <Button variant="ghost" onClick={handleLogout} className="rounded-full flex items-center gap-x-1 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30">
+                      <p>Sign Out</p>
                       <LogOut className="h-4 w-4" />
                     </Button>
                   </div>
@@ -172,12 +185,28 @@ export function Navbar() {
             <div className="flex md:hidden items-center gap-2">
               {isAuthenticated && user ? (
                 <>
+                  {canShowAdminNav(user) && (
+                    <Link href="/admin">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={cn(
+                          "rounded-full border-border",
+                          pathname.startsWith("/admin") && "bg-primary/10 text-primary border-primary/30",
+                        )}
+                      >
+                        <Shield className="mr-1 h-4 w-4 text-primary" />
+                        Admin
+                      </Button>
+                    </Link>
+                  )}
                   <Link href="/profile">
                     <Button variant="ghost" size="icon" className="rounded-full bg-slate-100 dark:bg-slate-800">
                       <User className="h-5 w-5" />
                     </Button>
                   </Link>
                   <Button variant="ghost" size="sm" onClick={handleLogout} className="rounded-full text-red-500">
+                    <p>Sign Out</p>
                     <LogOut className="h-4 w-4" />
                   </Button>
                 </>

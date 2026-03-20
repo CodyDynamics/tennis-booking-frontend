@@ -22,9 +22,11 @@ import { loginSchema, type LoginFormValues } from "@/features/auth/schemas/login
 
 interface LoginFormProps {
   onSwitchToRegister?: () => void;
+  /** When set, called after successful login instead of navigating to `/`. */
+  onLoginSuccess?: () => void;
 }
 
-export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
+export function LoginForm({ onSwitchToRegister, onLoginSuccess }: LoginFormProps) {
   const [step, setStep] = useState<"email" | "otp">("email");
   const [pendingEmail, setPendingEmail] = useState("");
   const [pendingRememberMe, setPendingRememberMe] = useState(false);
@@ -74,11 +76,16 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
     }
   };
 
+  const afterLoginRedirect = () => {
+    if (onLoginSuccess) onLoginSuccess();
+    else router.push("/");
+  };
+
   const onNormalLoginSubmit = async (data: LoginFormValues) => {
     setSubmitError(null);
     try {
       await login(data.email, data.password, data.rememberMe);
-      router.push("/");
+      afterLoginRedirect();
     } catch (error) {
       if (error instanceof ApiError) {
         const msg = error.body?.message;
@@ -93,7 +100,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
     setSubmitError(null);
     try {
       await loginWithOtp(data.email, data.otp, pendingRememberMe);
-      router.push("/");
+      afterLoginRedirect();
     } catch (error) {
       if (error instanceof ApiError) {
         const msg = error.body?.message;
