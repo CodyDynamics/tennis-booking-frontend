@@ -109,28 +109,38 @@ function mapCoachSessionApiToCoachSession(s: CoachSessionApi): CoachSession {
 }
 
 // Courts queries
-export function useCourts(params?: { locationId?: string; branchId?: string; status?: string; search?: string; sport?: string }) {
+export function useCourts(params?: {
+  locationId?: string;
+  branchId?: string;
+  status?: string;
+  search?: string;
+  sport?: string;
+  /** When false, the query does not run (e.g. gate behind auth). */
+  enabled?: boolean;
+}) {
+  const { enabled, ...apiParams } = params ?? {};
   return useQuery<Court[]>({
-    queryKey: ["courts", params?.locationId, params?.branchId, params?.status, params?.search, params?.sport],
+    queryKey: ["courts", apiParams.locationId, apiParams.branchId, apiParams.status, apiParams.search, apiParams.sport],
     queryFn: async () => {
       const res = await api.courts.getCourts({
-        ...params,
+        ...apiParams,
         page: "0",
         pageSize: "1000",
       });
       return res.data.map(mapCourtApiToCourt);
     },
+    enabled: enabled !== false,
   });
 }
 
-export function useCourt(id: string | null | undefined) {
+export function useCourt(id: string | null | undefined, options?: { enabled?: boolean }) {
   return useQuery<Court>({
     queryKey: ["court", id],
     queryFn: async () => {
       const c = await api.courts.getCourt(id!);
       return mapCourtApiToCourt(c);
     },
-    enabled: !!id,
+    enabled: !!id && options?.enabled !== false,
   });
 }
 
@@ -373,12 +383,35 @@ export function useLocations(branchId?: string) {
   });
 }
 
+/** Home / map for guests: public locations only. */
+export function usePublicLocations() {
+  return useQuery({
+    queryKey: ["locations", "public"],
+    queryFn: async () => {
+      const res = await api.locations.getPublicLocations({
+        page: "0",
+        pageSize: "500",
+      });
+      return res.data;
+    },
+  });
+}
+
+/** Logged-in user: public + private clubs where they have active membership. */
+export function useBookableLocations(enabled: boolean) {
+  return useQuery({
+    queryKey: ["locations", "bookable"],
+    queryFn: () => api.locations.getBookableLocations(),
+    enabled,
+  });
+}
+
 // ----- Single location (for location courts page) -----
-export function useLocation(id: string | null | undefined) {
+export function useLocation(id: string | null | undefined, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["location", id],
     queryFn: () => api.locations.getLocation(id!),
-    enabled: !!id,
+    enabled: !!id && options?.enabled !== false,
   });
 }
 

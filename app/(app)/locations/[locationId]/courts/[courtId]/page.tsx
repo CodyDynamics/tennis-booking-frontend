@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useParams } from "next/navigation";
+import { useState, useMemo, useEffect } from "react";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, MapPin, Users, Calendar } from "lucide-react";
 import { useCourt } from "@/lib/queries";
+import { useAuth } from "@/lib/auth-store";
 import { CourtBookingModal } from "@/features/courts/components/court-booking-modal";
 import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 
@@ -68,12 +69,30 @@ function CoachAvatar({
 
 export default function CourtDetailPage() {
   const params = useParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const locationId = params.locationId as string;
   const courtId = params.courtId as string;
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [bannerError, setBannerError] = useState(false);
 
-  const { data: court, isLoading, error } = useCourt(courtId);
+  const queryEnabled = !authLoading && isAuthenticated && !!courtId;
+
+  const { data: court, isLoading, error } = useCourt(courtId, {
+    enabled: queryEnabled,
+  });
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) {
+      const nextPath =
+        pathname && pathname.startsWith("/") && !pathname.startsWith("//")
+          ? pathname
+          : `/locations/${locationId}/courts/${courtId}`;
+      router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
+    }
+  }, [authLoading, isAuthenticated, router, pathname, locationId, courtId]);
   const coaches = court?.coaches ?? [];
   const galleryUrls: string[] = useMemo(() => {
     if (!court?.imageGallery?.length) return [];
@@ -81,6 +100,10 @@ export default function CourtDetailPage() {
   }, [court?.imageGallery]);
 
   const bannerUrl = court?.imageUrl || (galleryUrls[0] ?? null);
+
+  if (authLoading || !isAuthenticated) {
+    return <GlobalLoadingPlaceholder minHeight="min-h-screen" />;
+  }
 
   if (isLoading) {
     return <GlobalLoadingPlaceholder minHeight="min-h-screen" />;

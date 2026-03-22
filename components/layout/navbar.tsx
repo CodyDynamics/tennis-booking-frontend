@@ -2,13 +2,11 @@
 
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-store";
-import { useLocations } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { Activity, LogIn, LogOut, Shield, User, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
 import type { User as AppUser } from "@/types";
 
 /** Admin area: full admins, super_admin, or staff with any admin-nav permission. */
@@ -27,21 +25,6 @@ export function Navbar() {
   const pathname = usePathname();
   const { user, logout, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
-  const [locationOpen, setLocationOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const { data: locations = [] } = useLocations();
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setLocationOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   // Hide navbar on auth pages
   if (pathname === "/login" || pathname === "/register" || pathname === "/forgot-password") {
     return null;
@@ -59,6 +42,18 @@ export function Navbar() {
     { href: "/coaches", label: "Coaches", icon: Users },
     // { href: "/booking-history", label: "History", icon: History },
   ];
+
+  const requireLoginForHref = (e: React.MouseEvent, href: string) => {
+    if (isLoading) {
+      e.preventDefault();
+      return;
+    }
+    if (!isAuthenticated) {
+      e.preventDefault();
+      const next = encodeURIComponent(href);
+      router.push(`/login?next=${next}`);
+    }
+  };
 
   return (
     <nav className="sticky top-0 z-50 border-b border-slate-200/50 dark:border-slate-800/50 bg-white/70 dark:bg-slate-950/70 backdrop-blur-xl">
@@ -82,7 +77,11 @@ export function Navbar() {
               const Icon = item.icon;
               const isActive = pathname === item.href;
               return (
-                <Link key={item.href} href={item.href}>
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={(e) => requireLoginForHref(e, item.href)}
+                >
                   <Button
                     variant={isActive ? "default" : "ghost"}
                     className={cn(
@@ -183,6 +182,15 @@ export function Navbar() {
           {/* Mobile: Sign In / Sign Up and auth always visible (no menu to open) */}
           {showAuthButtons && (
             <div className="flex md:hidden items-center gap-2">
+              <Link
+                href="/coaches"
+                onClick={(e) => requireLoginForHref(e, "/coaches")}
+              >
+                <Button variant="ghost" size="sm" className="rounded-full">
+                  <Users className="mr-1 h-4 w-4" />
+                  Coaches
+                </Button>
+              </Link>
               {isAuthenticated && user ? (
                 <>
                   {canShowAdminNav(user) && (

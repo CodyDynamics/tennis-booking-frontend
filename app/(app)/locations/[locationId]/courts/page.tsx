@@ -1,28 +1,48 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { CourtCard } from "@/features/courts/components/court-card";
 import { useCourts, useLocation } from "@/lib/queries";
+import { useAuth } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 
 export default function LocationCourtsPage() {
   const params = useParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const locationId = params.locationId as string;
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<
     "all" | "indoor" | "outdoor" | "tennis" | "pickleball"
   >("all");
 
-  const { data: location, isLoading: loadingLocation } = useLocation(locationId);
+  const queryEnabled = !authLoading && isAuthenticated && !!locationId;
+
+  const { data: location, isLoading: loadingLocation } = useLocation(locationId, {
+    enabled: queryEnabled,
+  });
   const { data: courts = [], isLoading: loadingCourts } = useCourts({
     locationId: locationId || undefined,
+    enabled: queryEnabled,
   });
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) {
+      const nextPath =
+        pathname && pathname.startsWith("/") && !pathname.startsWith("//")
+          ? pathname
+          : `/locations/${locationId}/courts`;
+      router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
+    }
+  }, [authLoading, isAuthenticated, router, pathname, locationId]);
 
   const filteredCourts = courts.filter((court) => {
     const matchesSearch =
@@ -43,6 +63,14 @@ export default function LocationCourtsPage() {
     }
     return matchesSearch && matchesType;
   });
+
+  if (authLoading || !isAuthenticated) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <GlobalLoadingPlaceholder minHeight="min-h-[60vh]" />
+      </div>
+    );
+  }
 
   const isLoading = loadingLocation || loadingCourts;
 

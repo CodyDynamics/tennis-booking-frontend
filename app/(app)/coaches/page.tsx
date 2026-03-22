@@ -1,20 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { CoachCard } from "@/features/coaches/components/coach-card";
 import { CoachBookingModal } from "@/features/coaches/components/coach-booking-modal";
 import { useCoaches } from "@/lib/queries";
+import { useAuth } from "@/lib/auth-store";
 import { Input } from "@/components/ui/input";
 import type { Coach } from "@/types";
 import { Search } from "lucide-react";
 import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 
 export default function CoachesPage() {
+  const router = useRouter();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [selectedCoach, setSelectedCoach] = useState<Coach | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const { data: coaches = [], isLoading } = useCoaches();
+  const { data: coaches = [], isLoading: coachesLoading } = useCoaches();
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) {
+      router.replace("/login?next=%2Fcoaches");
+    }
+  }, [authLoading, isAuthenticated, router]);
 
   const handleBook = (coach: Coach) => {
     setSelectedCoach(coach);
@@ -27,7 +38,15 @@ export default function CoachesPage() {
     return name.includes(searchQuery.toLowerCase()) || bio.includes(searchQuery.toLowerCase());
   });
 
-  if (isLoading) {
+  if (authLoading || !isAuthenticated) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <GlobalLoadingPlaceholder minHeight="min-h-[50vh]" />
+      </div>
+    );
+  }
+
+  if (coachesLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <GlobalLoadingPlaceholder minHeight="min-h-[50vh]" />

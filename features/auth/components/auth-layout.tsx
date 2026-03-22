@@ -15,9 +15,14 @@ type AuthMode = "login" | "register";
 
 interface AuthLayoutProps {
   initialMode?: AuthMode;
+  /** After login/register success (from `?next=`). */
+  redirectTo?: string | null;
 }
 
-export function AuthLayout({ initialMode = "login" }: AuthLayoutProps) {
+export function AuthLayout({
+  initialMode = "login",
+  redirectTo,
+}: AuthLayoutProps) {
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [mounted, setMounted] = useState(false);
 
@@ -184,7 +189,10 @@ export function AuthLayout({ initialMode = "login" }: AuthLayoutProps) {
                   <h3 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">Sign In</h3>
                   <p className="text-slate-500 dark:text-slate-400 text-sm">Enter your credentials to access your account.</p>
                 </div>
-                <LoginForm onSwitchToRegister={switchMode} />
+                <LoginForm
+                  onSwitchToRegister={switchMode}
+                  redirectTo={redirectTo}
+                />
               </motion.div>
             ) : (
               <motion.div
@@ -199,7 +207,10 @@ export function AuthLayout({ initialMode = "login" }: AuthLayoutProps) {
                   <h3 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">Create Account</h3>
                   <p className="text-slate-500 dark:text-slate-400 text-sm">Join us to start booking and playing.</p>
                 </div>
-                <RegisterForm onSwitchToLogin={switchMode} />
+                <RegisterForm
+                  onSwitchToLogin={switchMode}
+                  redirectTo={redirectTo}
+                />
               </motion.div>
             )}
           </AnimatePresence>

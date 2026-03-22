@@ -84,6 +84,7 @@ export function useAuth() {
     onSuccess: (res) => {
       queryClient.setQueryData(["auth", "user"], mapAuthUserToUser(res.user));
       void queryClient.invalidateQueries({ queryKey: ["auth", "user"] });
+      void queryClient.invalidateQueries({ queryKey: ["locations"] });
     },
   });
 
@@ -105,6 +106,7 @@ export function useAuth() {
     onSuccess: (res) => {
       queryClient.setQueryData(["auth", "user"], mapAuthUserToUser(res.user));
       void queryClient.invalidateQueries({ queryKey: ["auth", "user"] });
+      void queryClient.invalidateQueries({ queryKey: ["locations"] });
     },
   });
 
@@ -119,6 +121,7 @@ export function useAuth() {
     onSuccess: (res) => {
       queryClient.setQueryData(["auth", "user"], mapAuthUserToUser(res.user));
       void queryClient.invalidateQueries({ queryKey: ["auth", "user"] });
+      void queryClient.invalidateQueries({ queryKey: ["locations"] });
     },
   });
 
