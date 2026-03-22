@@ -19,14 +19,21 @@ import { api, ApiError } from "@/lib/api";
 import { requestOtpSchema, type RequestOtpFormValues } from "@/features/auth/schemas/request-otp.schema";
 import { verifyOtpSchema, type VerifyOtpFormValues } from "@/features/auth/schemas/verify-otp.schema";
 import { loginSchema, type LoginFormValues } from "@/features/auth/schemas/login.schema";
+import { safeNextPath } from "@/lib/safe-next-path";
 
 interface LoginFormProps {
   onSwitchToRegister?: () => void;
   /** When set, called after successful login instead of navigating to `/`. */
   onLoginSuccess?: () => void;
+  /** e.g. from `?next=/coaches` — must be a safe internal path. */
+  redirectTo?: string | null;
 }
 
-export function LoginForm({ onSwitchToRegister, onLoginSuccess }: LoginFormProps) {
+export function LoginForm({
+  onSwitchToRegister,
+  onLoginSuccess,
+  redirectTo,
+}: LoginFormProps) {
   const [step, setStep] = useState<"email" | "otp">("email");
   const [pendingEmail, setPendingEmail] = useState("");
   const [pendingRememberMe, setPendingRememberMe] = useState(false);
@@ -78,7 +85,10 @@ export function LoginForm({ onSwitchToRegister, onLoginSuccess }: LoginFormProps
 
   const afterLoginRedirect = () => {
     if (onLoginSuccess) onLoginSuccess();
-    else router.push("/");
+    else {
+      const next = safeNextPath(redirectTo);
+      router.push(next ?? "/");
+    }
   };
 
   const onNormalLoginSubmit = async (data: LoginFormValues) => {

@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useParams } from "next/navigation";
+import { useState, useMemo, useEffect } from "react";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, MapPin, Users, Calendar } from "lucide-react";
-import { useCourt } from "@/lib/queries";
+import { useCourt, useLocationMembership } from "@/lib/queries";
+import { useAuth } from "@/lib/auth-store";
 import { CourtBookingModal } from "@/features/courts/components/court-booking-modal";
 import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 
@@ -68,12 +69,36 @@ function CoachAvatar({
 
 export default function CourtDetailPage() {
   const params = useParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const locationId = params.locationId as string;
   const courtId = params.courtId as string;
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [bannerError, setBannerError] = useState(false);
 
-  const { data: court, isLoading, error } = useCourt(courtId);
+  const queryEnabled = !authLoading && isAuthenticated && !!courtId;
+
+  const { data: court, isLoading, error } = useCourt(courtId, {
+    enabled: queryEnabled,
+  });
+
+  const { data: locationAccess, isLoading: loadingLocationAccess } = useLocationMembership(
+    locationId,
+    { enabled: queryEnabled },
+  );
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) {
+      const nextPath =
+        pathname && pathname.startsWith("/") && !pathname.startsWith("//")
+          ? pathname
+          : `/locations/${locationId}/courts/${courtId}`;
+      router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
+    }
+  }, [authLoading, isAuthenticated, router, pathname, locationId, courtId]);
   const coaches = court?.coaches ?? [];
   const galleryUrls: string[] = useMemo(() => {
     if (!court?.imageGallery?.length) return [];
@@ -82,9 +107,17 @@ export default function CourtDetailPage() {
 
   const bannerUrl = court?.imageUrl || (galleryUrls[0] ?? null);
 
-  if (isLoading) {
+  if (authLoading || !isAuthenticated) {
     return <GlobalLoadingPlaceholder minHeight="min-h-screen" />;
   }
+
+  if (isLoading || loadingLocationAccess) {
+    return <GlobalLoadingPlaceholder minHeight="min-h-screen" />;
+  }
+
+  const prefillDate = searchParams.get("prefillDate");
+  const prefillStart = searchParams.get("prefillStart");
+  const prefillEnd = searchParams.get("prefillEnd");
 
   if (error || !court) {
     return (
@@ -99,8 +132,47 @@ export default function CourtDetailPage() {
     );
   }
 
+  if (court.locationId && court.locationId !== locationId) {
+    return (
+      <div className="container mx-auto py-12 px-4 max-w-7xl text-center">
+        <p className="text-muted-foreground">This court does not belong to this location.</p>
+        <Link href="/">
+          <Button variant="outline" className="mt-4 rounded-full">
+            Back to Home
+          </Button>
+        </Link>
+      </div>
+    );
+  }
+
+  if (
+    locationAccess?.visibility === "private" &&
+    !locationAccess.hasActiveMembership
+  ) {
+    return (
+      <div className="container mx-auto py-16 px-4 max-w-lg text-center">
+        <h1 className="text-2xl font-bold mb-2">Members only</h1>
+        <p className="text-muted-foreground mb-6">
+          This court is at a private club. You need an active membership to view it.
+        </p>
+        <Button asChild variant="outline" className="rounded-full">
+          <Link href="/">Back to home</Link>
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen">
+      {prefillDate && prefillStart && prefillEnd && (
+        <div className="bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-800 px-4 py-3 text-center text-sm text-amber-900 dark:text-amber-100">
+          From the booking wizard:{" "}
+          <strong>
+            {prefillDate} {prefillStart}–{prefillEnd}
+          </strong>
+          . Tap <strong>Book this Court</strong> below and choose the same slot to confirm.
+        </div>
+      )}
       {/* Banner fullwidth + title/description overlay */}
       <section className="relative w-full min-h-[320px] md:min-h-[420px] bg-slate-900">
         {bannerUrl && !bannerError ? (

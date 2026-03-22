@@ -16,14 +16,20 @@ import { useAuth } from "@/lib/auth-store";
 import { useRoles } from "@/lib/hooks/use-roles";
 import { registerSchema, type RegisterFormValues } from "@/features/auth/schemas/register.schema";
 import { ApiError } from "@/lib/api";
+import { safeNextPath } from "@/lib/safe-next-path";
 
 interface RegisterFormProps {
   onSwitchToLogin?: () => void;
   /** When set, called after successful registration instead of navigating to `/`. */
   onRegisterSuccess?: () => void;
+  redirectTo?: string | null;
 }
 
-export function RegisterForm({ onSwitchToLogin, onRegisterSuccess }: RegisterFormProps) {
+export function RegisterForm({
+  onSwitchToLogin,
+  onRegisterSuccess,
+  redirectTo,
+}: RegisterFormProps) {
   const {
     register,
     handleSubmit,
@@ -48,7 +54,10 @@ export function RegisterForm({ onSwitchToLogin, onRegisterSuccess }: RegisterFor
         roleId: data.roleId,
       });
       if (onRegisterSuccess) onRegisterSuccess();
-      else router.push("/");
+      else {
+        const next = safeNextPath(redirectTo);
+        router.push(next ?? "/");
+      }
     } catch (error) {
       if (error instanceof ApiError) {
         const msg = error.body?.message;

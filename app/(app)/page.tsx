@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import Image from "next/image";
@@ -23,10 +23,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useLocations } from "@/lib/queries";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { usePublicLocations, useBookableLocations } from "@/lib/queries";
 import { useAuth } from "@/lib/auth-store";
-import { AuthDialog } from "@/features/auth/components/auth-dialog";
 import { cn } from "@/lib/utils";
+import { LogIn } from "lucide-react";
 
 const CommunityLocationsMap = dynamic(
   () =>
@@ -147,55 +155,55 @@ function PartnerCard({ partner }: { partner: Partner }) {
 
 export default function Home() {
   const router = useRouter();
-  const { data: locations = [] } = useLocations();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+
+  const { data: publicLocations = [], isLoading: publicLoading } =
+    usePublicLocations();
+  const { data: bookableLocations, isLoading: bookableLoading } =
+    useBookableLocations(isAuthenticated && !authLoading);
+
+  const locationsForUi = useMemo(
+    () => (isAuthenticated ? (bookableLocations ?? []) : publicLocations),
+    [isAuthenticated, bookableLocations, publicLocations],
+  );
+
+  const locationsLoading =
+    authLoading || (isAuthenticated ? bookableLoading : publicLoading);
 
   const [showLocationSelect, setShowLocationSelect] = useState(false);
   const [selectedLocationId, setSelectedLocationId] = useState<string>("");
-  const [pendingLocationId, setPendingLocationId] = useState<string | null>(
-    null,
-  );
-  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const [reserveLoginOpen, setReserveLoginOpen] = useState(false);
   const [selectedMapLocationId, setSelectedMapLocationId] = useState<
     string | null
   >(null);
-  const mapDefaultSelectionApplied = useRef(false);
 
   useEffect(() => {
-    if (locations.length === 0 || mapDefaultSelectionApplied.current) return;
-    mapDefaultSelectionApplied.current = true;
-    setSelectedMapLocationId(locations[0].id);
-  }, [locations]);
+    if (locationsForUi.length === 0) {
+      setSelectedMapLocationId(null);
+      return;
+    }
+    setSelectedMapLocationId((prev) => {
+      if (prev && locationsForUi.some((l) => l.id === prev)) return prev;
+      return locationsForUi[0].id;
+    });
+  }, [locationsForUi]);
 
   const goToLocationCourts = (locationId: string) => {
     router.push(`/locations/${locationId}/courts`);
   };
 
-  const handleLocationChosen = (locationId: string) => {
-    setSelectedLocationId(locationId);
+  const handleReserveCourtClick = () => {
     if (authLoading) return;
-    if (isAuthenticated) {
-      goToLocationCourts(locationId);
+    if (!isAuthenticated) {
+      setReserveLoginOpen(true);
       return;
     }
-    setPendingLocationId(locationId);
-    setLoginDialogOpen(true);
+    setShowLocationSelect(true);
   };
 
-  const handleAuthSuccess = () => {
-    setLoginDialogOpen(false);
-    const id = pendingLocationId;
-    setPendingLocationId(null);
-    setSelectedLocationId("");
-    if (id) goToLocationCourts(id);
-  };
-
-  const handleLoginDialogOpenChange = (open: boolean) => {
-    setLoginDialogOpen(open);
-    if (!open) {
-      setPendingLocationId(null);
-      setSelectedLocationId("");
-    }
+  const handleLocationChosen = (locationId: string) => {
+    setSelectedLocationId(locationId);
+    goToLocationCourts(locationId);
   };
 
   const containerVariants = {
@@ -269,15 +277,15 @@ export default function Home() {
                 type="button"
                 size="lg"
                 className="w-full sm:w-auto text-lg h-14 px-8 rounded-full bg-primary hover:opacity-90 text-primary-foreground shadow-brand transition-all font-bold"
-                onClick={() => setShowLocationSelect(true)}
+                onClick={handleReserveCourtClick}
               >
                 Reserve a court <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
-              {showLocationSelect && (
+              {showLocationSelect && isAuthenticated && (
                 <Select
                   value={selectedLocationId || undefined}
                   onValueChange={handleLocationChosen}
-                  disabled={authLoading || locations.length === 0}
+                  disabled={locationsLoading || locationsForUi.length === 0}
                 >
                   <SelectTrigger
                     className="w-full sm:w-[min(100%,280px)] h-14 rounded-full border-2 border-border bg-card font-bold text-foreground shadow-sm"
@@ -285,16 +293,19 @@ export default function Home() {
                   >
                     <SelectValue
                       placeholder={
-                        locations.length === 0
-                          ? "No locations available"
-                          : "Choose a location"
+                        locationsLoading
+                          ? "Loading locations…"
+                          : locationsForUi.length === 0
+                            ? "No locations available for your account"
+                            : "Choose a location"
                       }
                     />
                   </SelectTrigger>
                   <SelectContent>
-                    {locations.map((loc) => (
+                    {locationsForUi.map((loc) => (
                       <SelectItem key={loc.id} value={loc.id}>
                         {loc.name}
+                        {loc.visibility === "private" ? " (members)" : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -456,17 +467,17 @@ export default function Home() {
           >
             <div className="aspect-[21/9] min-h-[320px] w-full relative isolate">
               <CommunityLocationsMap
-                locations={locations}
+                locations={locationsForUi}
                 selectedLocationId={selectedMapLocationId}
               />
             </div>
-            {locations.length > 0 && (
+            {locationsForUi.length > 0 && (
               <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
                 <p className="text-center text-xs text-muted-foreground mb-3">
                   Tap a location to show demo court markers (fictional addresses).
                 </p>
                 <div className="flex flex-wrap justify-center gap-4">
-                  {locations.slice(0, 6).map((loc) => (
+                  {locationsForUi.slice(0, 6).map((loc) => (
                     <div
                       key={loc.id}
                       className="flex flex-col items-center gap-1.5 min-w-[140px]"
@@ -503,11 +514,33 @@ export default function Home() {
         </div>
       </section>
 
-      <AuthDialog
-        open={loginDialogOpen}
-        onOpenChange={handleLoginDialogOpenChange}
-        onAuthenticated={handleAuthSuccess}
-      />
+      <Dialog open={reserveLoginOpen} onOpenChange={setReserveLoginOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Sign in to reserve</DialogTitle>
+            <DialogDescription>
+              Please sign in to see locations you can book. Public facilities
+              are available to everyone; private clubs only appear if you have
+              an active membership.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setReserveLoginOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="button" asChild className="shadow-brand">
+              <Link href="/login?next=%2F" onClick={() => setReserveLoginOpen(false)}>
+                <LogIn className="mr-2 h-4 w-4" />
+                Go to sign in
+              </Link>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
