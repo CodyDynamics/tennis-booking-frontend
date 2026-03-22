@@ -3,6 +3,8 @@ import type {
   CreateCoachSessionInput,
   CreateBookingResult,
   CourtAvailabilitySlot,
+  CourtWizardAvailabilityResponseApi,
+  CourtWizardWindowApi,
   MyBookingsResponse,
 } from "@/types/api";
 import type { ApiClient } from "../client";
@@ -26,6 +28,41 @@ export function createBookingsEndpoints(client: ApiClient) {
         params,
       });
     },
+
+    getCourtWizardWindows: (params: {
+      locationId: string;
+      sport: string;
+      courtType: string;
+    }) =>
+      client.get<CourtWizardWindowApi[]>("/bookings/court/wizard/windows", {
+        params: {
+          locationId: params.locationId,
+          sport: params.sport,
+          courtType: params.courtType,
+        },
+      }),
+
+    getCourtWizardAvailability: (params: {
+      locationId: string;
+      sport: string;
+      courtType: string;
+      bookingDate: string;
+      windowId: string;
+      durationMinutes: number;
+    }) =>
+      client.get<CourtWizardAvailabilityResponseApi>(
+        "/bookings/court/wizard/availability",
+        {
+          params: {
+            locationId: params.locationId,
+            sport: params.sport,
+            courtType: params.courtType,
+            bookingDate: params.bookingDate,
+            windowId: params.windowId,
+            durationMinutes: String(params.durationMinutes),
+          },
+        },
+      ),
 
     getMyBookings: (from?: string, to?: string) => {
       const params: Record<string, string> = {};

@@ -94,6 +94,49 @@ export interface CreateCourtBookingInput {
   endTime: string;
   coachId?: string;
   durationMinutes?: number;
+  /** When booking via location wizard (location_booking_windows.id). */
+  locationBookingWindowId?: string;
+}
+
+/** GET /bookings/court/wizard/windows */
+export interface CourtWizardWindowApi {
+  id: string;
+  locationId: string;
+  sport: string;
+  courtType: string;
+  windowStartTime: string;
+  windowEndTime: string;
+  allowedDurationMinutes: number[];
+  slotGridMinutes: number;
+  sortOrder: number;
+}
+
+/** GET /bookings/court/wizard/availability */
+export interface CourtWizardSlotApi {
+  startTime: string;
+  endTime: string;
+  durationMinutes: number;
+  availableCourtIds: string[];
+}
+
+export interface CourtWizardCourtSummaryApi {
+  id: string;
+  name: string;
+  type: string;
+  sport: string;
+  status: string;
+  pricePerHourPublic: string;
+}
+
+export interface CourtWizardAvailabilityResponseApi {
+  locationId: string;
+  timezone: string;
+  bookingDate: string;
+  windowId: string;
+  durationMinutes: number;
+  slotGridMinutes: number;
+  courts: CourtWizardCourtSummaryApi[];
+  slots: CourtWizardSlotApi[];
 }
 
 /** Body for POST /bookings/coach */

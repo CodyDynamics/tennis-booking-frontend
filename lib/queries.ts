@@ -225,6 +225,54 @@ export function useCourtAvailabilityForDates(
   return { isLoading, isError, error, data, results };
 }
 
+/** Booking wizard: windows from location_booking_windows */
+export function useCourtWizardWindows(
+  locationId: string | undefined,
+  sport: "tennis" | "pickleball" | null,
+  courtType: "indoor" | "outdoor" | null,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: ["courtWizardWindows", locationId, sport, courtType] as const,
+    queryFn: () =>
+      api.bookings.getCourtWizardWindows({
+        locationId: locationId!,
+        sport: sport!,
+        courtType: courtType!,
+      }),
+    enabled: Boolean(enabled && locationId && sport && courtType),
+    staleTime: 60_000,
+  });
+}
+
+/** Booking wizard: slots + courts with free capacity */
+export function useCourtWizardAvailability(
+  params: {
+    locationId: string;
+    sport: "tennis" | "pickleball";
+    courtType: "indoor" | "outdoor";
+    bookingDate: string;
+    windowId: string;
+    durationMinutes: number;
+  } | null,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: [
+      "courtWizardAvailability",
+      params?.locationId,
+      params?.sport,
+      params?.courtType,
+      params?.bookingDate,
+      params?.windowId,
+      params?.durationMinutes,
+    ] as const,
+    queryFn: () => api.bookings.getCourtWizardAvailability(params!),
+    enabled: Boolean(enabled && params),
+    staleTime: 15_000,
+  });
+}
+
 // Create court booking mutation
 export function useCreateCourtBooking() {
   const queryClient = useQueryClient();
@@ -240,6 +288,7 @@ export function useCreateCourtBooking() {
       endTime: string;
       durationMinutes?: number;
       totalPrice?: number;
+      locationBookingWindowId?: string;
     }) => {
       const payload = {
         courtId: data.courtId,
@@ -248,12 +297,16 @@ export function useCreateCourtBooking() {
         endTime: data.endTime,
         ...(data.coachId && { coachId: data.coachId }),
         ...(data.durationMinutes != null && { durationMinutes: data.durationMinutes }),
+        ...(data.locationBookingWindowId && {
+          locationBookingWindowId: data.locationBookingWindowId,
+        }),
       };
       return api.bookings.createCourtBooking(payload);
     },
     onSuccess: (_result, variables) => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       queryClient.invalidateQueries({ queryKey: ["courtAvailability"] });
+      queryClient.invalidateQueries({ queryKey: ["courtWizardAvailability"] });
       if (variables.userId) {
         queryClient.invalidateQueries({ queryKey: ["bookings", variables.userId] });
       }
@@ -412,6 +465,18 @@ export function useLocation(id: string | null | undefined, options?: { enabled?:
     queryKey: ["location", id],
     queryFn: () => api.locations.getLocation(id!),
     enabled: !!id && options?.enabled !== false,
+  });
+}
+
+export function useLocationMembership(
+  locationId: string | null | undefined,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: ["locationMembership", locationId],
+    queryFn: () => api.locations.getLocationMembership(locationId!),
+    enabled: !!locationId && options?.enabled !== false,
+    staleTime: 60_000,
   });
 }
 

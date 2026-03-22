@@ -1,6 +1,13 @@
 import type { ApiClient } from "../client";
 import type { ListResponse } from "../list-response";
 
+export interface LocationMembershipApi {
+  locationId: string;
+  visibility: string;
+  hasActiveMembership: boolean;
+  membershipStatus: string | null;
+}
+
 export interface LocationApi {
   id: string;
   branchId: string;
@@ -52,6 +59,9 @@ export function createLocationsEndpoints(client: ApiClient) {
     },
     /** Authenticated: public + private locations where user has active membership. */
     getBookableLocations: () => client.get<LocationApi[]>("/locations/bookable"),
+    /** JWT: active membership at this location + visibility (for private club UI). */
+    getLocationMembership: (id: string) =>
+      client.get<LocationMembershipApi>(`/locations/${id}/membership`),
     getLocation: (id: string) => client.get<LocationApi>(`/locations/${id}`),
     createLocation: (body: CreateLocationBody) =>
       client.post<LocationApi>("/locations", body),

@@ -12,6 +12,8 @@ interface CalendarProps {
   disabledDates?: Date[];
   minDate?: Date;
   maxDate?: Date;
+  /** Extra rule (e.g. disable past dates in venue timezone). Checked after min/max. */
+  isDateDisabled?: (date: Date) => boolean;
   className?: string;
 }
 
@@ -21,6 +23,7 @@ export function Calendar({
   disabledDates = [],
   minDate,
   maxDate,
+  isDateDisabled,
   className,
 }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = React.useState(new Date());
@@ -32,14 +35,15 @@ export function Calendar({
   const firstDayOfWeek = monthStart.getDay();
   const daysBeforeMonth = Array.from({ length: firstDayOfWeek }, (_, i) => null);
 
-  const isDateDisabled = (date: Date) => {
+  const checkDisabled = (date: Date) => {
+    if (isDateDisabled?.(date)) return true;
     if (minDate && date < minDate) return true;
     if (maxDate && date > maxDate) return true;
     return disabledDates.some((disabledDate) => isSameDay(disabledDate, date));
   };
 
   const handleDateClick = (date: Date) => {
-    if (!isDateDisabled(date) && onSelectDate) {
+    if (!checkDisabled(date) && onSelectDate) {
       onSelectDate(date);
     }
   };
@@ -79,7 +83,7 @@ export function Calendar({
           <div key={`empty-${index}`} className="aspect-square" />
         ))}
         {daysInMonth.map((day) => {
-          const disabled = isDateDisabled(day);
+          const disabled = checkDisabled(day);
           const selected = selectedDate && isSameDay(day, selectedDate);
           const today = isToday(day);
 

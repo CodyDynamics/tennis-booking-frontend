@@ -2,14 +2,13 @@
 
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { CourtCard } from "@/features/courts/components/court-card";
-import { useCourts, useLocation } from "@/lib/queries";
+import { LocationCourtBookingWizard } from "@/features/courts/components/location-court-booking-wizard";
+import { useLocation, useLocationMembership } from "@/lib/queries";
 import { useAuth } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Search, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 
 export default function LocationCourtsPage() {
@@ -18,19 +17,16 @@ export default function LocationCourtsPage() {
   const pathname = usePathname();
   const locationId = params.locationId as string;
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterType, setFilterType] = useState<
-    "all" | "indoor" | "outdoor" | "tennis" | "pickleball"
-  >("all");
 
   const queryEnabled = !authLoading && isAuthenticated && !!locationId;
 
   const { data: location, isLoading: loadingLocation } = useLocation(locationId, {
     enabled: queryEnabled,
   });
-  const { data: courts = [], isLoading: loadingCourts } = useCourts({
-    locationId: locationId || undefined,
-    enabled: queryEnabled,
+
+  const isPrivate = location?.visibility === "private";
+  const { data: membership, isLoading: loadingMembership } = useLocationMembership(locationId, {
+    enabled: queryEnabled && isPrivate,
   });
 
   useEffect(() => {
@@ -44,26 +40,6 @@ export default function LocationCourtsPage() {
     }
   }, [authLoading, isAuthenticated, router, pathname, locationId]);
 
-  const filteredCourts = courts.filter((court) => {
-    const matchesSearch =
-      court.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      court.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    let matchesType = true;
-    if (filterType === "indoor" || filterType === "outdoor") {
-      matchesType = court.type === filterType;
-    } else if (filterType === "tennis") {
-      matchesType =
-        court.name.toLowerCase().includes("tennis") ||
-        (court.description?.toLowerCase().includes("tennis") ?? false) ||
-        !court.name.toLowerCase().includes("pickleball");
-    } else if (filterType === "pickleball") {
-      matchesType =
-        court.name.toLowerCase().includes("pickle") ||
-        (court.description?.toLowerCase().includes("pickle") ?? false);
-    }
-    return matchesSearch && matchesType;
-  });
-
   if (authLoading || !isAuthenticated) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -72,9 +48,7 @@ export default function LocationCourtsPage() {
     );
   }
 
-  const isLoading = loadingLocation || loadingCourts;
-
-  if (isLoading) {
+  if (loadingLocation || (isPrivate && loadingMembership)) {
     return (
       <div className="container mx-auto px-4 py-8">
         <GlobalLoadingPlaceholder minHeight="min-h-[60vh]" />
@@ -95,6 +69,23 @@ export default function LocationCourtsPage() {
     );
   }
 
+  if (isPrivate && membership && !membership.hasActiveMembership) {
+    return (
+      <div className="container mx-auto py-16 px-4 max-w-lg text-center">
+        <h1 className="text-2xl font-bold mb-2">Members only</h1>
+        <p className="text-muted-foreground mb-6">
+          <span className="font-medium text-foreground">{location.name}</span> is a private club. You
+          need an active membership to view booking here.
+        </p>
+        <Button asChild variant="outline" className="rounded-full">
+          <Link href="/">Back to home</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  const venueTz = location.timezone?.trim() || "America/Chicago";
+
   return (
     <div className="container mx-auto py-12 px-4 max-w-7xl">
       <motion.div
@@ -112,99 +103,18 @@ export default function LocationCourtsPage() {
                 <ArrowLeft className="w-4 h-4 mr-2" /> Back
               </Button>
             </Link>
-            <h1 className="text-4xl font-bold text-foreground">
-              {location.name} — Courts
-            </h1>
+            <h1 className="text-4xl font-bold text-foreground">{location.name}</h1>
             <p className="text-muted-foreground text-lg mt-2">
-              Court info at this location
+              Pick sport, court type, and time — then choose a court that still has space.
             </p>
           </div>
         </div>
 
-        <div className="mb-8 bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-              placeholder="Search courts..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-12 text-md bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700"
-            />
-          </div>
-          <div className="flex flex-wrap gap-2 items-center">
-            <Button
-              variant={filterType === "all" ? "default" : "outline"}
-              onClick={() => setFilterType("all")}
-              className="rounded-full"
-            >
-              All
-            </Button>
-            <Button
-              variant={filterType === "tennis" ? "default" : "outline"}
-              onClick={() => setFilterType("tennis")}
-              className="rounded-full"
-            >
-              Tennis
-            </Button>
-            <Button
-              variant={filterType === "pickleball" ? "default" : "outline"}
-              onClick={() => setFilterType("pickleball")}
-              className="rounded-full"
-            >
-              Pickleball
-            </Button>
-            <div className="w-px h-8 bg-slate-300 dark:bg-slate-700 mx-1" />
-            <Button
-              variant={filterType === "indoor" ? "default" : "outline"}
-              onClick={() => setFilterType("indoor")}
-              className="rounded-full"
-            >
-              Indoor
-            </Button>
-            <Button
-              variant={filterType === "outdoor" ? "default" : "outline"}
-              onClick={() => setFilterType("outdoor")}
-              className="rounded-full"
-            >
-              Outdoor
-            </Button>
-          </div>
-        </div>
-
-        {filteredCourts.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-            {filteredCourts.map((court, index) => (
-              <CourtCard
-                key={court.id}
-                court={court}
-                index={index}
-                showBooking={false}
-                detailHref={`/locations/${locationId}/courts/${court.id}`}
-              />
-            ))}
-          </div>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="text-center py-20 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800"
-          >
-            <h3 className="text-2xl font-bold mb-2">No Courts Found</h3>
-            <p className="text-muted-foreground text-lg max-w-md mx-auto">
-              No courts at this location match your filters.
-            </p>
-            <Button
-              variant="outline"
-              className="mt-6 rounded-full px-8"
-              onClick={() => {
-                setSearchQuery("");
-                setFilterType("all");
-              }}
-            >
-              Clear Filters
-            </Button>
-          </motion.div>
-        )}
+        <LocationCourtBookingWizard
+          locationId={locationId}
+          locationName={location.name}
+          locationTimezone={venueTz}
+        />
       </motion.div>
     </div>
   );
