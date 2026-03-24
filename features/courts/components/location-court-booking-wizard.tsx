@@ -22,9 +22,11 @@ import {
 } from "@/lib/queries";
 import { useAuth } from "@/lib/auth-store";
 import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
+import { HoldCountdown } from "@/components/ui/hold-countdown";
+import { useCourtHold } from "@/lib/hooks/use-court-hold";
 import { format, parse } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
-import { CalendarIcon, ExternalLink } from "lucide-react";
+import { CalendarIcon, ExternalLink, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CourtWizardSlotApi } from "@/types/api";
 import { ApiError } from "@/lib/api";
@@ -134,10 +136,34 @@ export function LocationCourtBookingWizard({
     isFetching,
   } = useCourtWizardAvailability(availabilityParams, Boolean(availabilityParams));
 
+  // ── Court hold (soft-lock via WebSocket) ──────────────────────────────────
+  const allCourtIds = useMemo(
+    () => availability?.courts?.map((c) => c.id) ?? [],
+    [availability?.courts],
+  );
+
+  const { requestHold, releaseHold, notifyBooked, isHeldByOther, isHeldByMe, getHoldEntry, connected: wsConnected } =
+    useCourtHold({
+      locationId,
+      courtIds: allCourtIds,
+      enabled: true,
+      onAvailabilityChanged: () => {
+        // Another user booked a court — clear selection and refetch so the slot grid is up-to-date
+        setSelectedSlot(null);
+        setSelectedCourtId(null);
+        setBookError(null);
+        refetch();
+      },
+    });
+
   useEffect(() => {
+    if (selectedSlot && selectedCourtId) {
+      releaseHold({ courtId: selectedCourtId, date: bookingDate, startTime: selectedSlot.startTime, endTime: selectedSlot.endTime, durationMinutes: selectedSlot.durationMinutes });
+    }
     setSelectedSlot(null);
     setSelectedCourtId(null);
     setBookError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sport, courtType, bookingDate, windowId, durationMinutes]);
 
   const courtInfoById = useMemo(() => {
@@ -170,6 +196,8 @@ export function LocationCourtBookingWizard({
         durationMinutes: selectedSlot.durationMinutes,
         locationBookingWindowId: availability.windowId,
       });
+      // Notify all room members that this court+slot is now booked (triggers refetch on their side)
+      notifyBooked({ courtId: selectedCourtId, date: bookingDate, startTime: selectedSlot.startTime, endTime: selectedSlot.endTime, durationMinutes: selectedSlot.durationMinutes });
       router.push("/booking-history");
     } catch (e) {
       if (e instanceof ApiError) {
@@ -186,7 +214,16 @@ export function LocationCourtBookingWizard({
   return (
     <Card className="mb-10 border-slate-200 dark:border-slate-800 shadow-sm">
       <CardHeader>
-        <CardTitle className="text-xl">Book a court · {locationName}</CardTitle>
+        <CardTitle className="text-xl flex items-center gap-2">
+          Book a court · {locationName}
+          <span
+            title={wsConnected ? "Live availability connected" : "Connecting…"}
+            className={cn(
+              "inline-block h-2 w-2 rounded-full flex-shrink-0",
+              wsConnected ? "bg-green-500" : "bg-yellow-400 animate-pulse",
+            )}
+          />
+        </CardTitle>
         <CardDescription>
           Choose sport, indoor/outdoor, date, window, and duration. Pick a time slot and a court,
           then confirm. Past calendar days are disabled vs venue time (<span className="font-medium">{tz}</span>
@@ -356,31 +393,54 @@ export function LocationCourtBookingWizard({
                           ) : (
                             <div className="flex flex-wrap gap-2">
                               {slot.availableCourtIds.map((cid) => {
-                                const picked =
-                                  rowSelected && selectedCourtId === cid;
+                                const picked = rowSelected && selectedCourtId === cid;
+                                const holdRef = { courtId: cid, date: bookingDate, startTime: slot.startTime, endTime: slot.endTime };
+                                const heldByOther = isHeldByOther(holdRef);
+                                const heldByMe = isHeldByMe(holdRef);
+                                const holdEntry = heldByOther ? getHoldEntry(holdRef) : null;
                                 return (
                                   <div key={cid} className="flex items-center gap-1">
                                     <Button
                                       type="button"
-                                      variant={picked ? "default" : "outline"}
+                                      variant={picked || heldByMe ? "default" : "outline"}
                                       size="sm"
-                                      className="rounded-full gap-1.5 h-auto py-1.5 px-3"
+                                      disabled={heldByOther}
+                                      title={heldByOther ? `Held by ${holdEntry?.displayName ?? "another user"}` : undefined}
+                                      className={cn(
+                                        "rounded-full gap-1.5 h-auto py-1.5 px-3",
+                                        heldByOther && "opacity-50 cursor-not-allowed",
+                                        heldByMe && "ring-2 ring-orange-400",
+                                      )}
                                       onClick={(e) => {
                                         e.stopPropagation();
+                                        if (heldByOther) return;
                                         setSelectedSlot(slot);
                                         setSelectedCourtId(cid);
+                                        requestHold({
+                                          courtId: cid,
+                                          date: bookingDate,
+                                          startTime: slot.startTime,
+                                          endTime: slot.endTime,
+                                          durationMinutes: slot.durationMinutes,
+                                          courtName: courtInfoById.get(cid)?.name,
+                                        });
                                       }}
                                     >
+                                      {heldByOther && <Lock className="h-3 w-3 shrink-0" />}
                                       <span className="font-medium">
                                         {courtInfoById.get(cid)?.name ?? cid.slice(0, 8)}
                                       </span>
                                       <span
                                         className={cn(
                                           "text-xs opacity-90",
-                                          picked ? "text-primary-foreground/90" : "text-muted-foreground",
+                                          picked || heldByMe ? "text-primary-foreground/90" : "text-muted-foreground",
                                         )}
                                       >
-                                        {formatHourly(courtInfoById.get(cid)?.pricePerHourPublic ?? "0")}
+                                        {heldByOther && holdEntry ? (
+                                          <HoldCountdown expiresAt={holdEntry.expiresAt} />
+                                        ) : (
+                                          formatHourly(courtInfoById.get(cid)?.pricePerHourPublic ?? "0")
+                                        )}
                                       </span>
                                     </Button>
                                     <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" asChild>
