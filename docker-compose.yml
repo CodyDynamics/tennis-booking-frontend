@@ -1,0 +1,17 @@
+# Frontend stack only (Next.js). Run backend compose separately.
+# From frontend/: docker compose up -d --build
+# Set NEXT_PUBLIC_API_URL to where the API is reachable from the browser (default: http://localhost:3000).
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000}
+    container_name: booking-tennis-web
+    environment:
+      NODE_ENV: production
+    ports:
+      - "${WEB_HOST_PORT:-3001}:3000"
+    restart: unless-stopped
