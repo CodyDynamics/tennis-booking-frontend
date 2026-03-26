@@ -68,7 +68,7 @@ export function Navbar() {
               <Activity className="h-6 w-6" />
             </motion.div>
             <span className="text-2xl font-black tracking-tight text-foreground">
-              CodyReserve
+              CodyPlay
             </span>
           </Link>
 

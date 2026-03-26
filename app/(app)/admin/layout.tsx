@@ -105,7 +105,7 @@ export default function AdminLayout({
                 <Activity className="h-6 w-6" />
               </motion.div>
               <span className="text-2xl flex flex-col font-black tracking-tight text-slate-900 dark:text-white">
-                CodyReserve
+                CodyPlay
                 <span className="text-blue-600 text-sm">Admin</span>
               </span>
             </Link>
