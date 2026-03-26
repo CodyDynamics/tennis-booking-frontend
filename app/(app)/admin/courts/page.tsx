@@ -3,7 +3,15 @@
 import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/lib/auth-store";
 import { useAdmin } from "../admin-context";
-import { useCourts, useBranches, useLocations, useCreateCourt, useUpdateCourt, useDeleteCourt } from "@/lib/queries";
+import {
+  useCourts,
+  useBranches,
+  useLocations,
+  useCreateCourt,
+  useUpdateCourt,
+  useDeleteCourt,
+  useSports,
+} from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +37,11 @@ import type { Court } from "@/types";
 import { AdminFilter, AdminTable, AdminPagination } from "../components";
 
 const PAGE_SIZE = 10;
+const TIME_OPTIONS = Array.from({ length: 24 * 2 }, (_, i) => {
+  const h = Math.floor(i / 2);
+  const m = i % 2 === 0 ? "00" : "30";
+  return `${String(h).padStart(2, "0")}:${m}`;
+});
 
 function can(permissions: string[] | undefined, permission: string, role: string) {
   return role === "super_admin" || (permissions?.includes(permission) ?? false);
@@ -66,6 +79,7 @@ export default function AdminCourtsPage() {
     [courts, page]
   );
   const { data: branches = [] } = useBranches();
+  const { data: sports = [] } = useSports();
   const locationsBranchId = modalOpen ? (modalBranchId ?? (branchId !== "all" ? branchId : branches[0]?.id)) : (branchId !== "all" ? branchId : branches[0]?.id);
   const { data: locations = [] } = useLocations(locationsBranchId);
   const createCourt = useCreateCourt();
@@ -78,14 +92,28 @@ export default function AdminCourtsPage() {
       locationId: editingCourt?.locationId ?? (locations[0]?.id ?? ""),
       name: editingCourt?.name ?? "",
       type: (editingCourt?.type ?? "outdoor") as "indoor" | "outdoor",
+      sport: editingCourt?.sport ?? sport ?? "tennis",
       pricePerHour: editingCourt?.pricePerHour ?? 0,
       description: editingCourt?.description ?? "",
       status: (editingCourt?.status ?? "active") as "active" | "maintenance",
+      windowStartTime: "08:00",
+      windowEndTime: "11:00",
     }),
-    [editingCourt, branches, locations]
+    [editingCourt, branches, locations, sport]
   );
 
   const [form, setForm] = useState(formDefaults);
+
+  const formTypeOptions = useMemo<Array<"indoor" | "outdoor">>(() => {
+    if (form.sport === "ball-machine") return ["outdoor"];
+    return ["outdoor", "indoor"];
+  }, [form.sport]);
+
+  useEffect(() => {
+    if (!formTypeOptions.includes(form.type)) {
+      setForm((f) => ({ ...f, type: formTypeOptions[0] }));
+    }
+  }, [form.type, formTypeOptions]);
 
   const resetForm = () => {
     setEditingCourt(null);
@@ -94,9 +122,12 @@ export default function AdminCourtsPage() {
       locationId: locations[0]?.id ?? "",
       name: "",
       type: "outdoor",
+      sport: sport ?? "tennis",
       pricePerHour: 0,
       description: "",
       status: "active",
+      windowStartTime: "08:00",
+      windowEndTime: "11:00",
     });
   };
 
@@ -114,9 +145,12 @@ export default function AdminCourtsPage() {
       locationId: court.locationId ?? "",
       name: court.name,
       type: court.type,
+      sport: court.sport,
       pricePerHour: court.pricePerHour,
       description: court.description ?? "",
       status: court.status,
+      windowStartTime: "08:00",
+      windowEndTime: "11:00",
     });
     setModalOpen(true);
   };
@@ -128,10 +162,12 @@ export default function AdminCourtsPage() {
       locationId: form.locationId,
       name: form.name,
       type: form.type,
-      sport,
+      sport: form.sport,
       pricePerHour: form.pricePerHour,
       description: form.description || undefined,
       status: form.status,
+      windowStartTime: form.windowStartTime,
+      windowEndTime: form.windowEndTime,
     };
     const err = editingCourt
       ? await updateCourt
@@ -160,9 +196,12 @@ export default function AdminCourtsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-3xl font-bold">Courts</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Courts</h1>
         {canCreate && (
-          <Button onClick={openCreate}>
+          <Button
+            onClick={openCreate}
+            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+          >
             <Plus className="mr-2 h-4 w-4" />
             Add Court
           </Button>
@@ -275,7 +314,7 @@ export default function AdminCourtsPage() {
       </Card>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-2xl rounded-2xl border-slate-200 dark:border-slate-800">
           <DialogHeader>
             <DialogTitle>{editingCourt ? "Edit Court" : "Create Court"}</DialogTitle>
           </DialogHeader>
@@ -337,6 +376,24 @@ export default function AdminCourtsPage() {
               />
             </div>
             <div>
+              <Label>Sport</Label>
+              <Select
+                value={form.sport}
+                onValueChange={(v) => setForm((f) => ({ ...f, sport: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select sport" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sports.map((s) => (
+                    <SelectItem key={s.id} value={s.code}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label>Type</Label>
               <Select
                 value={form.type}
@@ -348,10 +405,55 @@ export default function AdminCourtsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="outdoor">Outdoor</SelectItem>
-                  <SelectItem value="indoor">Indoor</SelectItem>
+                  {formTypeOptions.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t === "indoor" ? "Indoor" : "Outdoor"}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Window start</Label>
+                <Select
+                  value={form.windowStartTime}
+                  onValueChange={(v) =>
+                    setForm((f) => ({ ...f, windowStartTime: v }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select start time" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {TIME_OPTIONS.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Window end</Label>
+                <Select
+                  value={form.windowEndTime}
+                  onValueChange={(v) =>
+                    setForm((f) => ({ ...f, windowEndTime: v }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select end time" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {TIME_OPTIONS.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div>
               <Label>Price per hour</Label>

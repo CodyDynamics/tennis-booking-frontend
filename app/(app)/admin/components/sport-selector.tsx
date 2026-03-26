@@ -24,7 +24,7 @@ export function SportSelector() {
       <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">Sport</Label>
       <Select
         value={value}
-        onValueChange={(v) => setSport(v as "tennis" | "pickleball")}
+        onValueChange={(v) => setSport(v)}
       >
         <SelectTrigger className="w-full bg-slate-50 dark:bg-slate-800 border-0 focus:ring-2 focus:ring-blue-500 rounded-xl h-12">
           <SelectValue placeholder="Select sport" />

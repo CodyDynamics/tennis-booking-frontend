@@ -29,12 +29,18 @@ export interface CreateLocationBody {
   branchId: string;
   name: string;
   address?: string;
+  timezone?: string;
+  visibility?: "public" | "private";
+  status?: "active" | "inactive";
 }
 
 export interface UpdateLocationBody {
+  branchId?: string;
   name?: string;
   address?: string;
-  status?: string;
+  timezone?: string;
+  visibility?: "public" | "private";
+  status?: "active" | "inactive";
 }
 
 export function createLocationsEndpoints(client: ApiClient) {

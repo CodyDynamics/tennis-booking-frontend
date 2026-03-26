@@ -10,7 +10,7 @@ import { LoadingLabel } from "@/components/ui/loading-label";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { User, Mail } from "lucide-react";
+import { User, Mail, Phone, MapPin } from "lucide-react";
 import { PasswordInput } from "@/components/ui/password-input";
 import { useAuth } from "@/lib/auth-store";
 import { useRoles } from "@/lib/hooks/use-roles";
@@ -52,6 +52,7 @@ export function RegisterForm({
         password: data.password,
         fullName,
         roleId: data.roleId,
+        phone: data.phone,
       });
       if (onRegisterSuccess) onRegisterSuccess();
       else {
@@ -119,6 +120,37 @@ export function RegisterForm({
               </div>
               {errors.email && (
                 <p className="text-sm text-destructive">{errors.email.message}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone</Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="+84 912 345 678"
+                  className="pl-10"
+                  {...register("phone")}
+                />
+              </div>
+              {errors.phone && (
+                <p className="text-sm text-destructive">{errors.phone.message}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="address">Address</Label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="address"
+                  placeholder="123 Nguyen Trai, District 1, HCMC"
+                  className="pl-10"
+                  {...register("address")}
+                />
+              </div>
+              {errors.address && (
+                <p className="text-sm text-destructive">{errors.address.message}</p>
               )}
             </div>
             <div className="space-y-2">

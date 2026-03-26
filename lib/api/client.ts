@@ -12,6 +12,8 @@ export interface RequestConfig extends Omit<RequestInit, "body"> {
   params?: Record<string, string>;
 }
 
+let refreshPromise: Promise<boolean> | null = null;
+
 /**
  * Thrown when the API returns a non-2xx status. Contains status and parsed error body.
  */
@@ -53,35 +55,73 @@ export async function request<T>(
   path: string,
   options: RequestConfig = {}
 ): Promise<T> {
-  const { baseURL, getAccessToken } = config;
-  const { body, params, headers: optHeaders, ...rest } = options;
+  const execute = async (allowRetry: boolean): Promise<T> => {
+    const { baseURL, getAccessToken } = config;
+    const { body, params, headers: optHeaders, ...rest } = options;
 
-  const url = buildURL(baseURL, path, params);
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(optHeaders as Record<string, string>),
+    const url = buildURL(baseURL, path, params);
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...(optHeaders as Record<string, string>),
+    };
+
+    const token = getAccessToken?.() ?? null;
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const res = await fetch(url, {
+      method,
+      credentials: "include",
+      ...rest,
+      headers,
+      body:
+        body !== undefined
+          ? typeof body === "string"
+            ? body
+            : JSON.stringify(body)
+          : undefined,
+    });
+
+    const data = await parseResponse<T>(res);
+
+    // Auto-refresh once on 401 for non-auth-refresh endpoints
+    if (
+      res.status === 401 &&
+      allowRetry &&
+      !path.startsWith("/auth/refresh") &&
+      !path.startsWith("/auth/login") &&
+      !path.startsWith("/auth/register") &&
+      !path.startsWith("/auth/request-login-otp") &&
+      !path.startsWith("/auth/verify-login-otp")
+    ) {
+      if (!refreshPromise) {
+        const refreshUrl = buildURL(baseURL, "/auth/refresh");
+        refreshPromise = fetch(refreshUrl, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+        })
+          .then((r) => r.ok)
+          .catch(() => false)
+          .finally(() => {
+            refreshPromise = null;
+          });
+      }
+      const refreshed = await refreshPromise;
+      if (refreshed) {
+        return execute(false);
+      }
+    }
+
+    if (!res.ok) {
+      throw new ApiError(res.status, data as ApiErrorBody | null);
+    }
+
+    return data as T;
   };
-
-  const token = getAccessToken?.() ?? null;
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
-  const res = await fetch(url, {
-    method,
-    credentials: "include",
-    ...rest,
-    headers,
-    body: body !== undefined ? (typeof body === "string" ? body : JSON.stringify(body)) : undefined,
-  });
-
-  const data = await parseResponse<T>(res);
-
-  if (!res.ok) {
-    throw new ApiError(res.status, data as ApiErrorBody | null);
-  }
-
-  return data as T;
+  return execute(true);
 }
 
 export type ApiClient = ReturnType<typeof createApiClient>;

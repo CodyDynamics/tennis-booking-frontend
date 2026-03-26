@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
-type Sport = "tennis" | "pickleball";
+type Sport = string;
 
 interface AdminContextType {
   sport: Sport;
@@ -22,8 +22,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    const saved = localStorage.getItem("admin_sport_preference") as Sport;
-    if (saved === "tennis" || saved === "pickleball") {
+    const saved = localStorage.getItem("admin_sport_preference");
+    if (saved) {
       setSportState(saved);
     }
   }, []);

@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useEffect, useState } from "react";
-import Link from "next/link";
+import { useMemo, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,35 +12,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarGrid } from "@/components/ui/calendar";
 import {
-  useCourtWizardWindows,
-  useCourtWizardAvailability,
-  useCreateCourtBooking,
+  useCourts,
+  useCourtSlots,
+  useCreateSlotBooking,
+  useSports,
 } from "@/lib/queries";
 import { useAuth } from "@/lib/auth-store";
 import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
-import { HoldCountdown } from "@/components/ui/hold-countdown";
-import { useCourtHold } from "@/lib/hooks/use-court-hold";
+import { useSlotHold, slotHoldKey } from "@/lib/hooks/use-slot-hold";
 import { format, parse } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
-import { CalendarIcon, ExternalLink, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { CourtWizardSlotApi } from "@/types/api";
+import type { CourtSlotApi } from "@/types/api";
 import { ApiError } from "@/lib/api";
-import { formatCurrency } from "@/lib/format";
 
-function wallTimeShort(t: string) {
-  const p = t.split(":");
-  return `${p[0]?.padStart(2, "0")}:${p[1]?.padStart(2, "0")}`;
-}
-
-type Sport = "tennis" | "pickleball";
+type Sport = string;
 type CourtType = "indoor" | "outdoor";
 
-function slotKey(s: CourtWizardSlotApi) {
-  return `${s.startTime}|${s.endTime}`;
+const DURATIONS = [30, 60, 90] as const;
+
+function wallShort(t: string) {
+  const [h, m] = t.split(":");
+  return `${h?.padStart(2, "0")}:${m?.padStart(2, "0")}`;
+}
+
+function toMinutes(t: string) {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
 }
 
 export function LocationCourtBookingWizard({
@@ -56,7 +55,7 @@ export function LocationCourtBookingWizard({
   const tz = locationTimezone || "UTC";
   const router = useRouter();
   const { user } = useAuth();
-  const createBooking = useCreateCourtBooking();
+  const createSlotBooking = useCreateSlotBooking();
 
   const todayVenueYmd = useMemo(
     () => formatInTimeZone(new Date(), tz, "yyyy-MM-dd"),
@@ -66,19 +65,16 @@ export function LocationCourtBookingWizard({
   const [bookingDate, setBookingDate] = useState(() =>
     formatInTimeZone(new Date(), tz, "yyyy-MM-dd"),
   );
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   useEffect(() => {
     setBookingDate((d) => (d < todayVenueYmd ? todayVenueYmd : d));
   }, [todayVenueYmd]);
 
-  const [sport, setSport] = useState<Sport>("pickleball");
-  const [courtType, setCourtType] = useState<CourtType>("indoor");
-  const [windowId, setWindowId] = useState<string>("");
-  const [durationMinutes, setDurationMinutes] = useState<number>(60);
+  const [sport, setSport] = useState<Sport | null>(null);
+  const [courtType, setCourtType] = useState<CourtType | null>(null);
+  const [durationMinutes, setDurationMinutes] = useState<number>(90);
 
-  const [selectedSlot, setSelectedSlot] = useState<CourtWizardSlotApi | null>(null);
-  const [selectedCourtId, setSelectedCourtId] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<CourtSlotApi | null>(null);
   const [bookError, setBookError] = useState<string | null>(null);
 
   const selectedCalendarDate = useMemo(
@@ -86,118 +82,167 @@ export function LocationCourtBookingWizard({
     [bookingDate],
   );
 
-  const { data: windows = [], isLoading: loadingWindows } = useCourtWizardWindows(
-    locationId,
-    sport,
-    courtType,
-    true,
-  );
+  // Clear selection when filters change
+  useEffect(() => {
+    setSelectedSlot(null);
+    setBookError(null);
+  }, [sport, courtType, bookingDate, durationMinutes]);
 
-  const selectedWindow = useMemo(
-    () => windows.find((w) => w.id === windowId) ?? null,
-    [windows, windowId],
-  );
+  const { data: sportsData = [] } = useSports();
+  const { data: locationCourts = [] } = useCourts({
+    locationId,
+    status: "active",
+    enabled: Boolean(locationId),
+  });
+
+  const sportOptions = useMemo(() => {
+    const allowed = new Set<string>();
+    for (const c of locationCourts) {
+      if (c.sport) allowed.add(String(c.sport));
+    }
+    allowed.add("ball-machine");
+    return sportsData.filter((s) => allowed.has(s.code));
+  }, [sportsData, locationCourts]);
+
+  const courtTypeOptions = useMemo<CourtType[]>(() => {
+    if (!sport) return [];
+    if (sport === "ball-machine") return ["outdoor"];
+    const types = new Set<CourtType>();
+    for (const c of locationCourts) {
+      if (c.sport !== sport) continue;
+      if (c.type === "indoor" || c.type === "outdoor") types.add(c.type);
+    }
+    return Array.from(types);
+  }, [locationCourts, sport]);
 
   useEffect(() => {
-    if (windows.length === 0) {
-      setWindowId("");
+    if (!sport) {
+      setCourtType(null);
       return;
     }
-    if (!windowId || !windows.some((w) => w.id === windowId)) {
-      setWindowId(windows[0].id);
+    if (!courtType || !courtTypeOptions.includes(courtType)) {
+      setCourtType(courtTypeOptions[0] ?? null);
     }
-  }, [windows, windowId]);
+  }, [sport, courtType, courtTypeOptions]);
 
-  useEffect(() => {
-    if (!selectedWindow?.allowedDurationMinutes?.length) return;
-    if (!selectedWindow.allowedDurationMinutes.includes(durationMinutes)) {
-      setDurationMinutes(selectedWindow.allowedDurationMinutes[0]);
-    }
-  }, [selectedWindow, durationMinutes]);
-
-  const availabilityParams =
-    windowId && bookingDate
-      ? {
-          locationId,
-          sport,
-          courtType,
-          bookingDate,
-          windowId,
-          durationMinutes,
-        }
-      : null;
-
-  const {
-    data: availability,
-    isLoading: loadingAvail,
-    isError: availError,
-    error: availErr,
-    refetch,
-    isFetching,
-  } = useCourtWizardAvailability(availabilityParams, Boolean(availabilityParams));
-
-  // ── Court hold (soft-lock via WebSocket) ──────────────────────────────────
-  const allCourtIds = useMemo(
-    () => availability?.courts?.map((c) => c.id) ?? [],
-    [availability?.courts],
+  const slotsParams = useMemo(
+    () =>
+      sport && courtType
+        ? {
+            locationId,
+            sport,
+            courtType,
+            bookingDate,
+            durationMinutes,
+          }
+        : null,
+    [locationId, sport, courtType, bookingDate, durationMinutes],
   );
 
-  const { requestHold, releaseHold, notifyBooked, isHeldByOther, isHeldByMe, getHoldEntry, connected: wsConnected } =
-    useCourtHold({
+  const {
+    data: slotsData,
+    isLoading: loadingSlots,
+    isError: slotsError,
+    error: slotsErr,
+    refetch,
+    isFetching,
+  } = useCourtSlots(slotsParams, true);
+
+  // ── Slot hold (soft-lock via WebSocket) ──────────────────────────────────
+  const { holdCounts, myHoldKey, requestSlotHold, releaseSlotHold, notifySlotBooked, connected: wsConnected } =
+    useSlotHold({
       locationId,
-      courtIds: allCourtIds,
-      enabled: true,
+      sport,
+      courtType,
+      date: bookingDate,
+      displayName: user?.fullName ?? "A guest",
       onAvailabilityChanged: () => {
-        // Another user booked a court — clear selection and refetch so the slot grid is up-to-date
         setSelectedSlot(null);
-        setSelectedCourtId(null);
         setBookError(null);
         refetch();
       },
     });
 
+  // Build interval holds for current sport/courtType/date from socket map:
+  // key format: "sport|courtType|date|startTime|endTime" -> count
+  const currentIntervalHolds = useMemo(() => {
+    const items: Array<{ start: number; end: number; count: number }> = [];
+    for (const [key, count] of Object.entries(holdCounts)) {
+      if (!count) continue;
+      const [kSport, kCourtType, kDate, kStart, kEnd] = key.split("|");
+      if (
+        kSport !== sport ||
+        kCourtType !== courtType ||
+        kDate !== bookingDate ||
+        !kStart ||
+        !kEnd
+      ) {
+        continue;
+      }
+      items.push({
+        start: toMinutes(kStart),
+        end: toMinutes(kEnd),
+        count,
+      });
+    }
+    return items;
+  }, [holdCounts, sport, courtType, bookingDate]);
+
+  // Release hold when slot is deselected (slot cleared by filter change above)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const prevSelectedSlotRef = useRef<CourtSlotApi | null>(null);
   useEffect(() => {
-    if (selectedSlot && selectedCourtId) {
-      releaseHold({ courtId: selectedCourtId, date: bookingDate, startTime: selectedSlot.startTime, endTime: selectedSlot.endTime, durationMinutes: selectedSlot.durationMinutes });
+    const prev = prevSelectedSlotRef.current;
+    if (prev && !selectedSlot && sport && courtType) {
+      releaseSlotHold({
+        sport,
+        courtType,
+        date: bookingDate,
+        startTime: prev.startTime,
+        endTime: prev.endTime,
+      });
     }
-    setSelectedSlot(null);
-    setSelectedCourtId(null);
+    prevSelectedSlotRef.current = selectedSlot;
+  });
+
+  const handleSelectSlot = (slot: CourtSlotApi) => {
+    if (!sport || !courtType) return;
+    const key = slotHoldKey(sport, courtType, bookingDate, slot.startTime, slot.endTime);
+
+    // If clicking the already-selected slot, deselect
+    if (selectedSlot && slotHoldKey(sport, courtType, bookingDate, selectedSlot.startTime, selectedSlot.endTime) === key) {
+      releaseSlotHold({ sport, courtType, date: bookingDate, startTime: slot.startTime, endTime: slot.endTime });
+      setSelectedSlot(null);
+      return;
+    }
+
+    setSelectedSlot(slot);
     setBookError(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sport, courtType, bookingDate, windowId, durationMinutes]);
+    requestSlotHold({ sport, courtType, date: bookingDate, startTime: slot.startTime, endTime: slot.endTime });
+  };
 
-  const courtInfoById = useMemo(() => {
-    const m = new Map<string, { name: string; pricePerHourPublic: string }>();
-    for (const c of availability?.courts ?? []) {
-      m.set(c.id, { name: c.name, pricePerHourPublic: c.pricePerHourPublic });
-    }
-    return m;
-  }, [availability?.courts]);
-
-  const formatHourly = (publicRate: string) =>
-    `${formatCurrency(parseFloat(publicRate || "0"))}/hr`;
-
-  const canBook =
-    !!availability &&
-    !!selectedSlot &&
-    !!selectedCourtId &&
-    selectedSlot.availableCourtIds.includes(selectedCourtId);
+  const canBook = !!selectedSlot && !!sport && !!courtType && !createSlotBooking.isPending;
 
   const handleBookNow = async () => {
-    if (!availability || !selectedSlot || !selectedCourtId || !canBook) return;
+    if (!selectedSlot || !canBook) return;
     setBookError(null);
     try {
-      await createBooking.mutateAsync({
-        userId: user?.id,
-        courtId: selectedCourtId,
-        bookingDate: availability.bookingDate,
-        startTime: wallTimeShort(selectedSlot.startTime),
-        endTime: wallTimeShort(selectedSlot.endTime),
+      await createSlotBooking.mutateAsync({
+        locationId,
+        sport: sport!,
+        courtType: courtType!,
+        bookingDate,
+        startTime: wallShort(selectedSlot.startTime),
+        endTime: wallShort(selectedSlot.endTime),
         durationMinutes: selectedSlot.durationMinutes,
-        locationBookingWindowId: availability.windowId,
       });
-      // Notify all room members that this court+slot is now booked (triggers refetch on their side)
-      notifyBooked({ courtId: selectedCourtId, date: bookingDate, startTime: selectedSlot.startTime, endTime: selectedSlot.endTime, durationMinutes: selectedSlot.durationMinutes });
+      notifySlotBooked({
+        sport: sport!,
+        courtType: courtType!,
+        date: bookingDate,
+        startTime: selectedSlot.startTime,
+        endTime: selectedSlot.endTime,
+      });
       router.push("/booking-history");
     } catch (e) {
       if (e instanceof ApiError) {
@@ -225,302 +270,256 @@ export function LocationCourtBookingWizard({
           />
         </CardTitle>
         <CardDescription>
-          Choose sport, indoor/outdoor, date, window, and duration. Pick a time slot and a court,
-          then confirm. Past calendar days are disabled vs venue time (<span className="font-medium">{tz}</span>
-          ); saved times are <span className="font-medium">UTC</span> in the database.
+          Choose sport, indoor/outdoor, date, and duration. The system will automatically assign a
+          court for your selected time slot.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="flex flex-wrap gap-4 items-end">
-          <div className="space-y-2 min-w-[140px]">
-            <Label>Sport</Label>
-            <Select value={sport} onValueChange={(v) => setSport(v as Sport)}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="tennis">Tennis</SelectItem>
-                <SelectItem value="pickleball">Pickleball</SelectItem>
-              </SelectContent>
-            </Select>
+
+      <CardContent>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-6">
+          {/* ── Left column: filters + slot grid ── */}
+          <div className="space-y-5">
+            {/* Sport + Court Type */}
+            <div className="flex flex-wrap gap-4">
+              <div className="space-y-2">
+                <Label>Select Activity</Label>
+                <Select value={sport ?? ""} onValueChange={(v) => setSport(v as Sport)}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Select sport" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sportOptions.map((s) => (
+                      <SelectItem key={s.code} value={s.code}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {sport && (
+                <div className="space-y-2">
+                  <Label>Indoor / Outdoor</Label>
+                  <Select
+                    value={courtType ?? ""}
+                    onValueChange={(v) => setCourtType(v as CourtType)}
+                  >
+                    <SelectTrigger className="w-[160px]">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {courtTypeOptions.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {t === "indoor" ? "Indoor" : "Outdoor"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            {/* Duration pills */}
+            <div className="space-y-2">
+              <Label>Duration</Label>
+              <div className="flex gap-2">
+                {DURATIONS.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setDurationMinutes(d)}
+                    className={cn(
+                      "rounded-full px-5 py-2 text-sm font-semibold border transition-all",
+                      durationMinutes === d
+                        ? "bg-primary text-primary-foreground border-primary shadow"
+                        : "bg-background text-foreground border-slate-200 dark:border-slate-700 hover:border-primary hover:text-primary",
+                    )}
+                  >
+                    {d} min
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Slot grid */}
+            {loadingSlots && (
+              <GlobalLoadingPlaceholder minHeight="min-h-[160px]" />
+            )}
+
+            {slotsError && (
+              <p className="text-sm text-destructive">
+                {(slotsErr as Error)?.message ?? "Could not load available slots."}
+              </p>
+            )}
+
+            {!loadingSlots && slotsData && slotsData.slots.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No slots available for this combination. Try a different date or duration.
+              </p>
+            )}
+
+            {!loadingSlots && slotsData && slotsData.slots.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Select a time slot. A court will be automatically assigned.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => refetch()}
+                    disabled={isFetching}
+                    className="text-xs"
+                  >
+                    {isFetching ? "Refreshing…" : "↺ Refresh"}
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                  {slotsData.slots.map((slot) => {
+                    const key = slotHoldKey(sport!, courtType!, bookingDate, slot.startTime, slot.endTime);
+                    const isSelected = myHoldKey === key || (selectedSlot?.startTime === slot.startTime && selectedSlot?.endTime === slot.endTime);
+                    const holdCount = holdCounts[key] ?? 0;
+
+                    // Cross-duration overlap-aware hold load:
+                    // For a slot [S,E), we reduce capacity by the MAX concurrent holds within [S,E),
+                    // not just exact-key holds. This fixes 30m holds affecting 60m/90m slots correctly.
+                    const slotStart = toMinutes(slot.startTime);
+                    const slotEnd = toMinutes(slot.endTime);
+                    const events: Array<{ t: number; delta: number }> = [];
+                    for (const h of currentIntervalHolds) {
+                      const overlapStart = Math.max(slotStart, h.start);
+                      const overlapEnd = Math.min(slotEnd, h.end);
+                      if (overlapStart < overlapEnd) {
+                        events.push({ t: overlapStart, delta: h.count });
+                        events.push({ t: overlapEnd, delta: -h.count });
+                      }
+                    }
+                    events.sort((a, b) => (a.t === b.t ? a.delta - b.delta : a.t - b.t));
+                    let active = 0;
+                    let maxConcurrentHolds = 0;
+                    for (const e of events) {
+                      active += e.delta;
+                      if (active > maxConcurrentHolds) maxConcurrentHolds = active;
+                    }
+
+                    const realAvailable = Math.max(
+                      0,
+                      slot.availableCount - maxConcurrentHolds,
+                    );
+                    const isFull = realAvailable <= 0 && !isSelected;
+
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        disabled={isFull}
+                        onClick={() => !isFull && handleSelectSlot(slot)}
+                        className={cn(
+                          "relative rounded-xl border p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                          isSelected
+                            ? "bg-primary text-primary-foreground border-primary shadow-md scale-[1.02]"
+                            : isFull
+                              ? "bg-slate-100 dark:bg-slate-800 text-muted-foreground border-slate-200 dark:border-slate-700 opacity-60 cursor-not-allowed"
+                              : "bg-background border-slate-200 dark:border-slate-700 hover:border-primary hover:shadow-sm cursor-pointer",
+                        )}
+                      >
+                        <div className="font-semibold text-sm">
+                          {wallShort(slot.startTime)}
+                        </div>
+                        <div className={cn("text-xs mt-0.5", isSelected ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                          – {wallShort(slot.endTime)}
+                        </div>
+                        <div className={cn(
+                          "text-xs mt-1.5 font-medium",
+                          isFull
+                            ? "text-muted-foreground"
+                            : isSelected
+                              ? "text-primary-foreground/90"
+                              : realAvailable <= 1
+                                ? "text-amber-600 dark:text-amber-400"
+                                : "text-emerald-600 dark:text-emerald-400",
+                        )}>
+                          {isFull ? "Full" : `${realAvailable} left`}
+                        </div>
+                        {holdCount > 0 && !isFull && (
+                          <div className={cn(
+                            "absolute top-2 right-2 h-2 w-2 rounded-full",
+                            isSelected ? "bg-primary-foreground/70" : "bg-amber-400",
+                          )} title={`${holdCount} user${holdCount > 1 ? "s" : ""} holding`} />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {bookError && (
+              <p className="text-sm text-destructive font-medium">{bookError}</p>
+            )}
           </div>
-          <div className="space-y-2 min-w-[140px]">
-            <Label>Indoor / outdoor</Label>
-            <Select value={courtType} onValueChange={(v) => setCourtType(v as CourtType)}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="indoor">Indoor</SelectItem>
-                <SelectItem value="outdoor">Outdoor</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2 min-w-[200px]">
+
+          {/* ── Right column: calendar ── */}
+          <div className="space-y-3 lg:border-l lg:pl-6 dark:border-slate-800">
             <Label>Date</Label>
-            <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full min-w-[200px] justify-start text-left font-normal"
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4 opacity-70" />
-                  {format(selectedCalendarDate, "PPP")}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <CalendarGrid
-                  className="border-0 shadow-none"
-                  selectedDate={selectedCalendarDate}
-                  onSelectDate={(d) => {
-                    // Use the calendar cell’s local YYYY-MM-DD so the highlighted day matches selection
-                    // (formatInTimeZone on the click instant caused off-by-one vs the grid).
-                    setBookingDate(format(d, "yyyy-MM-dd"));
-                    setDatePickerOpen(false);
-                  }}
-                  isDateDisabled={(d) => format(d, "yyyy-MM-dd") < todayVenueYmd}
-                />
-              </PopoverContent>
-            </Popover>
+            <CalendarGrid
+              selectedDate={selectedCalendarDate}
+              onSelectDate={(d) => setBookingDate(format(d, "yyyy-MM-dd"))}
+              isDateDisabled={(d) => format(d, "yyyy-MM-dd") < todayVenueYmd}
+              className="border rounded-xl p-0 shadow-none"
+            />
           </div>
         </div>
 
-        {loadingWindows ? (
-          <GlobalLoadingPlaceholder minHeight="min-h-[120px]" />
-        ) : windows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No booking windows configured for {sport} + {courtType} at this location. Try another
-            combination or contact the venue.
-          </p>
-        ) : (
-          <div className="flex flex-wrap gap-4 items-end">
-            <div className="space-y-2 min-w-[220px] flex-1">
-              <Label>Time window</Label>
-              <Select value={windowId} onValueChange={setWindowId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select window" />
-                </SelectTrigger>
-                <SelectContent>
-                  {windows.map((w) => (
-                    <SelectItem key={w.id} value={w.id}>
-                      {wallTimeShort(w.windowStartTime)} – {wallTimeShort(w.windowEndTime)} (grid{" "}
-                      {w.slotGridMinutes}m)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 min-w-[140px]">
-              <Label>Duration</Label>
-              <Select
-                value={String(durationMinutes)}
-                onValueChange={(v) => setDurationMinutes(parseInt(v, 10))}
-              >
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(selectedWindow?.allowedDurationMinutes ?? [30, 60, 90]).map((m) => (
-                    <SelectItem key={m} value={String(m)}>
-                      {m} min
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button type="button" variant="secondary" onClick={() => refetch()} disabled={isFetching}>
-              {isFetching ? "Loading…" : "Refresh slots"}
+        {/* ── Booking summary + confirm ── */}
+        {selectedSlot && (
+          <div className="mt-6 rounded-xl border border-primary/30 bg-primary/5 dark:bg-primary/10 p-4 space-y-3">
+            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+              Your selection
+            </h3>
+            <ul className="text-sm space-y-1">
+              <li>
+                <span className="font-medium capitalize">{sport ?? "-"}</span>{" "}
+                <span className="text-muted-foreground capitalize">· {courtType ?? "-"}</span>
+              </li>
+              <li className="font-medium">{format(selectedCalendarDate, "EEEE, MMMM d, yyyy")}</li>
+              <li>
+                <span className="font-semibold">
+                  {wallShort(selectedSlot.startTime)} – {wallShort(selectedSlot.endTime)}
+                </span>{" "}
+                <span className="text-muted-foreground">({selectedSlot.durationMinutes} min)</span>
+              </li>
+              <li className="text-muted-foreground text-xs">
+                A court will be assigned automatically at booking time.
+              </li>
+            </ul>
+
+            <Button
+              type="button"
+              size="lg"
+              className="w-full sm:w-auto rounded-full px-10 mt-1"
+              disabled={!canBook || createSlotBooking.isPending}
+              onClick={handleBookNow}
+            >
+              {createSlotBooking.isPending ? "Booking…" : "Book now"}
             </Button>
           </div>
         )}
 
-        {availError && (
-          <p className="text-sm text-destructive">
-            {(availErr as Error)?.message ?? "Could not load availability."}
-          </p>
-        )}
-
-        {loadingAvail && availabilityParams && (
-          <GlobalLoadingPlaceholder minHeight="min-h-[160px]" />
-        )}
-
-        {!loadingAvail && availability && availability.slots.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">
-              Select a slot (row), then a court. Choose a row first — court buttons appear for that
-              time.
-            </p>
-            <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 dark:bg-slate-900/80">
-                  <tr>
-                    <th className="text-left p-3 font-semibold">Slot</th>
-                    <th className="text-left p-3 font-semibold">Courts with space</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {availability.slots.map((slot) => {
-                    const key = slotKey(slot);
-                    const rowSelected = selectedSlot && slotKey(selectedSlot) === key;
-                    return (
-                      <tr
-                        key={key}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => {
-                          setSelectedSlot(slot);
-                          setSelectedCourtId(null);
-                        }}
-                        onKeyDown={(ev) => {
-                          if (ev.key === "Enter" || ev.key === " ") {
-                            ev.preventDefault();
-                            setSelectedSlot(slot);
-                            setSelectedCourtId(null);
-                          }
-                        }}
-                        className={cn(
-                          "border-t border-slate-200 dark:border-slate-800 cursor-pointer transition-colors",
-                          rowSelected && "bg-primary/10 dark:bg-primary/20",
-                        )}
-                      >
-                        <td className="p-3 whitespace-nowrap align-top">
-                          {wallTimeShort(slot.startTime)} – {wallTimeShort(slot.endTime)}
-                        </td>
-                        <td className="p-3">
-                          {slot.availableCourtIds.length === 0 ? (
-                            <span className="text-muted-foreground">Full</span>
-                          ) : (
-                            <div className="flex flex-wrap gap-2">
-                              {slot.availableCourtIds.map((cid) => {
-                                const picked = rowSelected && selectedCourtId === cid;
-                                const holdRef = { courtId: cid, date: bookingDate, startTime: slot.startTime, endTime: slot.endTime };
-                                const heldByOther = isHeldByOther(holdRef);
-                                const heldByMe = isHeldByMe(holdRef);
-                                const holdEntry = heldByOther ? getHoldEntry(holdRef) : null;
-                                return (
-                                  <div key={cid} className="flex items-center gap-1">
-                                    <Button
-                                      type="button"
-                                      variant={picked || heldByMe ? "default" : "outline"}
-                                      size="sm"
-                                      disabled={heldByOther}
-                                      title={heldByOther ? `Held by ${holdEntry?.displayName ?? "another user"}` : undefined}
-                                      className={cn(
-                                        "rounded-full gap-1.5 h-auto py-1.5 px-3",
-                                        heldByOther && "opacity-50 cursor-not-allowed",
-                                        heldByMe && "ring-2 ring-orange-400",
-                                      )}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (heldByOther) return;
-                                        setSelectedSlot(slot);
-                                        setSelectedCourtId(cid);
-                                        requestHold({
-                                          courtId: cid,
-                                          date: bookingDate,
-                                          startTime: slot.startTime,
-                                          endTime: slot.endTime,
-                                          durationMinutes: slot.durationMinutes,
-                                          courtName: courtInfoById.get(cid)?.name,
-                                        });
-                                      }}
-                                    >
-                                      {heldByOther && <Lock className="h-3 w-3 shrink-0" />}
-                                      <span className="font-medium">
-                                        {courtInfoById.get(cid)?.name ?? cid.slice(0, 8)}
-                                      </span>
-                                      <span
-                                        className={cn(
-                                          "text-xs opacity-90",
-                                          picked || heldByMe ? "text-primary-foreground/90" : "text-muted-foreground",
-                                        )}
-                                      >
-                                        {heldByOther && holdEntry ? (
-                                          <HoldCountdown expiresAt={holdEntry.expiresAt} />
-                                        ) : (
-                                          formatHourly(courtInfoById.get(cid)?.pricePerHourPublic ?? "0")
-                                        )}
-                                      </span>
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" asChild>
-                                      <Link
-                                        href={`/locations/${locationId}/courts/${cid}`}
-                                        title="Court details"
-                                        onClick={(e) => e.stopPropagation()}
-                                      >
-                                        <ExternalLink className="h-3.5 w-3.5" />
-                                      </Link>
-                                    </Button>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+        {!selectedSlot && (
+          <div className="mt-4 pt-2">
+            <Button
+              type="button"
+              size="lg"
+              className="rounded-full px-10"
+              disabled
+            >
+              Book now
+            </Button>
           </div>
         )}
-
-        {!loadingAvail && availability && availability.slots.length === 0 && availability.courts.length > 0 && (
-          <p className="text-sm text-muted-foreground">
-            No slots fit this duration inside the selected window (try another duration or window).
-          </p>
-        )}
-
-        {selectedSlot && selectedCourtId && availability && (
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/40 p-4 space-y-2">
-            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-              Your selection
-            </h3>
-            <ul className="text-sm space-y-1 list-disc list-inside">
-              <li>
-                <span className="font-medium capitalize">{sport}</span> ·{" "}
-                <span className="capitalize">{courtType}</span>
-              </li>
-              <li>{format(selectedCalendarDate, "EEEE, MMMM d, yyyy")}</li>
-              <li>
-                {wallTimeShort(selectedSlot.startTime)} – {wallTimeShort(selectedSlot.endTime)} (
-                {selectedSlot.durationMinutes} min)
-              </li>
-              <li>
-                Court:{" "}
-                <span className="font-medium">
-                  {courtInfoById.get(selectedCourtId)?.name ?? selectedCourtId}
-                </span>
-                {(() => {
-                  const info = courtInfoById.get(selectedCourtId);
-                  if (!info) return null;
-                  return (
-                    <span className="text-muted-foreground">
-                      {" "}
-                      — public rate {formatHourly(info.pricePerHourPublic)}
-                    </span>
-                  );
-                })()}
-              </li>
-            </ul>
-          </div>
-        )}
-
-        {bookError && <p className="text-sm text-destructive">{bookError}</p>}
-
-        <div className="pt-2">
-          <Button
-            type="button"
-            size="lg"
-            className="rounded-full px-10"
-            disabled={!canBook || createBooking.isPending}
-            onClick={handleBookNow}
-          >
-            {createBooking.isPending ? "Booking…" : "Book now"}
-          </Button>
-        </div>
       </CardContent>
     </Card>
   );

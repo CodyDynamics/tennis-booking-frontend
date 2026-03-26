@@ -6,6 +6,8 @@ import type {
   CourtWizardAvailabilityResponseApi,
   CourtWizardWindowApi,
   MyBookingsResponse,
+  CourtSlotAvailabilityResponseApi,
+  CreateCourtSlotBookingInput,
 } from "@/types/api";
 import type { ApiClient } from "../client";
 
@@ -63,6 +65,29 @@ export function createBookingsEndpoints(client: ApiClient) {
           },
         },
       ),
+
+    getCourtSlots: (params: {
+      locationId: string;
+      sport: string;
+      courtType: string;
+      bookingDate: string;
+      durationMinutes: number;
+    }) =>
+      client.get<CourtSlotAvailabilityResponseApi>(
+        "/bookings/court/wizard/slots",
+        {
+          params: {
+            locationId: params.locationId,
+            sport: params.sport,
+            courtType: params.courtType,
+            bookingDate: params.bookingDate,
+            durationMinutes: String(params.durationMinutes),
+          },
+        },
+      ),
+
+    createSlotBooking: (body: CreateCourtSlotBookingInput) =>
+      client.post<CreateBookingResult>("/bookings/court/slot", body),
 
     getMyBookings: (from?: string, to?: string) => {
       const params: Record<string, string> = {};

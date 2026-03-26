@@ -18,9 +18,10 @@ import {
   LogOut,
   Building2,
   Network,
+  Shapes,
 } from "lucide-react";
 
-const ADMIN_VIEW_PERMISSIONS = ["courts:view", "users:view", "roles:view", "branches:view", "organizations:view", "locations:view", "bookings:view"];
+const ADMIN_VIEW_PERMISSIONS = ["courts:view", "users:view", "roles:view", "branches:view", "organizations:view", "locations:view", "sports:view", "bookings:view"];
 
 /** Required permission (view) per admin path. Only super_admin has full access; others need assigned permission. */
 function getRequiredPermissionForPath(path: string): string | null {
@@ -30,6 +31,8 @@ function getRequiredPermissionForPath(path: string): string | null {
   if (path.startsWith("/admin/roles")) return "roles:view";
   if (path.startsWith("/admin/branches")) return "branches:view";
   if (path.startsWith("/admin/organizations")) return "organizations:view";
+  if (path.startsWith("/admin/locations")) return "locations:view";
+  if (path.startsWith("/admin/sports")) return "sports:view";
   return null;
 }
 
@@ -82,6 +85,8 @@ export default function AdminLayout({
     { href: "/admin/courts", label: "Courts Management", icon: MapPin },
     { href: "/admin/users", label: "Users & Members", icon: Users },
     { href: "/admin/roles", label: "Roles & Permissions", icon: Shield },
+    { href: "/admin/locations", label: "Locations", icon: MapPin },
+    { href: "/admin/sports", label: "Sports", icon: Shapes },
     { href: "/admin/branches", label: "Branches", icon: Building2 },
     { href: "/admin/organizations", label: "Organizations", icon: Network },
   ];

@@ -119,6 +119,7 @@ export function useAuth() {
       fullName: string;
       roleId: string;
       phone?: string;
+      address?: string | null;
     }) => api.auth.register(data),
     onSuccess: (res) => {
       queryClient.setQueryData(["auth", "user"], mapAuthUserToUser(res.user));
@@ -160,6 +161,7 @@ export function useAuth() {
     fullName: string;
     roleId: string;
     phone?: string;
+    address?: string | null;
   }) => {
     return registerMutation.mutateAsync(data).then((res) => mapAuthUserToUser(res.user));
   };

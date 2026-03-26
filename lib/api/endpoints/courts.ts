@@ -15,7 +15,7 @@ export interface CourtApi {
   /** Google Maps embed URL */
   mapEmbedUrl?: string | null;
   status: string;
-  sport: "tennis" | "pickleball";
+  sport: string;
   createdAt?: string;
   updatedAt?: string;
   location?: { id: string; name: string; address?: string | null; branchId: string } | null;
@@ -27,7 +27,9 @@ export interface CreateCourtBody {
   locationId: string;
   name: string;
   type?: string;
-  sport?: "tennis" | "pickleball";
+  sport?: string;
+  windowStartTime?: string;
+  windowEndTime?: string;
   pricePerHour?: number;
   description?: string;
   status?: string;
@@ -37,7 +39,9 @@ export interface UpdateCourtBody {
   locationId?: string;
   name?: string;
   type?: string;
-  sport?: "tennis" | "pickleball";
+  sport?: string;
+  windowStartTime?: string;
+  windowEndTime?: string;
   pricePerHour?: number;
   description?: string;
   status?: string;

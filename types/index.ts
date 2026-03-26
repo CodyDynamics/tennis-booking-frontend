@@ -22,7 +22,7 @@ export interface Court {
   id: string;
   name: string;
   type: "indoor" | "outdoor";
-  sport: "tennis" | "pickleball";
+  sport: string;
   pricePerHour: number;
   description?: string;
   status: "active" | "maintenance";

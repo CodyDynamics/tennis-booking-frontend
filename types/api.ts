@@ -34,6 +34,7 @@ export interface RegisterInput {
   password: string;
   fullName: string;
   phone?: string;
+  address?: string | null;
   organizationId?: string;
   branchId?: string;
   roleId: string;
@@ -203,4 +204,38 @@ export interface CoachSessionApi {
   status: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+// ─── New slot flow ────────────────────────────────────────────────────────────
+
+/** One available time slot from GET /bookings/court/wizard/slots */
+export interface CourtSlotApi {
+  startTime: string;       // "HH:mm"
+  endTime: string;         // "HH:mm"
+  durationMinutes: number;
+  availableCount: number;  // courts free for this slot (from DB)
+  totalCount: number;      // total active courts
+}
+
+/** Response from GET /bookings/court/wizard/slots */
+export interface CourtSlotAvailabilityResponseApi {
+  locationId: string;
+  sport: string;
+  courtType: string;
+  timezone: string;
+  bookingDate: string;
+  durationMinutes: number;
+  slots: CourtSlotApi[];
+}
+
+/** Body for POST /bookings/court/slot */
+export interface CreateCourtSlotBookingInput {
+  locationId: string;
+  sport: string;
+  courtType: string;
+  bookingDate: string;
+  startTime: string;
+  endTime: string;
+  durationMinutes: number;
+  coachId?: string;
 }

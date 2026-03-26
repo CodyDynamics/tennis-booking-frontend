@@ -49,7 +49,7 @@ function mapCourtApiToCourt(c: CourtApi): Court {
     id: c.id,
     name: c.name,
     type: c.type === "indoor" ? "indoor" : "outdoor",
-    sport: c.sport === "pickleball" ? "pickleball" : "tennis",
+    sport: c.sport,
     pricePerHour: typeof c.pricePerHour === "string" ? parseFloat(c.pricePerHour) : c.pricePerHour,
     description: c.description ?? undefined,
     status: c.status === "active" ? "active" : "maintenance",
@@ -273,6 +273,67 @@ export function useCourtWizardAvailability(
   });
 }
 
+/** New flow: available slots for date+duration (no court names, no windowId needed). */
+export function useCourtSlots(
+  params: {
+    locationId: string;
+    sport: string;
+    courtType: "indoor" | "outdoor";
+    bookingDate: string;
+    durationMinutes: number;
+  } | null,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: [
+      "courtSlots",
+      params?.locationId,
+      params?.sport,
+      params?.courtType,
+      params?.bookingDate,
+      params?.durationMinutes,
+    ] as const,
+    queryFn: () => api.bookings.getCourtSlots(params!),
+    enabled: Boolean(enabled && params),
+    staleTime: 15_000,
+  });
+}
+
+/** New flow: book a slot, system assigns random court. */
+export function useCreateSlotBooking() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      locationId: string;
+      sport: string;
+      courtType: string;
+      bookingDate: string;
+      startTime: string;
+      endTime: string;
+      durationMinutes: number;
+      coachId?: string | null;
+    }) => {
+      const payload = {
+        locationId: data.locationId,
+        sport: data.sport,
+        courtType: data.courtType,
+        bookingDate: data.bookingDate,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        durationMinutes: data.durationMinutes,
+        ...(data.coachId ? { coachId: data.coachId } : {}),
+      };
+      return api.bookings.createSlotBooking(payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["courtSlots"] });
+      queryClient.invalidateQueries({ queryKey: ["courtAvailability"] });
+      queryClient.invalidateQueries({ queryKey: ["courtWizardAvailability"] });
+    },
+  });
+}
+
 // Create court booking mutation
 export function useCreateCourtBooking() {
   const queryClient = useQueryClient();
@@ -421,6 +482,37 @@ export function useSports() {
   });
 }
 
+export function useCreateSport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Parameters<typeof api.sports.createSport>[0]) =>
+      api.sports.createSport(body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sports"] }),
+  });
+}
+
+export function useUpdateSport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string;
+      body: Parameters<typeof api.sports.updateSport>[1];
+    }) => api.sports.updateSport(id, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sports"] }),
+  });
+}
+
+export function useDeleteSport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.sports.deleteSport(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sports"] }),
+  });
+}
+
 // ----- Admin: Locations (by branch) -----
 export function useLocations(branchId?: string) {
   return useQuery({
@@ -433,6 +525,37 @@ export function useLocations(branchId?: string) {
       });
       return res.data;
     },
+  });
+}
+
+export function useCreateLocation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Parameters<typeof api.locations.createLocation>[0]) =>
+      api.locations.createLocation(body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["locations"] }),
+  });
+}
+
+export function useUpdateLocation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string;
+      body: Parameters<typeof api.locations.updateLocation>[1];
+    }) => api.locations.updateLocation(id, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["locations"] }),
+  });
+}
+
+export function useDeleteLocation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.locations.deleteLocation(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["locations"] }),
   });
 }
 

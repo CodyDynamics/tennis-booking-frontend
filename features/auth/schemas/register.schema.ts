@@ -4,6 +4,12 @@ export const registerSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Invalid email address"),
+  phone: z
+    .string()
+    .trim()
+    .min(8, "Phone must be at least 8 characters")
+    .max(20, "Phone is too long"),
+  address: z.string().optional(),
   password: z.string().min(8, "Password must be at least 8 characters"),
   confirmPassword: z.string(),
   roleId: z.string().min(1, "Please select a role"),
