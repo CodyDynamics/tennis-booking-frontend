@@ -15,6 +15,7 @@ import type { CourtApi } from "@/lib/api/endpoints/courts";
 import type { CoachApi } from "@/lib/api/endpoints/coaches";
 import type { UserApi } from "@/lib/api/endpoints/users";
 import type { PermissionSchemaItem } from "@/lib/api/endpoints/roles";
+import type { AreaApi } from "@/lib/api/endpoints/areas";
 
 function mapCoachApiToCoach(c: CoachApi): Coach {
   return {
@@ -51,6 +52,8 @@ function mapCourtApiToCourt(c: CourtApi): Court {
     name: c.name,
     type: c.type === "indoor" ? "indoor" : "outdoor",
     sport: c.sport,
+    sportId: c.sportId ?? null,
+    areaId: c.areaId ?? null,
     pricePerHour: typeof c.pricePerHour === "string" ? parseFloat(c.pricePerHour) : c.pricePerHour,
     description: c.description ?? undefined,
     status: c.status === "active" ? "active" : "maintenance",
@@ -320,6 +323,7 @@ export function useCourtWizardAvailability(
 export function useCourtSlots(
   params: {
     locationId: string;
+    areaId?: string;
     sport: string;
     courtType: "indoor" | "outdoor";
     bookingDate: string;
@@ -334,6 +338,7 @@ export function useCourtSlots(
       params?.locationId,
       params?.sport,
       params?.courtType,
+      params?.areaId,
       params?.bookingDate,
       params?.durationMinutes,
       params?.excludeBookingId,
@@ -350,6 +355,7 @@ export function useCreateSlotBooking() {
   return useMutation({
     mutationFn: async (data: {
       locationId: string;
+      areaId?: string;
       sport: string;
       courtType: string;
       bookingDate: string;
@@ -360,6 +366,7 @@ export function useCreateSlotBooking() {
     }) => {
       const payload = {
         locationId: data.locationId,
+        ...(data.areaId ? { areaId: data.areaId } : {}),
         sport: data.sport,
         courtType: data.courtType,
         bookingDate: data.bookingDate,
@@ -386,6 +393,7 @@ export function useUpdateSlotBooking() {
     mutationFn: async (data: {
       bookingId: string;
       locationId: string;
+      areaId?: string;
       sport: string;
       courtType: string;
       bookingDate: string;
@@ -599,6 +607,44 @@ export function useLocations(branchId?: string) {
   });
 }
 
+export function useAreas(locationId?: string) {
+  return useQuery<AreaApi[]>({
+    queryKey: ["areas", locationId],
+    queryFn: () => api.areas.getAreas(locationId ? { locationId } : undefined),
+  });
+}
+
+export function useCreateArea() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Parameters<typeof api.areas.createArea>[0]) =>
+      api.areas.createArea(body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["areas"] }),
+  });
+}
+
+export function useUpdateArea() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string;
+      body: Parameters<typeof api.areas.updateArea>[1];
+    }) => api.areas.updateArea(id, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["areas"] }),
+  });
+}
+
+export function useDeleteArea() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.areas.deleteArea(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["areas"] }),
+  });
+}
+
 export function useCreateLocation() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -653,6 +699,14 @@ export function useBookableLocations(enabled: boolean) {
   });
 }
 
+export function useBookableAreas(enabled: boolean) {
+  return useQuery({
+    queryKey: ["areas", "bookable"],
+    queryFn: () => api.areas.getBookableAreas(),
+    enabled,
+  });
+}
+
 // ----- Single location (for location courts page) -----
 export function useLocation(id: string | null | undefined, options?: { enabled?: boolean }) {
   return useQuery({
@@ -691,10 +745,23 @@ export function useOrganizations() {
 }
 
 // ----- Admin: Users (list with filters) -----
-export function useUsers(params?: { roleId?: string; search?: string }) {
+export function useUsers(params?: {
+  roleId?: string;
+  search?: string;
+  onlyMembership?: boolean;
+}) {
   return useQuery<UserApi[]>({
-    queryKey: ["users", params?.roleId, params?.search],
+    queryKey: ["users", params?.roleId, params?.search, params?.onlyMembership],
     queryFn: () => api.users.getUsers(params),
+  });
+}
+
+/** Admin edit modal: user + location memberships (for area dropdown). */
+export function useAdminUserDetail(userId: string | undefined, enabled: boolean) {
+  return useQuery<UserApi>({
+    queryKey: ["users", userId, "detail"],
+    queryFn: () => api.users.getUser(userId!, { includeMemberships: true }),
+    enabled: Boolean(enabled && userId),
   });
 }
 

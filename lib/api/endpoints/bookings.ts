@@ -68,6 +68,7 @@ export function createBookingsEndpoints(client: ApiClient) {
 
     getCourtSlots: (params: {
       locationId: string;
+      areaId?: string;
       sport: string;
       courtType: string;
       bookingDate: string;
@@ -81,6 +82,7 @@ export function createBookingsEndpoints(client: ApiClient) {
         bookingDate: params.bookingDate,
         durationMinutes: String(params.durationMinutes),
       };
+      if (params.areaId) paramsQ.areaId = params.areaId;
       if (params.excludeBookingId) paramsQ.excludeBookingId = params.excludeBookingId;
       return client.get<CourtSlotAvailabilityResponseApi>(
         "/bookings/court/wizard/slots",

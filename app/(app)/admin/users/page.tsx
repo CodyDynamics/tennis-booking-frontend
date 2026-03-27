@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth-store";
 import {
   useUsers,
@@ -8,10 +8,13 @@ import {
   useCreateUser,
   useUpdateUser,
   useDeleteUser,
+  useLocations,
+  useAreas,
+  useAdminUserDetail,
 } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -27,7 +30,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import PhoneInput from "react-phone-number-input";
 import { ApiError } from "@/lib/api";
 import type { UserApi } from "@/lib/api/endpoints/users";
 import { AdminFilter, AdminTable, AdminPagination } from "../components";
@@ -39,6 +44,7 @@ export default function AdminUsersPage() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [roleId, setRoleId] = useState<string>("all");
+  const [onlyMembership, setOnlyMembership] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserApi | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -51,82 +57,146 @@ export default function AdminUsersPage() {
   const { data: users = [], isLoading } = useUsers({
     roleId: roleId && roleId !== "all" ? roleId : undefined,
     search: search || undefined,
+    onlyMembership,
   });
-
-  useEffect(() => {
-    setPage(1);
-  }, [search, roleId]);
-
-  const paginatedUsers = useMemo(
-    () => users.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [users, page]
-  );
   const { data: roles = [] } = useRolesList();
+  const { data: locations = [] } = useLocations();
+  const { data: areas = [] } = useAreas();
+  const { data: editUserDetail, isLoading: editUserDetailLoading } = useAdminUserDetail(
+    editingUser?.id,
+    modalOpen && !!editingUser,
+  );
+
+  const locationNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const l of locations) m.set(l.id, l.name);
+    return m;
+  }, [locations]);
+
+  const membershipSyncedRef = useRef<string | null>(null);
+
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
   const deleteUser = useDeleteUser();
 
-  const formDefaults = useMemo(
-    () => ({
-      email: editingUser?.email ?? "",
-      fullName: editingUser?.fullName ?? "",
-      phone: editingUser?.phone ?? "",
-      roleId: editingUser?.roleId ?? (roles[0]?.id ?? ""),
-      status: (editingUser?.status ?? "active") as "active" | "inactive",
-      password: "",
-    }),
-    [editingUser, roles]
+  useEffect(() => {
+    setPage(1);
+  }, [search, roleId, onlyMembership]);
+
+  const paginatedUsers = useMemo(
+    () => users.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [users, page],
   );
 
-  const [form, setForm] = useState(formDefaults);
+  const [form, setForm] = useState({
+    email: "",
+    firstName: "",
+    lastName: "",
+    phone: "",
+    homeAddress: "",
+    roleId: "",
+    status: "active" as "active" | "inactive",
+    mustChangePasswordOnFirstLogin: false,
+    membershipAreaId: "",
+    password: "",
+  });
 
   const resetForm = () => {
     setEditingUser(null);
     setForm({
       email: "",
-      fullName: "",
+      firstName: "",
+      lastName: "",
       phone: "",
+      homeAddress: "",
       roleId: roles[0]?.id ?? "",
       status: "active",
+      mustChangePasswordOnFirstLogin: false,
+      membershipAreaId: "",
       password: "",
     });
   };
 
   const openCreate = () => {
+    membershipSyncedRef.current = null;
     resetForm();
     setModalOpen(true);
   };
 
-  const openEdit = (user: UserApi) => {
-    setEditingUser(user);
+  const openEdit = (u: UserApi) => {
+    membershipSyncedRef.current = null;
+    setEditingUser(u);
     setForm({
-      email: user.email,
-      fullName: user.fullName,
-      phone: user.phone ?? "",
-      roleId: user.roleId,
-      status: user.status as "active" | "inactive",
+      email: u.email,
+      firstName: u.firstName ?? "",
+      lastName: u.lastName ?? "",
+      phone: u.phone ?? "",
+      homeAddress: u.homeAddress ?? "",
+      roleId: u.roleId,
+      status: u.status as "active" | "inactive",
+      mustChangePasswordOnFirstLogin: u.mustChangePasswordOnFirstLogin ?? false,
+      membershipAreaId: "",
       password: "",
     });
     setModalOpen(true);
   };
 
+  useEffect(() => {
+    if (!modalOpen) {
+      membershipSyncedRef.current = null;
+    }
+  }, [modalOpen]);
+
+  useEffect(() => {
+    if (!editingUser || !modalOpen || !editUserDetail || areas.length === 0) return;
+    const locId = editUserDetail.memberships?.[0]?.locationId;
+    const syncKey = `${editingUser.id}-${locId ?? "none"}`;
+    if (membershipSyncedRef.current === syncKey) return;
+    membershipSyncedRef.current = syncKey;
+    if (!locId) {
+      setForm((f) => ({ ...f, membershipAreaId: "" }));
+      return;
+    }
+    const candidates = areas.filter((a) => a.locationId === locId);
+    const picked = [...candidates].sort((a, b) => a.name.localeCompare(b.name))[0];
+    setForm((f) => ({ ...f, membershipAreaId: picked?.id ?? "" }));
+  }, [editingUser?.id, modalOpen, editUserDetail, areas]);
+
+  const fullName = `${form.firstName} ${form.lastName}`.trim();
+  const phoneValid = true;
+
+  const resolveMembershipLocationId = (): string | undefined => {
+    if (!form.membershipAreaId || form.membershipAreaId === "__none__") return undefined;
+    return areas.find((a) => a.id === form.membershipAreaId)?.locationId;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!phoneValid) return;
+    if (editingUser && editUserDetailLoading) return;
+
     if (editingUser) {
+      const locId = resolveMembershipLocationId();
       const err = await updateUser
         .mutateAsync({
           id: editingUser.id,
           body: {
             email: form.email,
-            fullName: form.fullName,
-            phone: form.phone || undefined,
+            fullName,
+            firstName: form.firstName,
+            lastName: form.lastName,
+            phone: form.phone,
+            homeAddress: form.homeAddress || undefined,
             roleId: form.roleId,
             status: form.status,
+            mustChangePasswordOnFirstLogin: form.mustChangePasswordOnFirstLogin,
+            membershipLocationId:
+              !form.membershipAreaId || form.membershipAreaId === "__none__" ? null : locId ?? null,
             ...(form.password ? { password: form.password } : {}),
           },
         })
         .then(() => null)
-        .catch((e) => e);
+        .catch((err) => err);
       if (err) return;
     } else {
       if (!form.password) return;
@@ -134,21 +204,22 @@ export default function AdminUsersPage() {
         .mutateAsync({
           email: form.email,
           password: form.password,
-          fullName: form.fullName,
-          phone: form.phone || undefined,
+          fullName,
+          firstName: form.firstName,
+          lastName: form.lastName,
+          phone: form.phone,
+          homeAddress: form.homeAddress || undefined,
           roleId: form.roleId,
+          mustChangePasswordOnFirstLogin: form.mustChangePasswordOnFirstLogin,
+          membershipLocationId: resolveMembershipLocationId(),
         })
         .then(() => null)
-        .catch((e) => e);
+        .catch((err) => err);
       if (err) return;
     }
+
     setModalOpen(false);
     resetForm();
-  };
-
-  const handleDelete = async (id: string) => {
-    await deleteUser.mutateAsync(id).catch(() => {});
-    setDeleteConfirmId(null);
   };
 
   const submitError =
@@ -157,6 +228,11 @@ export default function AdminUsersPage() {
       : updateUser.error instanceof ApiError
         ? updateUser.error
         : null;
+
+  const handleDelete = async (id: string) => {
+    await deleteUser.mutateAsync(id).catch(() => {});
+    setDeleteConfirmId(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -189,6 +265,14 @@ export default function AdminUsersPage() {
             ))}
           </SelectContent>
         </Select>
+        <div className="flex items-center gap-2 px-2">
+          <Checkbox
+            id="onlyMembership"
+            checked={onlyMembership}
+            onCheckedChange={(v) => setOnlyMembership(Boolean(v))}
+          />
+          <Label htmlFor="onlyMembership">Only membership users</Label>
+        </div>
       </AdminFilter>
 
       <Card>
@@ -204,9 +288,19 @@ export default function AdminUsersPage() {
               </div>
             }
             columns={[
-              { key: "fullName", label: "Name", render: (u) => <span className="font-medium">{u.fullName}</span> },
+              {
+                key: "lastName",
+                label: "Last Name",
+                render: (u) => <span className="font-medium">{u.lastName ?? "—"}</span>,
+              },
+              {
+                key: "firstName",
+                label: "First Name",
+                render: (u) => <span className="font-medium">{u.firstName ?? "—"}</span>,
+              },
               { key: "email", label: "Email" },
               { key: "phone", label: "Phone", render: (u) => u.phone ?? "—" },
+              { key: "homeAddress", label: "Address", render: (u) => u.homeAddress ?? "—" },
               {
                 key: "role",
                 label: "Role",
@@ -229,10 +323,10 @@ export default function AdminUsersPage() {
                       label: "Actions",
                       headClassName: "text-right",
                       className: "text-right",
-                      render: (rowUser: UserApi) => (
+                      render: (row: UserApi) => (
                         <>
                           {canUpdate && (
-                            <Button variant="ghost" size="icon" onClick={() => openEdit(rowUser)}>
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(row)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
                           )}
@@ -241,14 +335,20 @@ export default function AdminUsersPage() {
                               variant="ghost"
                               size="icon"
                               className="text-destructive"
-                              onClick={() => setDeleteConfirmId(rowUser.id)}
+                              onClick={() => setDeleteConfirmId(row.id)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           )}
                         </>
                       ),
-                    } as { key: string; label: string; headClassName?: string; className?: string; render: (row: UserApi) => React.ReactNode },
+                    } as {
+                      key: string;
+                      label: string;
+                      headClassName?: string;
+                      className?: string;
+                      render: (row: UserApi) => React.ReactNode;
+                    },
                   ]
                 : []),
             ]}
@@ -284,26 +384,47 @@ export default function AdminUsersPage() {
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                placeholder="user@example.com"
                 required
                 disabled={!!editingUser}
               />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>First Name</Label>
+                <Input
+                  value={form.firstName}
+                  onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <Label>Last Name</Label>
+                <Input
+                  value={form.lastName}
+                  onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
+                  required
+                />
+              </div>
+            </div>
             <div>
-              <Label>Full name</Label>
-              <Input
-                value={form.fullName}
-                onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
-                placeholder="John Doe"
-                required
+              <Label>Phone</Label>
+              <PhoneInput
+                international
+                defaultCountry="US"
+                countryCallingCodeEditable={false}
+                placeholder="Enter phone number"
+                value={form.phone || ""}
+                onChange={(value) =>
+                  setForm((f) => ({ ...f, phone: value || "" }))
+                }
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </div>
             <div>
-              <Label>Phone (optional)</Label>
+              <Label>Address</Label>
               <Input
-                value={form.phone}
-                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                placeholder="+84..."
+                value={form.homeAddress}
+                onChange={(e) => setForm((f) => ({ ...f, homeAddress: e.target.value }))}
               />
             </div>
             <div>
@@ -325,14 +446,43 @@ export default function AdminUsersPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label>Area membership (optional)</Label>
+              <p className="text-muted-foreground mb-2 text-xs">
+                This list is every area in the system so you can assign a membership location;
+                it is not the user&apos;s current memberships. &quot;None&quot; means no
+                membership row. Membership is stored per location; picking an area sets that
+                location.
+              </p>
+              <Select
+                value={form.membershipAreaId || "__none__"}
+                onValueChange={(v) =>
+                  setForm((f) => ({
+                    ...f,
+                    membershipAreaId: v === "__none__" ? "" : v,
+                  }))
+                }
+                disabled={!!editingUser && editUserDetailLoading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={editUserDetailLoading ? "Loading…" : "None"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">None</SelectItem>
+                  {areas.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {locationNameById.get(a.locationId) ?? "Location"} — {a.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             {editingUser && (
               <div>
                 <Label>Status</Label>
                 <Select
                   value={form.status}
-                  onValueChange={(v) =>
-                    setForm((f) => ({ ...f, status: v as "active" | "inactive" }))
-                  }
+                  onValueChange={(v) => setForm((f) => ({ ...f, status: v as "active" | "inactive" }))}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -344,19 +494,50 @@ export default function AdminUsersPage() {
                 </Select>
               </div>
             )}
-            <div>
-              <Label>{editingUser ? "New password (leave blank to keep)" : "Password"}</Label>
-              <Input
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                placeholder={editingUser ? "Optional" : "Min 8 characters"}
-                required={!editingUser}
-                minLength={8}
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="mustChangePwd"
+                checked={form.mustChangePasswordOnFirstLogin}
+                onCheckedChange={(v) =>
+                  setForm((f) => ({ ...f, mustChangePasswordOnFirstLogin: Boolean(v) }))
+                }
               />
+              <Label htmlFor="mustChangePwd">Require password change on first login</Label>
+            </div>
+            <div>
+              <Label>{editingUser ? "New password (optional)" : "Password"}</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  value={form.password}
+                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                  required={!editingUser}
+                  minLength={8}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const chars =
+                      "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+                    let next = "";
+                    for (let i = 0; i < 12; i += 1) {
+                      next += chars[Math.floor(Math.random() * chars.length)];
+                    }
+                    setForm((f) => ({ ...f, password: next }));
+                  }}
+                >
+                  Generate
+                </Button>
+              </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setModalOpen(false)} disabled={createUser.isPending || updateUser.isPending}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setModalOpen(false)}
+                disabled={createUser.isPending || updateUser.isPending}
+              >
                 Cancel
               </Button>
               <Button
@@ -364,14 +545,21 @@ export default function AdminUsersPage() {
                 disabled={
                   createUser.isPending ||
                   updateUser.isPending ||
-                  (!editingUser && !form.password)
+                  !phoneValid ||
+                  (!!editingUser && editUserDetailLoading)
                 }
                 aria-busy={createUser.isPending || updateUser.isPending}
               >
                 {(createUser.isPending || updateUser.isPending) && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                {createUser.isPending ? "Creating…" : updateUser.isPending ? "Saving…" : editingUser ? "Save" : "Create"}
+                {createUser.isPending
+                  ? "Creating…"
+                  : updateUser.isPending
+                    ? "Saving…"
+                    : editingUser
+                      ? "Save"
+                      : "Create"}
               </Button>
             </DialogFooter>
           </form>

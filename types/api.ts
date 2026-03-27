@@ -11,6 +11,7 @@ export interface AuthUser {
   role?: string;
   organizationId?: string;
   branchId?: string;
+  mustChangePasswordOnFirstLogin?: boolean;
 }
 
 /** Response from POST /auth/login, /auth/register, /auth/refresh */
@@ -33,11 +34,12 @@ export interface RegisterInput {
   email: string;
   password: string;
   fullName: string;
-  phone?: string;
-  address?: string | null;
+  firstName?: string;
+  lastName?: string;
+  phone: string;
+  homeAddress?: string | null;
   organizationId?: string;
   branchId?: string;
-  roleId: string;
 }
 
 /** Body for POST /auth/request-login-otp */
@@ -257,6 +259,7 @@ export interface CourtSlotAvailabilityResponseApi {
 /** Body for POST /bookings/court/slot */
 export interface CreateCourtSlotBookingInput {
   locationId: string;
+  areaId?: string;
   sport: string;
   courtType: string;
   bookingDate: string;

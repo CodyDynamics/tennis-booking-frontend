@@ -13,6 +13,7 @@ export interface User {
   avatarUrl?: string;
   organizationId: string;
   branchId?: string;
+  mustChangePasswordOnFirstLogin?: boolean;
   status?: "active" | "inactive";
   /** Permission codes from role (e.g. courts:view, users:create). Used for RBAC. */
   permissions?: string[];
@@ -23,6 +24,8 @@ export interface Court {
   name: string;
   type: "indoor" | "outdoor";
   sport: string;
+  sportId?: string | null;
+  areaId?: string | null;
   pricePerHour: number;
   description?: string;
   status: "active" | "maintenance";

@@ -5,6 +5,8 @@ import type { CoachApi } from "./coaches";
 export interface CourtApi {
   id: string;
   locationId: string | null;
+  areaId?: string | null;
+  sportId?: string | null;
   name: string;
   type: string;
   pricePerHour: string | number;
@@ -25,9 +27,11 @@ export interface CourtApi {
 
 export interface CreateCourtBody {
   locationId: string;
+  areaId?: string;
   name: string;
   type?: string;
   sport?: string;
+  sportId?: string;
   windowStartTime?: string;
   windowEndTime?: string;
   pricePerHour?: number;
@@ -37,9 +41,11 @@ export interface CreateCourtBody {
 
 export interface UpdateCourtBody {
   locationId?: string;
+  areaId?: string;
   name?: string;
   type?: string;
   sport?: string;
+  sportId?: string;
   windowStartTime?: string;
   windowEndTime?: string;
   pricePerHour?: number;
@@ -55,6 +61,7 @@ export function createCourtsEndpoints(client: ApiClient) {
       status?: string;
       search?: string;
       sport?: string;
+      sportId?: string;
       page?: string;
       pageSize?: string;
     }) => {
@@ -64,6 +71,7 @@ export function createCourtsEndpoints(client: ApiClient) {
       if (params?.status) q.status = params.status;
       if (params?.search) q.search = params.search;
       if (params?.sport) q.sport = params.sport;
+      if (params?.sportId) q.sportId = params.sportId;
       if (params?.page !== undefined) q.page = params.page;
       if (params?.pageSize !== undefined) q.pageSize = params.pageSize;
       return client.get<ListResponse<CourtApi>>("/courts", {

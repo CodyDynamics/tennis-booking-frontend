@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import "react-phone-number-input/style.css";
 import { Navbar } from "@/components/layout/navbar";
 import { AppLoadingProvider } from "@/components/layout/app-loading-provider";
 import { ReactQueryProvider } from "@/lib/react-query-provider";

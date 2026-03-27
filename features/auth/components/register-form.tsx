@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,10 +11,10 @@ import { LoadingLabel } from "@/components/ui/loading-label";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { User, Mail, Phone, MapPin } from "lucide-react";
+import { User, Mail, MapPin } from "lucide-react";
+import PhoneInput from "react-phone-number-input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { useAuth } from "@/lib/auth-store";
-import { useRoles } from "@/lib/hooks/use-roles";
 import { registerSchema, type RegisterFormValues } from "@/features/auth/schemas/register.schema";
 import { ApiError } from "@/lib/api";
 import { safeNextPath } from "@/lib/safe-next-path";
@@ -32,6 +33,7 @@ export function RegisterForm({
 }: RegisterFormProps) {
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
   } = useForm<RegisterFormValues>({
@@ -40,7 +42,6 @@ export function RegisterForm({
 
   const [submitError, setSubmitError] = useState<string | null>(null);
   const { register: registerUser, isRegistering } = useAuth();
-  const { data: roles, isLoading: rolesLoading, isError: rolesError, refetch: refetchRoles } = useRoles();
   const router = useRouter();
 
   const onSubmit = async (data: RegisterFormValues) => {
@@ -51,8 +52,10 @@ export function RegisterForm({
         email: data.email,
         password: data.password,
         fullName,
-        roleId: data.roleId,
+        firstName: data.firstName.trim(),
+        lastName: data.lastName.trim(),
         phone: data.phone,
+        homeAddress: data.address?.trim() || null,
       });
       if (onRegisterSuccess) onRegisterSuccess();
       else {
@@ -124,16 +127,22 @@ export function RegisterForm({
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Phone</Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="+84 912 345 678"
-                  className="pl-10"
-                  {...register("phone")}
-                />
-              </div>
+              <Controller
+                control={control}
+                name="phone"
+                render={({ field }) => (
+                  <PhoneInput
+                    id="phone"
+                    international
+                    defaultCountry="US"
+                    countryCallingCodeEditable={false}
+                    placeholder="Enter phone number"
+                    value={field.value || ""}
+                    onChange={(value) => field.onChange(value || "")}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
+                )}
+              />
               {errors.phone && (
                 <p className="text-sm text-destructive">{errors.phone.message}</p>
               )}
@@ -151,37 +160,6 @@ export function RegisterForm({
               </div>
               {errors.address && (
                 <p className="text-sm text-destructive">{errors.address.message}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="roleId">Role</Label>
-              <select
-                id="roleId"
-                disabled={rolesLoading}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
-                {...register("roleId")}
-              >
-                <option value="">
-                  {rolesLoading ? "Loading roles..." : "Select role..."}
-                </option>
-                {roles
-                  ?.filter((r) => r.name !== "admin" && r.name !== "super_admin")
-                  .map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name === "player" ? "Casual Player" : r.name === "student" ? "Student (Training Member)" : r.name}
-                    </option>
-                  ))}
-              </select>
-              {rolesError && (
-                <p className="text-sm text-destructive">
-                  Could not load roles.{" "}
-                  <button type="button" onClick={() => refetchRoles()} className="underline">
-                    Retry
-                  </button>
-                </p>
-              )}
-              {errors.roleId && (
-                <p className="text-sm text-destructive">{errors.roleId.message}</p>
               )}
             </div>
             <div>
@@ -206,12 +184,10 @@ export function RegisterForm({
             <Button
               type="submit"
               className="w-full text-md font-bold h-11 bg-primary hover:opacity-90 text-primary-foreground shadow-brand"
-              disabled={isRegistering || rolesLoading}
+              disabled={isRegistering}
               aria-busy={isRegistering}
             >
-              {rolesLoading ? (
-                <LoadingLabel>Loading roles</LoadingLabel>
-              ) : isRegistering ? (
+              {isRegistering ? (
                 <LoadingLabel>Creating account</LoadingLabel>
               ) : (
                 "Register"

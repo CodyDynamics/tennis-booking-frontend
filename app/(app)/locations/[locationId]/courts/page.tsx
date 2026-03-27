@@ -1,13 +1,18 @@
 "use client";
 
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   LocationCourtBookingWizard,
   type LocationBookingPrefill,
 } from "@/features/courts/components/location-court-booking-wizard";
 import { LocationMyBookingsSidebar } from "@/features/courts/components/location-my-bookings-sidebar";
-import { useLocation, useLocationMembership, useMyCourtBookings } from "@/lib/queries";
+import {
+  useAreas,
+  useLocation,
+  useLocationMembership,
+  useMyCourtBookings,
+} from "@/lib/queries";
 import { useAuth } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
@@ -15,15 +20,19 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 import type { CourtBooking } from "@/types";
+import toast from "react-hot-toast";
 
 export default function LocationCourtsPage() {
   const params = useParams();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const locationId = params.locationId as string;
+  const selectedAreaId = searchParams.get("areaId");
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const [prefill, setPrefill] = useState<LocationBookingPrefill | null>(null);
   const prefillIdRef = useRef(0);
+  const redirectedRef = useRef(false);
 
   const { data: myBookings = [], isLoading: loadingMyBookings } = useMyCourtBookings(user?.id);
 
@@ -32,10 +41,16 @@ export default function LocationCourtsPage() {
   const { data: location, isLoading: loadingLocation } = useLocation(locationId, {
     enabled: queryEnabled,
   });
+  const { data: areas = [], isLoading: loadingAreas } = useAreas(locationId);
+  const selectedArea = selectedAreaId
+    ? areas.find((a) => a.id === selectedAreaId)
+    : undefined;
 
   const isPrivate = location?.visibility === "private";
+  const needsMembershipByArea = selectedArea?.visibility === "private";
+  const mustCheckMembership = isPrivate || needsMembershipByArea;
   const { data: membership, isLoading: loadingMembership } = useLocationMembership(locationId, {
-    enabled: queryEnabled && isPrivate,
+    enabled: queryEnabled && mustCheckMembership,
   });
 
   useEffect(() => {
@@ -48,6 +63,32 @@ export default function LocationCourtsPage() {
       router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
     }
   }, [authLoading, isAuthenticated, router, pathname, locationId]);
+
+  useEffect(() => {
+    if (!selectedAreaId || loadingAreas) return;
+    if (!selectedArea) {
+      if (redirectedRef.current) return;
+      redirectedRef.current = true;
+      toast.error("Area not found or not available.");
+      router.replace("/");
+      return;
+    }
+    if (!mustCheckMembership || loadingMembership) return;
+    if (membership && !membership.hasActiveMembership) {
+      if (redirectedRef.current) return;
+      redirectedRef.current = true;
+      toast.error("Members only area. Please subscribe to continue.");
+      router.replace("/");
+    }
+  }, [
+    selectedAreaId,
+    selectedArea,
+    loadingAreas,
+    mustCheckMembership,
+    loadingMembership,
+    membership,
+    router,
+  ]);
 
   const handleReschedule = useCallback((b: CourtBooking) => {
     const sport = b.sport;
@@ -76,7 +117,7 @@ export default function LocationCourtsPage() {
     );
   }
 
-  if (loadingLocation || (isPrivate && loadingMembership)) {
+  if (loadingLocation || loadingAreas || (mustCheckMembership && loadingMembership)) {
     return (
       <div className="container mx-auto px-4 py-8">
         <GlobalLoadingPlaceholder minHeight="min-h-[60vh]" />
@@ -97,13 +138,15 @@ export default function LocationCourtsPage() {
     );
   }
 
-  if (isPrivate && membership && !membership.hasActiveMembership) {
+  if (mustCheckMembership && membership && !membership.hasActiveMembership) {
     return (
       <div className="container mx-auto py-16 px-4 max-w-lg text-center">
         <h1 className="text-2xl font-bold mb-2">Members only</h1>
         <p className="text-muted-foreground mb-6">
-          <span className="font-medium text-foreground">{location.name}</span> is a private club. You
-          need an active membership to view booking here.
+          <span className="font-medium text-foreground">
+            {selectedArea?.name || location.name}
+          </span>{" "}
+          is members-only. You need an active membership to view booking here.
         </p>
         <Button asChild variant="outline" className="rounded-full">
           <Link href="/">Back to home</Link>
@@ -144,6 +187,7 @@ export default function LocationCourtsPage() {
           <div className="flex-1 min-w-0 w-full">
             <LocationCourtBookingWizard
               locationId={locationId}
+              areaId={selectedAreaId ?? undefined}
               locationName={location.name}
               locationTimezone={venueTz}
               prefill={prefill}

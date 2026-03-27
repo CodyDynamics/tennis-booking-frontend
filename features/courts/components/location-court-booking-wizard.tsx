@@ -2,7 +2,13 @@
 
 import { useMemo, useEffect, useRef, useState, useCallback } from "react";
 import toast from "react-hot-toast";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -59,12 +65,14 @@ function toMinutes(t: string) {
 
 export function LocationCourtBookingWizard({
   locationId,
+  areaId,
   locationName,
   locationTimezone,
   prefill,
   onPrefillConsumed,
 }: {
   locationId: string;
+  areaId?: string;
   locationName: string;
   locationTimezone: string;
   prefill?: LocationBookingPrefill | null;
@@ -145,23 +153,29 @@ export function LocationCourtBookingWizard({
 
   const sportOptions = useMemo(() => {
     const allowed = new Set<string>();
-    for (const c of locationCourts) {
+    const scopedCourts = areaId
+      ? locationCourts.filter((c) => c.areaId === areaId)
+      : locationCourts;
+    for (const c of scopedCourts) {
       if (c.sport) allowed.add(String(c.sport));
     }
     allowed.add("ball-machine");
     return sportsData.filter((s) => allowed.has(s.code));
-  }, [sportsData, locationCourts]);
+  }, [sportsData, locationCourts, areaId]);
 
   const courtTypeOptions = useMemo<CourtType[]>(() => {
     if (!sport) return [];
     if (sport === "ball-machine") return ["outdoor"];
     const types = new Set<CourtType>();
-    for (const c of locationCourts) {
+    const scopedCourts = areaId
+      ? locationCourts.filter((c) => c.areaId === areaId)
+      : locationCourts;
+    for (const c of scopedCourts) {
       if (c.sport !== sport) continue;
       if (c.type === "indoor" || c.type === "outdoor") types.add(c.type);
     }
     return Array.from(types);
-  }, [locationCourts, sport]);
+  }, [locationCourts, sport, areaId]);
 
   useEffect(() => {
     if (!sport) {
@@ -178,6 +192,7 @@ export function LocationCourtBookingWizard({
       sport && courtType
         ? {
             locationId,
+            ...(areaId ? { areaId } : {}),
             sport,
             courtType,
             bookingDate,
@@ -185,7 +200,15 @@ export function LocationCourtBookingWizard({
             ...(editingBookingId ? { excludeBookingId: editingBookingId } : {}),
           }
         : null,
-    [locationId, sport, courtType, bookingDate, durationMinutes, editingBookingId],
+    [
+      locationId,
+      areaId,
+      sport,
+      courtType,
+      bookingDate,
+      durationMinutes,
+      editingBookingId,
+    ],
   );
 
   const {
@@ -198,19 +221,25 @@ export function LocationCourtBookingWizard({
   } = useCourtSlots(slotsParams, true);
 
   // ── Slot hold (soft-lock via WebSocket) ──────────────────────────────────
-  const { holdCounts, myHoldKey, requestSlotHold, releaseSlotHold, notifySlotBooked, connected: wsConnected } =
-    useSlotHold({
-      locationId,
-      sport,
-      courtType,
-      date: bookingDate,
-      displayName: user?.fullName ?? "A guest",
-      onAvailabilityChanged: () => {
-        setSelectedSlot(null);
-        setBookError(null);
-        refetch();
-      },
-    });
+  const {
+    holdCounts,
+    myHoldKey,
+    requestSlotHold,
+    releaseSlotHold,
+    notifySlotBooked,
+    connected: wsConnected,
+  } = useSlotHold({
+    locationId,
+    sport,
+    courtType,
+    date: bookingDate,
+    displayName: user?.fullName ?? "A guest",
+    onAvailabilityChanged: () => {
+      setSelectedSlot(null);
+      setBookError(null);
+      refetch();
+    },
+  });
 
   // Build interval holds for current sport/courtType/date from socket map:
   // key format: "sport|courtType|date|startTime|endTime" -> count
@@ -257,11 +286,23 @@ export function LocationCourtBookingWizard({
   const handleSelectSlot = useCallback(
     (slot: CourtSlotApi) => {
       if (!sport || !courtType) return;
-      const key = slotHoldKey(sport, courtType, bookingDate, slot.startTime, slot.endTime);
+      const key = slotHoldKey(
+        sport,
+        courtType,
+        bookingDate,
+        slot.startTime,
+        slot.endTime,
+      );
 
       if (
         selectedSlot &&
-        slotHoldKey(sport, courtType, bookingDate, selectedSlot.startTime, selectedSlot.endTime) === key
+        slotHoldKey(
+          sport,
+          courtType,
+          bookingDate,
+          selectedSlot.startTime,
+          selectedSlot.endTime,
+        ) === key
       ) {
         releaseSlotHold({
           sport,
@@ -284,11 +325,19 @@ export function LocationCourtBookingWizard({
         endTime: slot.endTime,
       });
     },
-    [sport, courtType, bookingDate, selectedSlot, releaseSlotHold, requestSlotHold],
+    [
+      sport,
+      courtType,
+      bookingDate,
+      selectedSlot,
+      releaseSlotHold,
+      requestSlotHold,
+    ],
   );
 
   useEffect(() => {
-    if (!slotAutoTarget || !slotsData?.slots?.length || !sport || !courtType) return;
+    if (!slotAutoTarget || !slotsData?.slots?.length || !sport || !courtType)
+      return;
     const match = slotsData.slots.find(
       (s) =>
         wallShort(s.startTime) === slotAutoTarget.start &&
@@ -296,7 +345,9 @@ export function LocationCourtBookingWizard({
     );
     if (!match) {
       setSlotAutoTarget(null);
-      toast.error("That time slot is not available on the current grid. Pick another time.");
+      toast.error(
+        "That time slot is not available on the current grid. Pick another time.",
+      );
       return;
     }
     handleSelectSlot(match);
@@ -313,6 +364,7 @@ export function LocationCourtBookingWizard({
     setBookError(null);
     const payload = {
       locationId,
+      ...(areaId ? { areaId } : {}),
       sport: sport!,
       courtType: courtType!,
       bookingDate,
@@ -344,7 +396,11 @@ export function LocationCourtBookingWizard({
       if (e instanceof ApiError) {
         const msg = e.body?.message;
         const text =
-          typeof msg === "string" ? msg : Array.isArray(msg) ? msg.join(", ") : e.message;
+          typeof msg === "string"
+            ? msg
+            : Array.isArray(msg)
+              ? msg.join(", ")
+              : e.message;
         setBookError(text);
         toast.error(text);
       } else {
@@ -369,12 +425,14 @@ export function LocationCourtBookingWizard({
           />
         </CardTitle>
         <CardDescription>
-          Choose sport, indoor/outdoor, date, and duration. The system will automatically assign a
-          court for your selected time slot.
+          Choose sport, indoor/outdoor, date, and duration. The system will
+          automatically assign a court for your selected time slot.
         </CardDescription>
         {editingBookingId && (
           <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
-            <span className="font-medium">Rescheduling an existing booking.</span>
+            <span className="font-medium">
+              Rescheduling an existing booking.
+            </span>
             <button
               type="button"
               className="text-amber-800 underline underline-offset-2 hover:text-amber-950 dark:text-amber-200"
@@ -398,7 +456,10 @@ export function LocationCourtBookingWizard({
             <div className="flex flex-wrap gap-4">
               <div className="space-y-2">
                 <Label>Select Activity</Label>
-                <Select value={sport ?? ""} onValueChange={(v) => setSport(v as Sport)}>
+                <Select
+                  value={sport ?? ""}
+                  onValueChange={(v) => setSport(v as Sport)}
+                >
                   <SelectTrigger className="w-[160px]">
                     <SelectValue placeholder="Select sport" />
                   </SelectTrigger>
@@ -463,13 +524,15 @@ export function LocationCourtBookingWizard({
 
             {slotsError && (
               <p className="text-sm text-destructive">
-                {(slotsErr as Error)?.message ?? "Could not load available slots."}
+                {(slotsErr as Error)?.message ??
+                  "Could not load available slots."}
               </p>
             )}
 
             {!loadingSlots && slotsData && slotsData.slots.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                No slots available for this combination. Try a different date or duration.
+                No slots available for this combination. Try a different date or
+                duration.
               </p>
             )}
 
@@ -493,8 +556,17 @@ export function LocationCourtBookingWizard({
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                   {slotsData.slots.map((slot) => {
-                    const key = slotHoldKey(sport!, courtType!, bookingDate, slot.startTime, slot.endTime);
-                    const isSelected = myHoldKey === key || (selectedSlot?.startTime === slot.startTime && selectedSlot?.endTime === slot.endTime);
+                    const key = slotHoldKey(
+                      sport!,
+                      courtType!,
+                      bookingDate,
+                      slot.startTime,
+                      slot.endTime,
+                    );
+                    const isSelected =
+                      myHoldKey === key ||
+                      (selectedSlot?.startTime === slot.startTime &&
+                        selectedSlot?.endTime === slot.endTime);
                     const holdCount = holdCounts[key] ?? 0;
 
                     // Cross-duration overlap-aware hold load:
@@ -511,12 +583,15 @@ export function LocationCourtBookingWizard({
                         events.push({ t: overlapEnd, delta: -h.count });
                       }
                     }
-                    events.sort((a, b) => (a.t === b.t ? a.delta - b.delta : a.t - b.t));
+                    events.sort((a, b) =>
+                      a.t === b.t ? a.delta - b.delta : a.t - b.t,
+                    );
                     let active = 0;
                     let maxConcurrentHolds = 0;
                     for (const e of events) {
                       active += e.delta;
-                      if (active > maxConcurrentHolds) maxConcurrentHolds = active;
+                      if (active > maxConcurrentHolds)
+                        maxConcurrentHolds = active;
                     }
 
                     const realAvailable = Math.max(
@@ -559,10 +634,15 @@ export function LocationCourtBookingWizard({
                           {isFull ? "Full" : `${realAvailable} left`}
                         </div> */}
                         {holdCount > 0 && !isFull && (
-                          <div className={cn(
-                            "absolute top-2 right-2 h-2 w-2 rounded-full",
-                            isSelected ? "bg-primary-foreground/70" : "bg-amber-400",
-                          )} title={`${holdCount} user${holdCount > 1 ? "s" : ""} holding`} />
+                          <div
+                            className={cn(
+                              "absolute top-2 right-2 h-2 w-2 rounded-full",
+                              isSelected
+                                ? "bg-primary-foreground/70"
+                                : "bg-amber-400",
+                            )}
+                            title={`${holdCount} user${holdCount > 1 ? "s" : ""} holding`}
+                          />
                         )}
                       </button>
                     );
@@ -572,7 +652,9 @@ export function LocationCourtBookingWizard({
             )}
 
             {bookError && (
-              <p className="text-sm text-destructive font-medium">{bookError}</p>
+              <p className="text-sm text-destructive font-medium">
+                {bookError}
+              </p>
             )}
           </div>
 
@@ -597,14 +679,21 @@ export function LocationCourtBookingWizard({
             <ul className="text-sm space-y-1">
               <li>
                 <span className="font-medium capitalize">{sport ?? "-"}</span>{" "}
-                <span className="text-muted-foreground capitalize">· {courtType ?? "-"}</span>
+                <span className="text-muted-foreground capitalize">
+                  · {courtType ?? "-"}
+                </span>
               </li>
-              <li className="font-medium">{format(selectedCalendarDate, "EEEE, MMMM d, yyyy")}</li>
+              <li className="font-medium">
+                {format(selectedCalendarDate, "EEEE, MMMM d, yyyy")}
+              </li>
               <li>
                 <span className="font-semibold">
-                  {wallShort(selectedSlot.startTime)} – {wallShort(selectedSlot.endTime)}
+                  {wallShort(selectedSlot.startTime)} –{" "}
+                  {wallShort(selectedSlot.endTime)}
                 </span>{" "}
-                <span className="text-muted-foreground">({selectedSlot.durationMinutes} min)</span>
+                <span className="text-muted-foreground">
+                  ({selectedSlot.durationMinutes} min)
+                </span>
               </li>
               <li className="text-muted-foreground text-xs">
                 {editingBookingId

@@ -11,6 +11,8 @@ export interface LocationMembershipApi {
 export interface LocationApi {
   id: string;
   branchId: string;
+  parentLocationId?: string | null;
+  kind?: "root" | "child";
   name: string;
   address?: string | null;
   status?: string;
@@ -27,6 +29,8 @@ export interface LocationApi {
 
 export interface CreateLocationBody {
   branchId: string;
+  parentLocationId?: string;
+  kind?: "root" | "child";
   name: string;
   address?: string;
   timezone?: string;
@@ -36,6 +40,8 @@ export interface CreateLocationBody {
 
 export interface UpdateLocationBody {
   branchId?: string;
+  parentLocationId?: string;
+  kind?: "root" | "child";
   name?: string;
   address?: string;
   timezone?: string;
@@ -45,9 +51,17 @@ export interface UpdateLocationBody {
 
 export function createLocationsEndpoints(client: ApiClient) {
   return {
-    getLocations: (params?: { branchId?: string; page?: string; pageSize?: string }) => {
+    getLocations: (params?: {
+      branchId?: string;
+      parentLocationId?: string;
+      kind?: "root" | "child";
+      page?: string;
+      pageSize?: string;
+    }) => {
       const q: Record<string, string> = {};
       if (params?.branchId) q.branchId = params.branchId;
+      if (params?.parentLocationId) q.parentLocationId = params.parentLocationId;
+      if (params?.kind) q.kind = params.kind;
       if (params?.page !== undefined) q.page = params.page;
       if (params?.pageSize !== undefined) q.pageSize = params.pageSize;
       return client.get<ListResponse<LocationApi>>("/locations", {

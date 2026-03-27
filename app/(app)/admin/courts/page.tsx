@@ -7,6 +7,7 @@ import {
   useCourts,
   useBranches,
   useLocations,
+  useAreas,
   useCreateCourt,
   useUpdateCourt,
   useDeleteCourt,
@@ -44,6 +45,14 @@ const TIME_OPTIONS = Array.from({ length: 24 * 2 }, (_, i) => {
   return `${String(h).padStart(2, "0")}:${m}`;
 });
 
+function toAmPmLabel(hhmm: string): string {
+  const [hStr, m] = hhmm.split(":");
+  const h = Number(hStr);
+  const suffix = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12.toString().padStart(2, "0")}:${m} ${suffix}`;
+}
+
 export default function AdminCourtsPage() {
   const { user } = useAuth();
   const { sport } = useAdmin();
@@ -79,6 +88,7 @@ export default function AdminCourtsPage() {
   const { data: sports = [] } = useSports();
   const locationsBranchId = modalOpen ? (modalBranchId ?? (branchId !== "all" ? branchId : branches[0]?.id)) : (branchId !== "all" ? branchId : branches[0]?.id);
   const { data: locations = [] } = useLocations(locationsBranchId);
+  const { data: areas = [] } = useAreas();
   const createCourt = useCreateCourt();
   const updateCourt = useUpdateCourt();
   const deleteCourt = useDeleteCourt();
@@ -86,6 +96,7 @@ export default function AdminCourtsPage() {
   const formDefaults = useMemo(
     () => ({
       branchId: editingCourt?.branchId ?? (branches[0]?.id ?? ""),
+      areaId: editingCourt?.areaId ?? "",
       locationId: editingCourt?.locationId ?? (locations[0]?.id ?? ""),
       name: editingCourt?.name ?? "",
       type: (editingCourt?.type ?? "outdoor") as "indoor" | "outdoor",
@@ -106,6 +117,22 @@ export default function AdminCourtsPage() {
     return ["outdoor", "indoor"];
   }, [form.sport]);
 
+  const courtNameOptions = useMemo(() => {
+    const selectedArea = areas.find((a) => a.id === form.areaId);
+    const byLocation = courts.filter((c) => {
+      if (selectedArea?.locationId && c.locationId !== selectedArea.locationId) {
+        return false;
+      }
+      if (form.areaId && c.areaId && c.areaId !== form.areaId) {
+        return false;
+      }
+      return true;
+    });
+    return Array.from(new Set(byLocation.map((c) => c.name))).sort((a, b) =>
+      a.localeCompare(b),
+    );
+  }, [courts, areas, form.areaId]);
+
   useEffect(() => {
     if (!formTypeOptions.includes(form.type)) {
       setForm((f) => ({ ...f, type: formTypeOptions[0] }));
@@ -116,6 +143,7 @@ export default function AdminCourtsPage() {
     setEditingCourt(null);
     setForm({
       branchId: branches[0]?.id ?? "",
+      areaId: "",
       locationId: locations[0]?.id ?? "",
       name: "",
       type: "outdoor",
@@ -139,6 +167,7 @@ export default function AdminCourtsPage() {
     setEditingCourt(court);
     setForm({
       branchId: court.branchId ?? branches[0]?.id ?? "",
+      areaId: court.areaId ?? "",
       locationId: court.locationId ?? "",
       name: court.name,
       type: court.type,
@@ -154,9 +183,13 @@ export default function AdminCourtsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.locationId && !editingCourt) return;
+    if (!form.areaId && !editingCourt) return;
+    const selectedArea = areas.find((a) => a.id === form.areaId);
+    const resolvedLocationId = selectedArea?.locationId ?? form.locationId;
+    if (!resolvedLocationId) return;
     const body = {
-      locationId: form.locationId,
+      locationId: resolvedLocationId,
+      areaId: form.areaId || undefined,
       name: form.name,
       type: form.type,
       sport: form.sport,
@@ -168,7 +201,7 @@ export default function AdminCourtsPage() {
     };
     const err = editingCourt
       ? await updateCourt
-          .mutateAsync({ id: editingCourt.id, body: { ...body, locationId: form.locationId || undefined } })
+          .mutateAsync({ id: editingCourt.id, body: { ...body, locationId: resolvedLocationId || undefined } })
           .then(() => null)
           .catch((e) => e)
       : await createCourt.mutateAsync(body as Parameters<typeof api.courts.createCourt>[0]).then(() => null).catch((e) => e);
@@ -193,14 +226,14 @@ export default function AdminCourtsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Courts</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Court Time Slot</h1>
         {canCreate && (
           <Button
             onClick={openCreate}
             className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
           >
             <Plus className="mr-2 h-4 w-4" />
-            Add Court
+            Add Court Time Slot
           </Button>
         )}
       </div>
@@ -313,7 +346,7 @@ export default function AdminCourtsPage() {
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="sm:max-w-2xl rounded-2xl border-slate-200 dark:border-slate-800">
           <DialogHeader>
-            <DialogTitle>{editingCourt ? "Edit Court" : "Create Court"}</DialogTitle>
+            <DialogTitle>{editingCourt ? "Edit Court Time Slot" : "Create Court Time Slot"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 pr-2">
             {submitError && (
@@ -322,55 +355,50 @@ export default function AdminCourtsPage() {
               </p>
             )}
             <div>
-              <Label>Branch</Label>
+              <Label>Area</Label>
               <Select
-                value={form.branchId}
+                value={form.areaId}
                 onValueChange={(v) => {
-                  setModalBranchId(v);
-                  setForm((f) => ({ ...f, branchId: v, locationId: "" }));
+                  const area = areas.find((a) => a.id === v);
+                  setForm((f) => ({
+                    ...f,
+                    areaId: v,
+                    locationId: area?.locationId ?? f.locationId,
+                  }));
                 }}
                 required
+                disabled={areas.length === 0}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select branch" />
+                  <SelectValue placeholder="Select area" />
                 </SelectTrigger>
                 <SelectContent>
-                  {branches.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>
-                      {b.name}
+                  {areas.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label>Location</Label>
+              <Label>Court</Label>
               <Select
-                value={form.locationId}
-                onValueChange={(v) => setForm((f) => ({ ...f, locationId: v }))}
+                value={form.name}
+                onValueChange={(v) => setForm((f) => ({ ...f, name: v }))}
                 required
-                disabled={!form.branchId || locations.length === 0}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select location" />
+                  <SelectValue placeholder="Select court from Court Management" />
                 </SelectTrigger>
                 <SelectContent>
-                  {locations.map((loc) => (
-                    <SelectItem key={loc.id} value={loc.id}>
-                      {loc.name}
+                  {courtNameOptions.map((name) => (
+                    <SelectItem key={name} value={name}>
+                      {name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <Label>Name</Label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="Court 1"
-                required
-              />
             </div>
             <div>
               <Label>Sport</Label>
@@ -425,7 +453,7 @@ export default function AdminCourtsPage() {
                   <SelectContent className="max-h-72">
                     {TIME_OPTIONS.map((t) => (
                       <SelectItem key={t} value={t}>
-                        {t}
+                        {toAmPmLabel(t)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -445,7 +473,7 @@ export default function AdminCourtsPage() {
                   <SelectContent className="max-h-72">
                     {TIME_OPTIONS.map((t) => (
                       <SelectItem key={t} value={t}>
-                        {t}
+                        {toAmPmLabel(t)}
                       </SelectItem>
                     ))}
                   </SelectContent>

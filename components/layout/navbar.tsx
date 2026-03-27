@@ -3,11 +3,12 @@
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
+import type { User as AppUser } from "@/types";
 import { motion } from "framer-motion";
-import { Activity, LogIn, LogOut, Shield, User, Users } from "lucide-react";
+import { LogIn, LogOut, Shield, User, Users } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import type { User as AppUser } from "@/types";
 
 /** Admin area: full admins, super_admin, or staff with any admin-nav permission. */
 function canShowAdminNav(user: AppUser | null | undefined): boolean {
@@ -61,11 +62,20 @@ export function Navbar() {
         <div className="flex h-20 items-center justify-between">
           <Link href="/" className="flex items-center space-x-3 group">
             <motion.div
-              whileHover={{ rotate: 180, scale: 1.1 }}
+              // whileHover={{ rotate: 180, scale: 1.1 }}
+              whileHover={{ scale: 1.1 }}
               transition={{ duration: 0.3 }}
-              className="bg-primary rounded-xl p-2 text-primary-foreground shadow-brand"
+              className="rounded-xl p-2 text-primary-foreground shadow-brand"
             >
-              <Activity className="h-6 w-6" />
+              {/* <Activity className="h-6 w-6" /> */}
+              <div className="w-10 h-10 justify-center items-center flex">
+                <Image
+                  src="/images/home/logo.jpeg"
+                  alt="CodyPlay Logo"
+                  width={50}
+                  height={50}
+                />
+              </div>
             </motion.div>
             <span className="text-2xl font-black tracking-tight text-foreground">
               CodyPlay

@@ -1,25 +1,24 @@
 "use client";
 
-import { useEffect } from "react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
 import type { User } from "@/types";
 import { motion } from "framer-motion";
 import {
-  LayoutDashboard,
-  MapPin,
-  Users,
-  Shield,
   ArrowLeft,
-  Activity,
-  LogOut,
   Building2,
+  LayoutDashboard,
+  LogOut,
+  MapPin,
   Network,
   Shapes,
+  Shield,
+  Users
 } from "lucide-react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 const ADMIN_VIEW_PERMISSIONS = ["courts:view", "users:view", "roles:view", "branches:view", "organizations:view", "locations:view", "sports:view", "bookings:view"];
 
@@ -27,7 +26,9 @@ const ADMIN_VIEW_PERMISSIONS = ["courts:view", "users:view", "roles:view", "bran
 function getRequiredPermissionForPath(path: string): string | null {
   if (path === "/admin" || path === "/admin/") return null;
   if (path.startsWith("/admin/courts")) return "courts:view";
+  if (path.startsWith("/admin/court-management")) return "courts:view";
   if (path.startsWith("/admin/users")) return "users:view";
+  if (path.startsWith("/admin/user-memberships")) return "users:view";
   if (path.startsWith("/admin/roles")) return "roles:view";
   if (path.startsWith("/admin/branches")) return "branches:view";
   if (path.startsWith("/admin/organizations")) return "organizations:view";
@@ -46,9 +47,10 @@ function canAccessAdmin(user: User | null, pathname: string): boolean {
   return !!user.permissions?.includes(required);
 }
 
+import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 import { AdminProvider } from "./admin-context";
 import { SportSelector } from "./components/sport-selector";
-import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
+import Image from "next/image";
 
 export default function AdminLayout({
   children,
@@ -82,10 +84,12 @@ export default function AdminLayout({
 
   const navItems = [
     { href: "/admin", label: "Overview", icon: LayoutDashboard },
-    { href: "/admin/courts", label: "Courts Management", icon: MapPin },
-    { href: "/admin/users", label: "Users & Members", icon: Users },
+    { href: "/admin/court-management", label: "Court Management", icon: MapPin },
+    { href: "/admin/courts", label: "Court Time Slot", icon: MapPin },
+    { href: "/admin/users", label: "Users", icon: Users },
+    { href: "/admin/user-memberships", label: "User Membership", icon: Users },
     { href: "/admin/roles", label: "Roles & Permissions", icon: Shield },
-    { href: "/admin/locations", label: "Locations", icon: MapPin },
+    { href: "/admin/locations", label: "Areas", icon: MapPin },
     { href: "/admin/sports", label: "Sports", icon: Shapes },
     { href: "/admin/branches", label: "Branches", icon: Building2 },
     { href: "/admin/organizations", label: "Organizations", icon: Network },
@@ -103,11 +107,20 @@ export default function AdminLayout({
           <div className="p-6 border-b border-slate-100 dark:border-slate-800">
             <Link href="/admin" className="flex items-center space-x-3 group">
               <motion.div
-                whileHover={{ rotate: 180, scale: 1.1 }}
+                // whileHover={{ rotate: 180, scale: 1.1 }}
+                whileHover={{ scale: 1.1 }}
                 transition={{ duration: 0.3 }}
-                className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl p-2 text-white shadow-lg shadow-blue-500/30"
+                className="rounded-xl p-2 text-white shadow-lg shadow-blue-500/30"
               >
-                <Activity className="h-6 w-6" />
+                {/* <Activity className="h-6 w-6" /> */}
+                <div className="w-10 h-10 justify-center items-center flex">
+                  <Image
+                    src="/images/home/logo.jpeg"
+                    alt="CodyPlay Logo"
+                    width={50}
+                    height={50}
+                  />
+                </div>
               </motion.div>
               <span className="text-2xl flex flex-col font-black tracking-tight text-slate-900 dark:text-white">
                 CodyPlay

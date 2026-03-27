@@ -29,6 +29,7 @@ function mapAuthUserToUser(a: AuthUser): User {
     phone: (a as { phone?: string }).phone ?? undefined,
     organizationId: a.organizationId ?? "",
     branchId: a.branchId,
+    mustChangePasswordOnFirstLogin: a.mustChangePasswordOnFirstLogin ?? false,
     status: "active",
     permissions: permissions?.length ? permissions : undefined,
   };
@@ -117,9 +118,10 @@ export function useAuth() {
       email: string;
       password: string;
       fullName: string;
-      roleId: string;
-      phone?: string;
-      address?: string | null;
+      firstName?: string;
+      lastName?: string;
+      phone: string;
+      homeAddress?: string | null;
     }) => api.auth.register(data),
     onSuccess: (res) => {
       queryClient.setQueryData(["auth", "user"], mapAuthUserToUser(res.user));
@@ -159,9 +161,10 @@ export function useAuth() {
     email: string;
     password: string;
     fullName: string;
-    roleId: string;
-    phone?: string;
-    address?: string | null;
+    firstName?: string;
+    lastName?: string;
+    phone: string;
+    homeAddress?: string | null;
   }) => {
     return registerMutation.mutateAsync(data).then((res) => mapAuthUserToUser(res.user));
   };

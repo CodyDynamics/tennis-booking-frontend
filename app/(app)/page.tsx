@@ -31,7 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { usePublicLocations, useBookableLocations } from "@/lib/queries";
+import { usePublicLocations, useBookableAreas, useBookableLocations } from "@/lib/queries";
 import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
 import { LogIn } from "lucide-react";
@@ -65,7 +65,8 @@ type Partner = { name: string; logo: string; href: string; featured?: boolean };
 const PARTNERS: Partner[] = [
   {
     name: "CodyPlay",
-    logo: "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=400&h=300&fit=crop&q=80",
+    // logo: "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=400&h=300&fit=crop&q=80",
+    logo: "/images/home/logo.jpeg",
     href: "#",
     featured: true,
   },
@@ -159,6 +160,8 @@ export default function Home() {
 
   const { data: publicLocations = [], isLoading: publicLoading } =
     usePublicLocations();
+  const { data: bookableAreas = [], isLoading: bookableAreasLoading } =
+    useBookableAreas(isAuthenticated && !authLoading);
   const { data: bookableLocations, isLoading: bookableLoading } =
     useBookableLocations(isAuthenticated && !authLoading);
 
@@ -167,11 +170,18 @@ export default function Home() {
     [isAuthenticated, bookableLocations, publicLocations],
   );
 
+  const reserveLocationNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const l of locationsForUi) m.set(l.id, l.name);
+    return m;
+  }, [locationsForUi]);
+
   const locationsLoading =
     authLoading || (isAuthenticated ? bookableLoading : publicLoading);
+  const reserveAreasLoading = authLoading || (isAuthenticated ? bookableAreasLoading : false);
 
   const [showLocationSelect, setShowLocationSelect] = useState(false);
-  const [selectedLocationId, setSelectedLocationId] = useState<string>("");
+  const [selectedAreaId, setSelectedAreaId] = useState<string>("");
   const [reserveLoginOpen, setReserveLoginOpen] = useState(false);
   const [selectedMapLocationId, setSelectedMapLocationId] = useState<
     string | null
@@ -201,9 +211,11 @@ export default function Home() {
     setShowLocationSelect(true);
   };
 
-  const handleLocationChosen = (locationId: string) => {
-    setSelectedLocationId(locationId);
-    goToLocationCourts(locationId);
+  const handleAreaChosen = (areaId: string) => {
+    setSelectedAreaId(areaId);
+    const area = bookableAreas.find((a) => a.id === areaId);
+    if (!area?.locationId) return;
+    router.push(`/locations/${area.locationId}/courts?areaId=${area.id}`);
   };
 
   const containerVariants = {
@@ -283,9 +295,9 @@ export default function Home() {
               </Button>
               {showLocationSelect && isAuthenticated && (
                 <Select
-                  value={selectedLocationId || undefined}
-                  onValueChange={handleLocationChosen}
-                  disabled={locationsLoading || locationsForUi.length === 0}
+                  value={selectedAreaId || undefined}
+                  onValueChange={handleAreaChosen}
+                  disabled={reserveAreasLoading || bookableAreas.length === 0}
                 >
                   <SelectTrigger
                     className="w-full sm:w-[min(100%,280px)] h-14 rounded-full border-2 border-border bg-card font-bold text-foreground shadow-sm"
@@ -294,20 +306,24 @@ export default function Home() {
                     <SelectValue
                       placeholder={
                         locationsLoading
-                          ? "Loading locations…"
-                          : locationsForUi.length === 0
-                            ? "No locations available for your account"
-                            : "Choose a location"
+                          ? "Loading areas…"
+                          : bookableAreas.length === 0
+                            ? "No areas available for your account"
+                            : "Choose an area"
                       }
                     />
                   </SelectTrigger>
                   <SelectContent>
-                    {locationsForUi.map((loc) => (
-                      <SelectItem key={loc.id} value={loc.id}>
-                        {loc.name}
-                        {loc.visibility === "private" ? " (members)" : ""}
-                      </SelectItem>
-                    ))}
+                    {bookableAreas.map((area) => {
+                      const club =
+                        reserveLocationNameById.get(area.locationId) ?? "Club";
+                      return (
+                        <SelectItem key={area.id} value={area.id}>
+                          {club} — {area.name}
+                          {area.visibility === "private" ? " (members)" : ""}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               )}
