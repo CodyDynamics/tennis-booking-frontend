@@ -10,6 +10,7 @@ import { createBranchesEndpoints } from "./endpoints/branches";
 import { createSportsEndpoints } from "./endpoints/sports";
 import { createLocationsEndpoints } from "./endpoints/locations";
 import { createOrganizationsEndpoints } from "./endpoints/organizations";
+import { createAdminEndpoints } from "./endpoints/admin";
 
 let accessTokenGetter: GetAccessToken = () => null;
 
@@ -37,6 +38,7 @@ export const api = {
   sports: createSportsEndpoints(client),
   locations: createLocationsEndpoints(client),
   organizations: createOrganizationsEndpoints(client),
+  admin: createAdminEndpoints(client),
 };
 
 export { ApiError } from "./client";

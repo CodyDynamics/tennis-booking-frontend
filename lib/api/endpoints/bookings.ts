@@ -72,22 +72,27 @@ export function createBookingsEndpoints(client: ApiClient) {
       courtType: string;
       bookingDate: string;
       durationMinutes: number;
-    }) =>
-      client.get<CourtSlotAvailabilityResponseApi>(
+      excludeBookingId?: string;
+    }) => {
+      const paramsQ: Record<string, string> = {
+        locationId: params.locationId,
+        sport: params.sport,
+        courtType: params.courtType,
+        bookingDate: params.bookingDate,
+        durationMinutes: String(params.durationMinutes),
+      };
+      if (params.excludeBookingId) paramsQ.excludeBookingId = params.excludeBookingId;
+      return client.get<CourtSlotAvailabilityResponseApi>(
         "/bookings/court/wizard/slots",
-        {
-          params: {
-            locationId: params.locationId,
-            sport: params.sport,
-            courtType: params.courtType,
-            bookingDate: params.bookingDate,
-            durationMinutes: String(params.durationMinutes),
-          },
-        },
-      ),
+        { params: paramsQ },
+      );
+    },
 
     createSlotBooking: (body: CreateCourtSlotBookingInput) =>
       client.post<CreateBookingResult>("/bookings/court/slot", body),
+
+    updateSlotBooking: (bookingId: string, body: CreateCourtSlotBookingInput) =>
+      client.patch<CreateBookingResult>(`/bookings/court/slot/${bookingId}`, body),
 
     getMyBookings: (from?: string, to?: string) => {
       const params: Record<string, string> = {};

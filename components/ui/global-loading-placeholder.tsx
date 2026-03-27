@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Giữ chỗ layout khi đang tải — không vẽ spinner (overlay tennis do AppLoadingProvider).
+ * Reserves layout space while loading — no spinner (tennis overlay from AppLoadingProvider).
  */
 export function GlobalLoadingPlaceholder({
   className,

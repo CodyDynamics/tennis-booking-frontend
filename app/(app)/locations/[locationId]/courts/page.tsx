@@ -2,21 +2,30 @@
 
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { LocationCourtBookingWizard } from "@/features/courts/components/location-court-booking-wizard";
-import { useLocation, useLocationMembership } from "@/lib/queries";
+import {
+  LocationCourtBookingWizard,
+  type LocationBookingPrefill,
+} from "@/features/courts/components/location-court-booking-wizard";
+import { LocationMyBookingsSidebar } from "@/features/courts/components/location-my-bookings-sidebar";
+import { useLocation, useLocationMembership, useMyCourtBookings } from "@/lib/queries";
 import { useAuth } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
+import type { CourtBooking } from "@/types";
 
 export default function LocationCourtsPage() {
   const params = useParams();
   const router = useRouter();
   const pathname = usePathname();
   const locationId = params.locationId as string;
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+  const [prefill, setPrefill] = useState<LocationBookingPrefill | null>(null);
+  const prefillIdRef = useRef(0);
+
+  const { data: myBookings = [], isLoading: loadingMyBookings } = useMyCourtBookings(user?.id);
 
   const queryEnabled = !authLoading && isAuthenticated && !!locationId;
 
@@ -39,6 +48,25 @@ export default function LocationCourtsPage() {
       router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
     }
   }, [authLoading, isAuthenticated, router, pathname, locationId]);
+
+  const handleReschedule = useCallback((b: CourtBooking) => {
+    const sport = b.sport;
+    const courtType = b.courtType;
+    if (!sport || (courtType !== "indoor" && courtType !== "outdoor")) return;
+    prefillIdRef.current += 1;
+    setPrefill({
+      requestId: prefillIdRef.current,
+      sport,
+      courtType,
+      bookingDate: b.bookingDate.slice(0, 10),
+      durationMinutes: b.durationMinutes,
+      startTime: b.startTime,
+      endTime: b.endTime,
+      editingBookingId: b.id,
+    });
+  }, []);
+
+  const clearPrefill = useCallback(() => setPrefill(null), []);
 
   if (authLoading || !isAuthenticated) {
     return (
@@ -87,34 +115,49 @@ export default function LocationCourtsPage() {
   const venueTz = location.timezone?.trim() || "America/Chicago";
 
   return (
-    <div className="container mx-auto py-12 px-4 max-w-7xl">
+    <div className="w-full min-h-[calc(100vh-4rem)] py-8 px-4 sm:px-6 lg:px-10">
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
+        className="max-w-[1600px] mx-auto"
       >
         <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
           <div>
             <Link href="/">
               <Button
                 variant="ghost"
-                className="mb-4 hover:bg-slate-100 dark:hover:bg-slate-800 -ml-4"
+                className="mb-4 hover:bg-slate-100 dark:hover:bg-slate-800 -ml-2 sm:-ml-4"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" /> Back
               </Button>
             </Link>
-            <h1 className="text-4xl font-bold text-foreground">{location.name}</h1>
-            <p className="text-muted-foreground text-lg mt-2">
-              Pick sport, court type, and time — then choose a court that still has space.
+            <h1 className="text-3xl sm:text-4xl font-bold text-foreground">{location.name}</h1>
+            <p className="text-muted-foreground text-base sm:text-lg mt-2 max-w-2xl">
+              Pick sport, court type, date, and slot — a court is assigned automatically. Your bookings
+              stay on the right.
             </p>
           </div>
         </div>
 
-        <LocationCourtBookingWizard
-          locationId={locationId}
-          locationName={location.name}
-          locationTimezone={venueTz}
-        />
+        <div className="flex flex-col lg:flex-row gap-8 lg:gap-10 items-start">
+          <div className="flex-1 min-w-0 w-full">
+            <LocationCourtBookingWizard
+              locationId={locationId}
+              locationName={location.name}
+              locationTimezone={venueTz}
+              prefill={prefill}
+              onPrefillConsumed={clearPrefill}
+            />
+          </div>
+          <LocationMyBookingsSidebar
+            locationId={locationId}
+            displayName={user?.fullName?.split(" ")[0] ?? user?.email ?? "there"}
+            bookings={myBookings}
+            isLoading={loadingMyBookings}
+            onReschedule={handleReschedule}
+          />
+        </div>
       </motion.div>
     </div>
   );

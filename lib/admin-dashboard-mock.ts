@@ -1,0 +1,52 @@
+import type { DashboardMetricsApi } from "@/types/api";
+
+/** Demo dataset when admin toggles “Mockup data” on the dashboard */
+export const MOCK_ADMIN_DASHBOARD_METRICS: DashboardMetricsApi = {
+  totals: {
+    usersActive: 1284,
+    courts: 42,
+    locations: 8,
+    courtBookingsOpen: 316,
+    coachSessionsScheduled: 54,
+    coaches: 19,
+    revenue14d: 42890.5,
+  },
+  dailyCourtBookings: [
+    { date: "2026-03-14", count: 12 },
+    { date: "2026-03-15", count: 18 },
+    { date: "2026-03-16", count: 15 },
+    { date: "2026-03-17", count: 22 },
+    { date: "2026-03-18", count: 28 },
+    { date: "2026-03-19", count: 31 },
+    { date: "2026-03-20", count: 26 },
+    { date: "2026-03-21", count: 35 },
+    { date: "2026-03-22", count: 40 },
+    { date: "2026-03-23", count: 33 },
+    { date: "2026-03-24", count: 29 },
+    { date: "2026-03-25", count: 37 },
+    { date: "2026-03-26", count: 44 },
+    { date: "2026-03-27", count: 38 },
+  ],
+  bookingsBySport: [
+    { sport: "tennis", count: 412 },
+    { sport: "pickleball", count: 186 },
+    { sport: "ball-machine", count: 52 },
+    { sport: "unknown", count: 9 },
+  ],
+  dailyRevenue: [
+    { date: "2026-03-14", revenue: 980 },
+    { date: "2026-03-15", revenue: 1420 },
+    { date: "2026-03-16", revenue: 1188 },
+    { date: "2026-03-17", revenue: 1760 },
+    { date: "2026-03-18", revenue: 2240 },
+    { date: "2026-03-19", revenue: 2480 },
+    { date: "2026-03-20", revenue: 2080 },
+    { date: "2026-03-21", revenue: 2800 },
+    { date: "2026-03-22", revenue: 3200 },
+    { date: "2026-03-23", revenue: 2640 },
+    { date: "2026-03-24", revenue: 2320 },
+    { date: "2026-03-25", revenue: 2960 },
+    { date: "2026-03-26", revenue: 3520 },
+    { date: "2026-03-27", revenue: 3040 },
+  ],
+};

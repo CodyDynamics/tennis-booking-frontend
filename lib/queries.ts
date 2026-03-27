@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient, useQueries } from "@tanstack/react-query";
 import type {
   Court,
@@ -68,7 +69,17 @@ function mapCourtApiToCourt(c: CourtApi): Court {
 
 function mapCourtBookingApiToCourtBooking(b: CourtBookingApi): CourtBooking {
   const dateStr = typeof b.bookingDate === "string" ? b.bookingDate : (b.bookingDate as unknown as Date)?.toString?.()?.slice(0, 10) ?? "";
-  const totalPrice = typeof b.totalPrice === "string" ? parseFloat(b.totalPrice) : (b.totalPrice ?? 0);
+  const totalPrice =
+    typeof b.totalPrice === "string"
+      ? parseFloat(b.totalPrice)
+      : typeof b.totalPrice === "number"
+        ? b.totalPrice
+        : 0;
+  const locationId = b.locationId ?? b.court?.locationId ?? null;
+  const sport = b.sport ?? b.court?.sport ?? null;
+  const courtTypeRaw = b.courtType ?? b.court?.type ?? null;
+  const courtType =
+    courtTypeRaw === "indoor" || courtTypeRaw === "outdoor" ? courtTypeRaw : null;
   return {
     id: b.id,
     organizationId: b.organizationId ?? "",
@@ -86,6 +97,9 @@ function mapCourtBookingApiToCourtBooking(b: CourtBookingApi): CourtBooking {
     bookingStatus: (b.bookingStatus as CourtBooking["bookingStatus"]) ?? "pending",
     createdAt: b.createdAt ?? new Date().toISOString(),
     updatedAt: b.updatedAt,
+    locationId,
+    sport,
+    courtType,
   };
 }
 
@@ -168,6 +182,35 @@ export function useBookings(userId?: string) {
       return (res.courtBookings ?? []).map(mapCourtBookingApiToCourtBooking);
     },
     enabled: !!userId,
+  });
+}
+
+/** My court bookings with a date window (for location booking sidebar). Invalidates with other `bookings` queries. */
+export function useMyCourtBookings(userId?: string) {
+  const range = useMemo(() => {
+    const from = new Date();
+    from.setDate(from.getDate() - 14);
+    const to = new Date();
+    to.setDate(to.getDate() + 366);
+    return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
+  }, []);
+
+  return useQuery<CourtBooking[]>({
+    queryKey: ["bookings", "my", userId, range.from, range.to],
+    queryFn: async () => {
+      const res = await api.bookings.getMyBookings(range.from, range.to);
+      return (res.courtBookings ?? []).map(mapCourtBookingApiToCourtBooking);
+    },
+    enabled: !!userId,
+  });
+}
+
+export function useAdminDashboardMetrics(enabled: boolean) {
+  return useQuery({
+    queryKey: ["admin", "dashboard", "metrics"],
+    queryFn: () => api.admin.getDashboardMetrics(),
+    enabled,
+    staleTime: 60_000,
   });
 }
 
@@ -281,6 +324,7 @@ export function useCourtSlots(
     courtType: "indoor" | "outdoor";
     bookingDate: string;
     durationMinutes: number;
+    excludeBookingId?: string;
   } | null,
   enabled: boolean,
 ) {
@@ -292,6 +336,7 @@ export function useCourtSlots(
       params?.courtType,
       params?.bookingDate,
       params?.durationMinutes,
+      params?.excludeBookingId,
     ] as const,
     queryFn: () => api.bookings.getCourtSlots(params!),
     enabled: Boolean(enabled && params),
@@ -324,6 +369,32 @@ export function useCreateSlotBooking() {
         ...(data.coachId ? { coachId: data.coachId } : {}),
       };
       return api.bookings.createSlotBooking(payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["courtSlots"] });
+      queryClient.invalidateQueries({ queryKey: ["courtAvailability"] });
+      queryClient.invalidateQueries({ queryKey: ["courtWizardAvailability"] });
+    },
+  });
+}
+
+/** Reschedule: PATCH same booking row with a new slot. */
+export function useUpdateSlotBooking() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      bookingId: string;
+      locationId: string;
+      sport: string;
+      courtType: string;
+      bookingDate: string;
+      startTime: string;
+      endTime: string;
+      durationMinutes: number;
+    }) => {
+      const { bookingId, ...body } = data;
+      return api.bookings.updateSlotBooking(bookingId, body);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });

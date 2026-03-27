@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useMemo, useEffect, useRef, useState, useCallback } from "react";
+import toast from "react-hot-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -17,6 +17,7 @@ import {
   useCourts,
   useCourtSlots,
   useCreateSlotBooking,
+  useUpdateSlotBooking,
   useSports,
 } from "@/lib/queries";
 import { useAuth } from "@/lib/auth-store";
@@ -33,6 +34,19 @@ type CourtType = "indoor" | "outdoor";
 
 const DURATIONS = [30, 60, 90] as const;
 
+/** Bump `requestId` each time user chooses “Change time” so the wizard applies prefill once. */
+export type LocationBookingPrefill = {
+  requestId: number;
+  sport: string;
+  courtType: CourtType;
+  bookingDate: string;
+  durationMinutes: number;
+  startTime: string;
+  endTime: string;
+  /** When set, submit updates this booking (PATCH) instead of creating a new row */
+  editingBookingId?: string;
+};
+
 function wallShort(t: string) {
   const [h, m] = t.split(":");
   return `${h?.padStart(2, "0")}:${m?.padStart(2, "0")}`;
@@ -47,15 +61,20 @@ export function LocationCourtBookingWizard({
   locationId,
   locationName,
   locationTimezone,
+  prefill,
+  onPrefillConsumed,
 }: {
   locationId: string;
   locationName: string;
   locationTimezone: string;
+  prefill?: LocationBookingPrefill | null;
+  onPrefillConsumed?: () => void;
 }) {
   const tz = locationTimezone || "UTC";
-  const router = useRouter();
   const { user } = useAuth();
   const createSlotBooking = useCreateSlotBooking();
+  const updateSlotBooking = useUpdateSlotBooking();
+  const [editingBookingId, setEditingBookingId] = useState<string | null>(null);
 
   const todayVenueYmd = useMemo(
     () => formatInTimeZone(new Date(), tz, "yyyy-MM-dd"),
@@ -76,17 +95,46 @@ export function LocationCourtBookingWizard({
 
   const [selectedSlot, setSelectedSlot] = useState<CourtSlotApi | null>(null);
   const [bookError, setBookError] = useState<string | null>(null);
+  const [slotAutoTarget, setSlotAutoTarget] = useState<{
+    start: string;
+    end: string;
+  } | null>(null);
+  const lastPrefillIdRef = useRef(0);
+  const skipNextFilterResetRef = useRef(false);
 
   const selectedCalendarDate = useMemo(
     () => parse(bookingDate, "yyyy-MM-dd", new Date()),
     [bookingDate],
   );
 
-  // Clear selection when filters change
+  // Clear selection when filters change (skip once after prefill applies — same render updates all filters)
   useEffect(() => {
+    if (skipNextFilterResetRef.current) {
+      skipNextFilterResetRef.current = false;
+      return;
+    }
     setSelectedSlot(null);
     setBookError(null);
+    setSlotAutoTarget(null);
   }, [sport, courtType, bookingDate, durationMinutes]);
+
+  useEffect(() => {
+    if (!prefill || prefill.requestId === lastPrefillIdRef.current) return;
+    lastPrefillIdRef.current = prefill.requestId;
+    skipNextFilterResetRef.current = true;
+    setSport(prefill.sport);
+    setCourtType(prefill.courtType);
+    setBookingDate(prefill.bookingDate);
+    setDurationMinutes(prefill.durationMinutes);
+    setSelectedSlot(null);
+    setBookError(null);
+    setSlotAutoTarget({
+      start: wallShort(prefill.startTime),
+      end: wallShort(prefill.endTime),
+    });
+    setEditingBookingId(prefill.editingBookingId ?? null);
+    onPrefillConsumed?.();
+  }, [prefill, onPrefillConsumed]);
 
   const { data: sportsData = [] } = useSports();
   const { data: locationCourts = [] } = useCourts({
@@ -134,9 +182,10 @@ export function LocationCourtBookingWizard({
             courtType,
             bookingDate,
             durationMinutes,
+            ...(editingBookingId ? { excludeBookingId: editingBookingId } : {}),
           }
         : null,
-    [locationId, sport, courtType, bookingDate, durationMinutes],
+    [locationId, sport, courtType, bookingDate, durationMinutes, editingBookingId],
   );
 
   const {
@@ -205,37 +254,84 @@ export function LocationCourtBookingWizard({
     prevSelectedSlotRef.current = selectedSlot;
   });
 
-  const handleSelectSlot = (slot: CourtSlotApi) => {
-    if (!sport || !courtType) return;
-    const key = slotHoldKey(sport, courtType, bookingDate, slot.startTime, slot.endTime);
+  const handleSelectSlot = useCallback(
+    (slot: CourtSlotApi) => {
+      if (!sport || !courtType) return;
+      const key = slotHoldKey(sport, courtType, bookingDate, slot.startTime, slot.endTime);
 
-    // If clicking the already-selected slot, deselect
-    if (selectedSlot && slotHoldKey(sport, courtType, bookingDate, selectedSlot.startTime, selectedSlot.endTime) === key) {
-      releaseSlotHold({ sport, courtType, date: bookingDate, startTime: slot.startTime, endTime: slot.endTime });
-      setSelectedSlot(null);
+      if (
+        selectedSlot &&
+        slotHoldKey(sport, courtType, bookingDate, selectedSlot.startTime, selectedSlot.endTime) === key
+      ) {
+        releaseSlotHold({
+          sport,
+          courtType,
+          date: bookingDate,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+        });
+        setSelectedSlot(null);
+        return;
+      }
+
+      setSelectedSlot(slot);
+      setBookError(null);
+      requestSlotHold({
+        sport,
+        courtType,
+        date: bookingDate,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+      });
+    },
+    [sport, courtType, bookingDate, selectedSlot, releaseSlotHold, requestSlotHold],
+  );
+
+  useEffect(() => {
+    if (!slotAutoTarget || !slotsData?.slots?.length || !sport || !courtType) return;
+    const match = slotsData.slots.find(
+      (s) =>
+        wallShort(s.startTime) === slotAutoTarget.start &&
+        wallShort(s.endTime) === slotAutoTarget.end,
+    );
+    if (!match) {
+      setSlotAutoTarget(null);
+      toast.error("That time slot is not available on the current grid. Pick another time.");
       return;
     }
+    handleSelectSlot(match);
+    setSlotAutoTarget(null);
+  }, [slotAutoTarget, slotsData, sport, courtType, handleSelectSlot]);
 
-    setSelectedSlot(slot);
-    setBookError(null);
-    requestSlotHold({ sport, courtType, date: bookingDate, startTime: slot.startTime, endTime: slot.endTime });
-  };
-
-  const canBook = !!selectedSlot && !!sport && !!courtType && !createSlotBooking.isPending;
+  const slotMutationPending =
+    createSlotBooking.isPending || updateSlotBooking.isPending;
+  const canBook =
+    !!selectedSlot && !!sport && !!courtType && !slotMutationPending;
 
   const handleBookNow = async () => {
     if (!selectedSlot || !canBook) return;
     setBookError(null);
+    const payload = {
+      locationId,
+      sport: sport!,
+      courtType: courtType!,
+      bookingDate,
+      startTime: wallShort(selectedSlot.startTime),
+      endTime: wallShort(selectedSlot.endTime),
+      durationMinutes: selectedSlot.durationMinutes,
+    };
     try {
-      await createSlotBooking.mutateAsync({
-        locationId,
-        sport: sport!,
-        courtType: courtType!,
-        bookingDate,
-        startTime: wallShort(selectedSlot.startTime),
-        endTime: wallShort(selectedSlot.endTime),
-        durationMinutes: selectedSlot.durationMinutes,
-      });
+      if (editingBookingId) {
+        await updateSlotBooking.mutateAsync({
+          bookingId: editingBookingId,
+          ...payload,
+        });
+        setEditingBookingId(null);
+        toast.success("Booking updated!");
+      } else {
+        await createSlotBooking.mutateAsync(payload);
+        toast.success("Court booked successfully!");
+      }
       notifySlotBooked({
         sport: sport!,
         courtType: courtType!,
@@ -243,21 +339,24 @@ export function LocationCourtBookingWizard({
         startTime: selectedSlot.startTime,
         endTime: selectedSlot.endTime,
       });
-      router.push("/booking-history");
+      setSelectedSlot(null);
     } catch (e) {
       if (e instanceof ApiError) {
         const msg = e.body?.message;
-        setBookError(
-          typeof msg === "string" ? msg : Array.isArray(msg) ? msg.join(", ") : e.message,
-        );
+        const text =
+          typeof msg === "string" ? msg : Array.isArray(msg) ? msg.join(", ") : e.message;
+        setBookError(text);
+        toast.error(text);
       } else {
-        setBookError(e instanceof Error ? e.message : "Booking failed");
+        const text = e instanceof Error ? e.message : "Booking failed";
+        setBookError(text);
+        toast.error(text);
       }
     }
   };
 
   return (
-    <Card className="mb-10 border-slate-200 dark:border-slate-800 shadow-sm">
+    <Card className="w-full border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl">
       <CardHeader>
         <CardTitle className="text-xl flex items-center gap-2">
           Book a court · {locationName}
@@ -273,6 +372,22 @@ export function LocationCourtBookingWizard({
           Choose sport, indoor/outdoor, date, and duration. The system will automatically assign a
           court for your selected time slot.
         </CardDescription>
+        {editingBookingId && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+            <span className="font-medium">Rescheduling an existing booking.</span>
+            <button
+              type="button"
+              className="text-amber-800 underline underline-offset-2 hover:text-amber-950 dark:text-amber-200"
+              onClick={() => {
+                setEditingBookingId(null);
+                setSelectedSlot(null);
+                setBookError(null);
+              }}
+            >
+              Cancel reschedule
+            </button>
+          </div>
+        )}
       </CardHeader>
 
       <CardContent>
@@ -428,7 +543,7 @@ export function LocationCourtBookingWizard({
                         <div className="font-semibold text-sm">
                           {wallShort(slot.startTime)}
                         </div>
-                        <div className={cn("text-xs mt-0.5", isSelected ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                        {/* <div className={cn("text-xs mt-0.5", isSelected ? "text-primary-foreground/80" : "text-muted-foreground")}>
                           – {wallShort(slot.endTime)}
                         </div>
                         <div className={cn(
@@ -442,7 +557,7 @@ export function LocationCourtBookingWizard({
                                 : "text-emerald-600 dark:text-emerald-400",
                         )}>
                           {isFull ? "Full" : `${realAvailable} left`}
-                        </div>
+                        </div> */}
                         {holdCount > 0 && !isFull && (
                           <div className={cn(
                             "absolute top-2 right-2 h-2 w-2 rounded-full",
@@ -492,7 +607,9 @@ export function LocationCourtBookingWizard({
                 <span className="text-muted-foreground">({selectedSlot.durationMinutes} min)</span>
               </li>
               <li className="text-muted-foreground text-xs">
-                A court will be assigned automatically at booking time.
+                {editingBookingId
+                  ? "Confirm to update your booking to this slot (court may change)."
+                  : "A court will be assigned automatically at booking time."}
               </li>
             </ul>
 
@@ -500,10 +617,16 @@ export function LocationCourtBookingWizard({
               type="button"
               size="lg"
               className="w-full sm:w-auto rounded-full px-10 mt-1"
-              disabled={!canBook || createSlotBooking.isPending}
+              disabled={!canBook || slotMutationPending}
               onClick={handleBookNow}
             >
-              {createSlotBooking.isPending ? "Booking…" : "Book now"}
+              {slotMutationPending
+                ? editingBookingId
+                  ? "Updating…"
+                  : "Booking…"
+                : editingBookingId
+                  ? "Update now"
+                  : "Book now"}
             </Button>
           </div>
         )}
@@ -516,7 +639,7 @@ export function LocationCourtBookingWizard({
               className="rounded-full px-10"
               disabled
             >
-              Book now
+              {editingBookingId ? "Update now" : "Book now"}
             </Button>
           </div>
         )}

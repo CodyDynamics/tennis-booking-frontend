@@ -1,5 +1,5 @@
 /**
- * Route group (app): không đổi URL. loading.tsx cùng cấp bọc Suspense cho toàn nhánh.
+ * App route group: URL unchanged. Sibling loading.tsx wraps Suspense for this branch.
  */
 export default function AppRouteGroupLayout({
   children,

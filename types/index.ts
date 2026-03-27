@@ -57,6 +57,10 @@ export interface CourtBooking {
   bookingStatus: "pending" | "confirmed" | "cancelled" | "completed";
   createdAt: string;
   updatedAt?: string;
+  /** Denormalized on `court_bookings`; may come from joined `court` in API */
+  locationId?: string | null;
+  sport?: string | null;
+  courtType?: string | null;
 }
 
 export interface Coach {

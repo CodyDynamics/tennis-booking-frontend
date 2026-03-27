@@ -174,6 +174,9 @@ export interface CourtBookingApi {
   id: string;
   organizationId?: string | null;
   branchId?: string | null;
+  locationId?: string | null;
+  sport?: string | null;
+  courtType?: string | null;
   courtId: string;
   userId: string;
   coachId?: string | null;
@@ -182,11 +185,34 @@ export interface CourtBookingApi {
   startTime: string;
   endTime: string;
   durationMinutes: number;
-  totalPrice?: number;
+  totalPrice?: number | string;
   paymentStatus?: string;
   bookingStatus: string;
   createdAt?: string;
   updatedAt?: string;
+  court?: {
+    id: string;
+    name?: string;
+    locationId?: string | null;
+    sport?: string;
+    type?: string;
+  };
+}
+
+/** GET /admin/dashboard/metrics */
+export interface DashboardMetricsApi {
+  totals: {
+    usersActive: number;
+    courts: number;
+    locations: number;
+    courtBookingsOpen: number;
+    coachSessionsScheduled: number;
+    coaches: number;
+    revenue14d: number;
+  };
+  dailyCourtBookings: { date: string; count: number }[];
+  bookingsBySport: { sport: string; count: number }[];
+  dailyRevenue: { date: string; revenue: number }[];
 }
 
 /** Coach session as returned by API */

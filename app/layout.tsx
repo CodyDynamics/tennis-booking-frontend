@@ -4,6 +4,7 @@ import "./globals.css";
 import { Navbar } from "@/components/layout/navbar";
 import { AppLoadingProvider } from "@/components/layout/app-loading-provider";
 import { ReactQueryProvider } from "@/lib/react-query-provider";
+import { Toaster } from "react-hot-toast";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,6 +25,13 @@ export default function RootLayout({
           <AppLoadingProvider>
             <Navbar />
             {children}
+            <Toaster
+              position="bottom-right"
+              toastOptions={{
+                className: "text-sm font-medium",
+                duration: 4000,
+              }}
+            />
           </AppLoadingProvider>
         </ReactQueryProvider>
       </body>
