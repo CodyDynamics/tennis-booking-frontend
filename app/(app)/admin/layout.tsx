@@ -38,7 +38,7 @@ function getRequiredPermissionForPath(path: string): string | null {
 
 function canAccessAdmin(user: User | null, pathname: string): boolean {
   if (!user) return false;
-  if (user.role === "super_admin") return true;
+  if (user.role === "super_admin" || user.role === "admin") return true;
   const required = getRequiredPermissionForPath(pathname);
   if (!required) {
     return ADMIN_VIEW_PERMISSIONS.some((p) => user!.permissions?.includes(p));

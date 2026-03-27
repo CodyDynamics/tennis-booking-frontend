@@ -35,6 +35,7 @@ import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import type { Court } from "@/types";
 import { AdminFilter, AdminTable, AdminPagination } from "../components";
+import { hasAdminPermission } from "@/lib/admin-rbac";
 
 const PAGE_SIZE = 10;
 const TIME_OPTIONS = Array.from({ length: 24 * 2 }, (_, i) => {
@@ -42,10 +43,6 @@ const TIME_OPTIONS = Array.from({ length: 24 * 2 }, (_, i) => {
   const m = i % 2 === 0 ? "00" : "30";
   return `${String(h).padStart(2, "0")}:${m}`;
 });
-
-function can(permissions: string[] | undefined, permission: string, role: string) {
-  return role === "super_admin" || (permissions?.includes(permission) ?? false);
-}
 
 export default function AdminCourtsPage() {
   const { user } = useAuth();
@@ -59,9 +56,9 @@ export default function AdminCourtsPage() {
   const [modalBranchId, setModalBranchId] = useState<string | undefined>(undefined);
   const [page, setPage] = useState(1);
 
-  const canCreate = can(user?.permissions, "courts:create", user?.role ?? "");
-  const canUpdate = can(user?.permissions, "courts:update", user?.role ?? "");
-  const canDelete = can(user?.permissions, "courts:delete", user?.role ?? "");
+  const canCreate = hasAdminPermission(user?.permissions, "courts:create", user?.role);
+  const canUpdate = hasAdminPermission(user?.permissions, "courts:update", user?.role);
+  const canDelete = hasAdminPermission(user?.permissions, "courts:delete", user?.role);
 
   const { data: courts = [], isLoading } = useCourts({
     branchId: branchId && branchId !== "all" ? branchId : undefined,

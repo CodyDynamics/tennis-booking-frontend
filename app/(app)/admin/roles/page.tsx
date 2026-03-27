@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Save } from "lucide-react";
 import type { PermissionSchemaItem } from "@/lib/api/endpoints/roles";
+import { hasAdminPermission } from "@/lib/admin-rbac";
 
 function parsePermissions(permissions: string | null | undefined): string[] {
   if (!permissions || typeof permissions !== "string") return [];
@@ -24,10 +25,6 @@ function parsePermissions(permissions: string | null | undefined): string[] {
     .split(",")
     .map((p) => p.trim())
     .filter(Boolean);
-}
-
-function can(permissions: string[] | undefined, permission: string, role: string) {
-  return role === "super_admin" || (permissions?.includes(permission) ?? false);
 }
 
 const PERMISSIONS_PAGE_SIZE = 8;
@@ -39,7 +36,7 @@ export default function AdminRolesPage() {
   const { data: schema = [], isLoading: schemaLoading } = usePermissionsSchema();
   const updatePermissions = useUpdateRolePermissions();
 
-  const canUpdate = can(user?.permissions, "roles:update", user?.role ?? "");
+  const canUpdate = hasAdminPermission(user?.permissions, "roles:update", user?.role);
 
   const selectedRole = useMemo(
     () => roles.find((r) => r.id === selectedRoleId),

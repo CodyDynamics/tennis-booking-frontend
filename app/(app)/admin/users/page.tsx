@@ -31,12 +31,9 @@ import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import type { UserApi } from "@/lib/api/endpoints/users";
 import { AdminFilter, AdminTable, AdminPagination } from "../components";
+import { hasAdminPermission } from "@/lib/admin-rbac";
 
 const PAGE_SIZE = 10;
-
-function can(permissions: string[] | undefined, permission: string, role: string) {
-  return role === "super_admin" || (permissions?.includes(permission) ?? false);
-}
 
 export default function AdminUsersPage() {
   const { user } = useAuth();
@@ -47,9 +44,9 @@ export default function AdminUsersPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
 
-  const canCreate = can(user?.permissions, "users:create", user?.role ?? "");
-  const canUpdate = can(user?.permissions, "users:update", user?.role ?? "");
-  const canDelete = can(user?.permissions, "users:delete", user?.role ?? "");
+  const canCreate = hasAdminPermission(user?.permissions, "users:create", user?.role);
+  const canUpdate = hasAdminPermission(user?.permissions, "users:update", user?.role);
+  const canDelete = hasAdminPermission(user?.permissions, "users:delete", user?.role);
 
   const { data: users = [], isLoading } = useUsers({
     roleId: roleId && roleId !== "all" ? roleId : undefined,
