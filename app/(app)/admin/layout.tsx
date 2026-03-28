@@ -6,16 +6,16 @@ import { cn } from "@/lib/utils";
 import type { User } from "@/types";
 import { motion } from "framer-motion";
 import {
-    Activity,
-    ArrowLeft,
-    Building2,
-    LayoutDashboard,
-    LogOut,
-    MapPin,
-    Network,
-    Shapes,
-    Shield,
-    Users
+  Activity,
+  ArrowLeft,
+  Building2,
+  LayoutDashboard,
+  LogOut,
+  MapPin,
+  Network,
+  Shapes,
+  Shield,
+  Users
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -103,13 +103,13 @@ export default function AdminLayout({
     { href: "/admin/court-management", label: "Court Management", icon: MapPin },
     { href: "/admin/courts", label: "Court Time Slot", icon: MapPin },
     { href: "/admin/users", label: "Users", icon: Users },
-    { href: "/admin/user-memberships", label: "User Membership", icon: Users },
+    { href: "/admin/user-memberships", label: "Memberships", icon: Users },
     { href: "/admin/roles", label: "Roles & Permissions", icon: Shield },
     { href: "/admin/locations", label: "Locations", icon: Building2 },
-    { href: "/admin/areas", label: "Areas", icon: MapPin },
     { href: "/admin/sports", label: "Sports", icon: Shapes },
-    { href: "/admin/branches", label: "Branches", icon: Building2 },
-    { href: "/admin/organizations", label: "Organizations", icon: Network },
+    // { href: "/admin/areas", label: "Areas", icon: MapPin },
+    // { href: "/admin/branches", label: "Branches", icon: Building2 },
+    // { href: "/admin/organizations", label: "Organizations", icon: Network },
   ];
 
   const navItems =
@@ -152,8 +152,8 @@ export default function AdminLayout({
           </div>
 
           <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 space-y-4">
-            <SportSelector />
             <LocationScopeSelector />
+            <SportSelector />
           </div>
 
           <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto">

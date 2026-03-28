@@ -48,10 +48,8 @@ export default function AdminUsersPage() {
   const { locationId: adminLocationId } = useAdmin();
   const [search, setSearch] = useState("");
   const [roleId, setRoleId] = useState<string>("all");
-  /** Default: hide pre-added membership placeholders (accountType membership). */
-  const [accountTypeScope, setAccountTypeScope] = useState<
-    "exclude_membership" | "all" | "system" | "normal" | "membership"
-  >("exclude_membership");
+  /** This page never lists `membership` placeholders — those are on Memberships. */
+  const [accountTypeScope, setAccountTypeScope] = useState<"all" | "system" | "normal">("all");
   const [filterAreaId, setFilterAreaId] = useState<string>("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserApi | null>(null);
@@ -71,13 +69,10 @@ export default function AdminUsersPage() {
     roleId: roleId && roleId !== "all" ? roleId : undefined,
     search: search || undefined,
     accountType:
-      accountTypeScope === "system" ||
-      accountTypeScope === "normal" ||
-      accountTypeScope === "membership"
+      accountTypeScope === "system" || accountTypeScope === "normal"
         ? accountTypeScope
         : undefined,
-    excludeAccountType:
-      accountTypeScope === "exclude_membership" ? "membership" : undefined,
+    excludeAccountType: accountTypeScope === "all" ? "membership" : undefined,
     membershipAtLocationId:
       showScopeFilters && filterAreaId === "all" && adminLocationId !== "all"
         ? adminLocationId
@@ -158,6 +153,8 @@ export default function AdminUsersPage() {
     mustChangePasswordOnFirstLogin: false,
     membershipLocationId: "__none__",
     password: "",
+    /** Editable for normal/membership; system for staff rows */
+    accountType: "normal" as "normal" | "membership" | "system",
   });
 
   const resetForm = () => {
@@ -173,6 +170,7 @@ export default function AdminUsersPage() {
       mustChangePasswordOnFirstLogin: false,
       membershipLocationId: "__none__",
       password: "",
+      accountType: "normal",
     });
   };
 
@@ -196,6 +194,12 @@ export default function AdminUsersPage() {
       mustChangePasswordOnFirstLogin: u.mustChangePasswordOnFirstLogin ?? false,
       membershipLocationId: "__none__",
       password: "",
+      accountType:
+        u.accountType === "membership"
+          ? "membership"
+          : u.accountType === "system"
+            ? "system"
+            : "normal",
     });
     setModalOpen(true);
   };
@@ -239,6 +243,13 @@ export default function AdminUsersPage() {
     if (editingUser && editUserDetailLoading) return;
 
     if (editingUser) {
+      const accountTypeBody =
+        (editingUser.accountType === "normal" ||
+          editingUser.accountType === "membership") &&
+        form.accountType !== editingUser.accountType &&
+        (form.accountType === "normal" || form.accountType === "membership")
+          ? { accountType: form.accountType }
+          : {};
       const err = await updateUser
         .mutateAsync({
           id: editingUser.id,
@@ -254,6 +265,7 @@ export default function AdminUsersPage() {
             mustChangePasswordOnFirstLogin: form.mustChangePasswordOnFirstLogin,
             membershipLocationId: resolvedMembershipLocationPayload() ?? null,
             ...(form.password ? { password: form.password } : {}),
+            ...accountTypeBody,
           },
         })
         .then(() => null)
@@ -332,11 +344,9 @@ export default function AdminUsersPage() {
             <SelectValue placeholder="Account type" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="exclude_membership">App users (no placeholders)</SelectItem>
-            <SelectItem value="all">All account types</SelectItem>
+            <SelectItem value="all">All (excludes membership placeholders)</SelectItem>
             <SelectItem value="system">System only</SelectItem>
             <SelectItem value="normal">Normal only</SelectItem>
-            <SelectItem value="membership">Membership placeholders</SelectItem>
           </SelectContent>
         </Select>
         {showScopeFilters && (
@@ -541,13 +551,49 @@ export default function AdminUsersPage() {
                 </SelectContent>
               </Select>
             </div>
+            {editingUser &&
+              (editingUser.accountType === "normal" ||
+                editingUser.accountType === "membership") && (
+                <div>
+                  <Label>Account type</Label>
+                  <p className="text-muted-foreground mb-2 text-xs">
+                    <strong>Normal</strong> = regular app user (stays on this list).{" "}
+                    <strong>Membership (pre-approved)</strong> = also appears under{" "}
+                    <strong>Memberships</strong>. Venue access is separate — use{" "}
+                    <strong>Venue membership</strong> below or Locations → Venue users.
+                  </p>
+                  <Select
+                    value={form.accountType === "membership" ? "membership" : "normal"}
+                    onValueChange={(v) =>
+                      setForm((f) => ({
+                        ...f,
+                        accountType: v as "normal" | "membership",
+                      }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="normal">Normal (app user)</SelectItem>
+                      <SelectItem value="membership">Membership (pre-approved)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            {editingUser && editingUser.accountType === "system" && (
+              <p className="text-xs text-muted-foreground rounded-md border bg-muted/40 px-3 py-2">
+                Account type is <strong>System</strong> (staff). To manage venue access, use{" "}
+                <strong>Venue membership</strong> below.
+              </p>
+            )}
             <div>
               <Label>Venue membership (optional)</Label>
               <p className="text-muted-foreground mb-2 text-xs">
-                Pick a <strong>location</strong> to create or replace this user&apos;s venue membership
-                row. Choose <strong>None</strong> to remove all venue memberships (not allowed for
-                venue operators on other users when clearing). Users then appear under{" "}
-                <strong>User Membership</strong> when that location is selected in the sidebar.
+                Attach this user to a <strong>location</strong> for booking access (membership row).
+                <strong> None</strong> removes all venue memberships (super_admin; venue staff have
+                limits). This does not change account type — use <strong>Account type</strong> above
+                for the Memberships list.
               </p>
               <Select
                 value={form.membershipLocationId || "__none__"}

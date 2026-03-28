@@ -74,6 +74,12 @@ export interface VerifyLoginOtpInput {
   rememberMe?: boolean;
 }
 
+/** Body for POST /auth/change-password */
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
+}
+
 /** Response from GET /auth/config */
 export interface AuthConfig {
   loginOtpEnabled: boolean;

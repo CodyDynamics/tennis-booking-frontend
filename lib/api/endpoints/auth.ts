@@ -22,6 +22,7 @@ const PATHS = {
   forgotPassword: "/auth/forgot-password",
   requestLoginOtp: "/auth/request-login-otp",
   verifyLoginOtp: "/auth/verify-login-otp",
+  changePassword: "/auth/change-password",
 } as const;
 
 export function createAuthEndpoints(client: ApiClient) {
@@ -41,6 +42,8 @@ export function createAuthEndpoints(client: ApiClient) {
       client.post<{ message: string }>(PATHS.requestLoginOtp, body),
     verifyLoginOtp: (body: VerifyLoginOtpInput) =>
       client.post<AuthResponse>(PATHS.verifyLoginOtp, body),
+    changePassword: (body: { currentPassword: string; newPassword: string }) =>
+      client.post<{ message: string }>(PATHS.changePassword, body),
   };
 }
 

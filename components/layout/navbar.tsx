@@ -173,7 +173,7 @@ export function Navbar() {
                       </Button>
                     </Link>
                     <Button variant="ghost" onClick={handleLogout} className="rounded-full flex items-center gap-x-1 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30">
-                      <p>Sign Out</p>
+                      <p>Log Out</p>
                       <LogOut className="h-4 w-4" />
                     </Button>
                   </div>
@@ -224,7 +224,7 @@ export function Navbar() {
                     </Button>
                   </Link>
                   <Button variant="ghost" size="sm" onClick={handleLogout} className="rounded-full text-red-500">
-                    <p>Sign Out</p>
+                    <p>Log Out</p>
                     <LogOut className="h-4 w-4" />
                   </Button>
                 </>

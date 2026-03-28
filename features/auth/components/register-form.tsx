@@ -17,6 +17,7 @@ import { useAuth } from "@/lib/auth-store";
 import { registerSchema, type RegisterFormValues } from "@/features/auth/schemas/register.schema";
 import { ApiError } from "@/lib/api";
 import { safeNextPath } from "@/lib/safe-next-path";
+import type { User as AppUser } from "@/types";
 import { VerifyOtpStep } from "./verify-otp-step";
 
 interface RegisterFormProps {
@@ -89,6 +90,14 @@ export function RegisterForm({
     }
   };
 
+  const goAfterRegister = (u: AppUser) => {
+    if (u.mustChangePasswordOnFirstLogin) {
+      router.push("/change-required-password");
+      return;
+    }
+    afterRegister();
+  };
+
   const handleBackToDetails = () => {
     setStep("details");
     setSubmitError(null);
@@ -105,8 +114,8 @@ export function RegisterForm({
         onVerify={async (otp) => {
           setSubmitError(null);
           try {
-            await verifyRegisterOtp(pendingEmail, otp);
-            afterRegister();
+            const u = await verifyRegisterOtp(pendingEmail, otp);
+            goAfterRegister(u);
           } catch (error) {
             if (error instanceof ApiError) {
               const msg = error.body?.message;

@@ -70,6 +70,8 @@ export interface UpdateUserBody {
   mustChangePasswordOnFirstLogin?: boolean;
   /** Set location membership (same as Area→location). Omit to leave unchanged; null to clear. */
   membershipLocationId?: string | null;
+  /** system | normal | membership */
+  accountType?: "system" | "normal" | "membership";
 }
 
 export interface CreateMembershipPlaceholderBody {

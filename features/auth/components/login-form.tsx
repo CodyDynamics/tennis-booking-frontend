@@ -19,6 +19,7 @@ import { api, ApiError } from "@/lib/api";
 import { requestOtpSchema, type RequestOtpFormValues } from "@/features/auth/schemas/request-otp.schema";
 import { loginSchema, type LoginFormValues } from "@/features/auth/schemas/login.schema";
 import { safeNextPath } from "@/lib/safe-next-path";
+import type { User } from "@/types";
 import { VerifyOtpStep } from "./verify-otp-step";
 
 interface LoginFormProps {
@@ -85,11 +86,19 @@ export function LoginForm({
     }
   };
 
+  const goAfterAuth = (u: User) => {
+    if (u.mustChangePasswordOnFirstLogin) {
+      router.push("/change-required-password");
+      return;
+    }
+    afterLoginRedirect();
+  };
+
   const onNormalLoginSubmit = async (data: LoginFormValues) => {
     setSubmitError(null);
     try {
-      await login(data.email, data.password, data.rememberMe);
-      afterLoginRedirect();
+      const u = await login(data.email, data.password, data.rememberMe);
+      goAfterAuth(u);
     } catch (error) {
       if (error instanceof ApiError) {
         const msg = error.body?.message;
@@ -216,8 +225,8 @@ export function LoginForm({
         onVerify={async (otp) => {
           setSubmitError(null);
           try {
-            await loginWithOtp(pendingEmail, otp, pendingRememberMe);
-            afterLoginRedirect();
+            const u = await loginWithOtp(pendingEmail, otp, pendingRememberMe);
+            goAfterAuth(u);
           } catch (error) {
             if (error instanceof ApiError) {
               const msg = error.body?.message;

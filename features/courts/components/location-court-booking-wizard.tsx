@@ -194,14 +194,14 @@ export function LocationCourtBookingWizard({
     () =>
       sport && courtType
         ? {
-            locationId,
-            ...(areaId ? { areaId } : {}),
-            sport,
-            courtType,
-            bookingDate,
-            durationMinutes,
-            ...(editingBookingId ? { excludeBookingId: editingBookingId } : {}),
-          }
+          locationId,
+          ...(areaId ? { areaId } : {}),
+          sport,
+          courtType,
+          bookingDate,
+          durationMinutes,
+          ...(editingBookingId ? { excludeBookingId: editingBookingId } : {}),
+        }
         : null,
     [
       locationId,
@@ -507,13 +507,13 @@ export function LocationCourtBookingWizard({
                 animate={
                   activityAttentionKey > 0 && !sport
                     ? {
-                        boxShadow: [
-                          "0 0 0 0px rgba(234,88,12,0)",
-                          "0 0 0 3px rgba(234,88,12,0.45)",
-                          "0 0 0 0px rgba(234,88,12,0)",
-                        ],
-                        scale: [1, 1.02, 1],
-                      }
+                      boxShadow: [
+                        "0 0 0 0px rgba(234,88,12,0)",
+                        "0 0 0 3px rgba(234,88,12,0.45)",
+                        "0 0 0 0px rgba(234,88,12,0)",
+                      ],
+                      scale: [1, 1.02, 1],
+                    }
                     : false
                 }
                 transition={{ duration: 0.5, ease: "easeOut" }}
@@ -790,7 +790,7 @@ export function LocationCourtBookingWizard({
                   ? editingBookingId
                     ? "Updating…"
                     : "Confirming…"
-                  : "Confirm"}
+                  : "Confirm Booking"}
               </Button>
             </div>
           </div>

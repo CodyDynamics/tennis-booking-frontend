@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import "react-phone-number-input/style.css";
 import { Navbar } from "@/components/layout/navbar";
+import { MustChangePasswordGate } from "@/components/auth/must-change-password-gate";
 import { AppLoadingProvider } from "@/components/layout/app-loading-provider";
 import { ReactQueryProvider } from "@/lib/react-query-provider";
 import { Toaster } from "react-hot-toast";
@@ -25,6 +26,7 @@ export default function RootLayout({
         <ReactQueryProvider>
           <AppLoadingProvider>
             <Navbar />
+            <MustChangePasswordGate />
             {children}
             <Toaster
               position="bottom-right"

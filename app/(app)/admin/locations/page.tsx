@@ -379,10 +379,51 @@ function LocationsDirectoryTab() {
 export default function AdminLocationStaffPage() {
   const { user: adminUser } = useAuth();
   const { data: locations = [], isLoading: locationsLoading } = useLocations();
-  const locationChildren = useMemo(
-    () => locations.filter((l) => (l.kind ?? "child") === "child"),
+
+  const activeLocations = useMemo(
+    () => locations.filter((l) => (l.status ?? "active") === "active"),
     [locations],
   );
+
+  const childLikeLocations = useMemo(
+    () =>
+      activeLocations.filter(
+        (l) => (l.kind ?? "child") === "child" || Boolean(l.parentLocationId),
+      ),
+    [activeLocations],
+  );
+
+  /** Prefer child venues; if only roots exist, allow those so the dropdown is never empty. */
+  const locationsForAssign = useMemo(() => {
+    if (childLikeLocations.length > 0) return childLikeLocations;
+    return activeLocations;
+  }, [activeLocations, childLikeLocations]);
+
+  const locationById = useMemo(() => {
+    const m = new Map<string, LocationApi>();
+    for (const l of locations) m.set(l.id, l);
+    return m;
+  }, [locations]);
+
+  const venueAssignOptions = useMemo(() => {
+    return locationsForAssign
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((loc) => {
+        const isChild =
+          (loc.kind ?? "child") === "child" || Boolean(loc.parentLocationId);
+        const parentName = loc.parentLocationId
+          ? locationById.get(loc.parentLocationId)?.name
+          : null;
+        const label =
+          isChild && parentName
+            ? `${loc.name} — ${parentName}`
+            : isChild
+              ? loc.name
+              : `${loc.name} (organization)`;
+        return { loc, label };
+      });
+  }, [locationsForAssign, locationById]);
 
   const [userSearch, setUserSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -528,38 +569,45 @@ export default function AdminLocationStaffPage() {
 
         <TabsContent value="venue-users" className="space-y-6">
           <p className="text-muted-foreground text-sm max-w-2xl">
-            Attach any account to a venue (child location) via membership. One membership row per user;
-            choosing a new location replaces the previous one. Use search to find anyone, or limit to
-            people who are not on any venue yet.
+            <strong>1.</strong> Pick a location. <strong>2.</strong> Find the user. <strong>3.</strong>{" "}
+            Assign venue membership (one row per user; choosing another location replaces the current
+            one).
           </p>
 
           <Card>
-            <CardContent className="pt-6 space-y-4 max-w-xl">
+            <CardContent className="pt-6 space-y-5 max-w-xl">
               <div>
-                <Label>Location (venue)</Label>
+                <Label>1. Location</Label>
                 <Select
                   value={locationId || "__none__"}
                   onValueChange={(v) => setLocationId(v === "__none__" ? "" : v)}
+                  disabled={locationsLoading}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select location child" />
+                    <SelectValue placeholder="Select location" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">Select…</SelectItem>
-                    {locationChildren.map((loc) => (
+                    <SelectItem value="__none__">Select location…</SelectItem>
+                    {venueAssignOptions.map(({ loc, label }) => (
                       <SelectItem key={loc.id} value={loc.id}>
-                        {loc.name}
+                        {label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {!locationsLoading && venueAssignOptions.length === 0 && (
+                  <p className="text-sm text-amber-800 dark:text-amber-200 mt-2 rounded-md border border-amber-200/80 bg-amber-50 dark:bg-amber-950/40 px-3 py-2">
+                    No locations yet. Create one under the <strong>Locations</strong> tab, then come
+                    back here.
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="loc-user-search">Search users</Label>
+                <Label htmlFor="loc-user-search">2. Search user (email or name)</Label>
                 <Input
                   id="loc-user-search"
-                  placeholder={`Email or name (min ${SEARCH_MIN} characters if not using filter below)`}
+                  placeholder={`At least ${SEARCH_MIN} characters if the checkbox below is off`}
                   value={userSearch}
                   onChange={(e) => setUserSearch(e.target.value)}
                 />
@@ -570,19 +618,18 @@ export default function AdminLocationStaffPage() {
                     onCheckedChange={(v) => setOnlyNoVenueMembership(Boolean(v))}
                   />
                   <Label htmlFor="only-no-venue" className="text-sm font-normal cursor-pointer">
-                    Only users with <strong>no</strong> venue / location membership yet (e.g. just
-                    registered)
+                    Only users with <strong>no</strong> venue membership yet
                   </Label>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {onlyNoVenueMembership
-                    ? "List loads automatically for accounts that have never been assigned to any location."
-                    : `Turn on the filter above, or type at least ${SEARCH_MIN} characters to search all users.`}
+                    ? "The list loads automatically for accounts not assigned to any location."
+                    : `Use the checkbox above, or type at least ${SEARCH_MIN} characters to search all users.`}
                 </p>
               </div>
 
               <div>
-                <Label>User</Label>
+                <Label>3. User</Label>
                 <Select
                   value={userId || "__none__"}
                   onValueChange={(v) => setUserId(v === "__none__" ? "" : v)}
@@ -594,13 +641,13 @@ export default function AdminLocationStaffPage() {
                         assignUsersLoading
                           ? "Loading…"
                           : !assignUsersQueryEnabled
-                            ? "Search or enable filter…"
+                            ? "Search or turn on “no venue yet”"
                             : "Select user"
                       }
                     />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">Select…</SelectItem>
+                    <SelectItem value="__none__">Select user…</SelectItem>
                     {assignUserCandidates.map((u) => (
                       <SelectItem key={u.id} value={u.id}>
                         {u.email} ({[u.firstName, u.lastName].filter(Boolean).join(" ") || "—"}
@@ -623,7 +670,7 @@ export default function AdminLocationStaffPage() {
                     Saving…
                   </>
                 ) : (
-                  "Assign to location"
+                  "Assign membership at location"
                 )}
               </Button>
             </CardContent>
@@ -653,7 +700,7 @@ export default function AdminLocationStaffPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All venues</SelectItem>
-                {locationChildren.map((loc) => (
+                {childLikeLocations.map((loc) => (
                   <SelectItem key={loc.id} value={loc.id}>
                     {loc.name}
                   </SelectItem>

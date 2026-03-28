@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth-store";
 import {
   useUsers,
@@ -9,9 +9,11 @@ import {
   useBookableLocations,
   useCreateMembershipPlaceholder,
   useRolesList,
+  useAdminUserDetail,
+  useUpdateUser,
 } from "@/lib/queries";
 import { AdminFilter, AdminTable, AdminPagination } from "../components";
-import type { UserApi } from "@/lib/api/endpoints/users";
+import type { UserApi, UpdateUserBody } from "@/lib/api/endpoints/users";
 import {
   Select,
   SelectContent,
@@ -30,7 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Pencil, Plus } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { hasAdminPermission } from "@/lib/admin-rbac";
 import { useAdmin } from "../admin-context";
@@ -47,8 +49,13 @@ export default function AdminUserMembershipPage() {
   const [filterAreaId, setFilterAreaId] = useState<string>("all");
   const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserApi | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const membershipSyncedRef = useRef<string | null>(null);
 
   const canCreate = hasAdminPermission(user?.permissions, "users:create", user?.role);
+  const canUpdate = hasAdminPermission(user?.permissions, "users:update", user?.role);
 
   const showScopeFilters =
     user?.role === "super_admin" ||
@@ -110,7 +117,7 @@ export default function AdminUserMembershipPage() {
   }, [search, roleId, adminLocationId, filterAreaId]);
 
   const { data: users = [], isLoading } = useUsers({
-    accountType: narrowListToVenueMembership ? undefined : "membership",
+    accountType: "membership",
     roleId: roleId && roleId !== "all" ? roleId : undefined,
     search: search || undefined,
     membershipAtLocationId:
@@ -126,6 +133,114 @@ export default function AdminUserMembershipPage() {
   );
 
   const createMembership = useCreateMembershipPlaceholder();
+  const updateUser = useUpdateUser();
+  const {
+    data: editUserDetail,
+    isLoading: editUserDetailLoading,
+    isError: editUserDetailError,
+  } = useAdminUserDetail(editingUser?.id, editModalOpen && !!editingUser);
+
+  const editFormReady =
+    !!editingUser &&
+    !!editUserDetail &&
+    editUserDetail.id === editingUser.id &&
+    !editUserDetailLoading;
+
+  const [editForm, setEditForm] = useState({
+    firstName: "",
+    lastName: "",
+    phone: "",
+    homeAddress: "",
+    membershipLocationId: "__none__" as string,
+    accountType: "membership" as "membership" | "normal",
+  });
+
+  useEffect(() => {
+    if (!editModalOpen) {
+      membershipSyncedRef.current = null;
+    }
+  }, [editModalOpen]);
+
+  useEffect(() => {
+    if (!editingUser || !editModalOpen || !editUserDetail) return;
+    const locId = editUserDetail.memberships?.[0]?.locationId;
+    const syncKey = `${editingUser.id}-${locId ?? "none"}`;
+    if (membershipSyncedRef.current === syncKey) return;
+    membershipSyncedRef.current = syncKey;
+    const allowed = new Set(locationOptionsForCreate.map((l) => l.id));
+    setEditForm((f) => ({
+      ...f,
+      membershipLocationId:
+        locId && allowed.has(locId) ? locId : "__none__",
+      accountType:
+        editingUser.accountType === "membership" ? "membership" : "normal",
+    }));
+  }, [editingUser, editModalOpen, editUserDetail, locationOptionsForCreate]);
+
+  const openEdit = (u: UserApi) => {
+    membershipSyncedRef.current = null;
+    setEditingUser(u);
+    setEditError(null);
+    setEditForm({
+      firstName: u.firstName ?? "",
+      lastName: u.lastName ?? "",
+      phone: u.phone ?? "",
+      homeAddress: u.homeAddress ?? "",
+      membershipLocationId: "__none__",
+      accountType: u.accountType === "membership" ? "membership" : "normal",
+    });
+    setEditModalOpen(true);
+  };
+
+  const submitEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser || !editFormReady) return;
+    setEditError(null);
+
+    if (editForm.membershipLocationId === "__none__" && user?.role === "super_user") {
+      setEditError("Venue staff cannot remove all venue memberships. Ask an administrator.");
+      return;
+    }
+
+    const fullName = `${editForm.firstName} ${editForm.lastName}`.trim();
+    const body: UpdateUserBody = {
+      fullName,
+      firstName: editForm.firstName,
+      lastName: editForm.lastName,
+      phone: editForm.phone,
+      homeAddress: editForm.homeAddress || undefined,
+      membershipLocationId:
+        editForm.membershipLocationId === "__none__"
+          ? null
+          : editForm.membershipLocationId,
+    };
+
+    if (
+      editingUser.accountType !== "system" &&
+      (editingUser.accountType === "membership" || editingUser.accountType === "normal") &&
+      editForm.accountType !== editingUser.accountType
+    ) {
+      body.accountType = editForm.accountType;
+    }
+
+    try {
+      await updateUser.mutateAsync({ id: editingUser.id, body });
+      setEditModalOpen(false);
+      setEditingUser(null);
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? String(
+              Array.isArray(err.body?.message)
+                ? err.body?.message.join(", ")
+                : err.body?.message ?? err.message,
+            )
+          : err instanceof Error
+            ? err.message
+            : "Update failed";
+      setEditError(msg);
+    }
+  };
 
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -193,7 +308,7 @@ export default function AdminUserMembershipPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">User Membership</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Memberships</h1>
         {canCreate && (
           <Button
             onClick={() => {
@@ -208,10 +323,9 @@ export default function AdminUserMembershipPage() {
       </div>
 
       <p className="text-muted-foreground text-sm max-w-2xl -mt-2">
-        With <strong>All locations</strong> in the sidebar, this list shows pre-approved placeholders
-        (account type <strong>membership</strong>). When you pick a <strong>location</strong> (or area
-        below), everyone with a venue membership there is listed—including normal accounts assigned from{" "}
-        <strong>Users</strong>.
+        Only <strong>membership</strong> account type (pre-approved placeholders). Use{" "}
+        <strong>Users</strong> for normal and system accounts. Location or area filters narrow to
+        placeholders with venue membership at the selected place.
       </p>
 
       <AdminFilter
@@ -259,7 +373,7 @@ export default function AdminUserMembershipPage() {
             keyExtractor={(u) => u.id}
             emptyMessage={
               narrowListToVenueMembership
-                ? "No users with venue membership match your filters."
+                ? "No membership-type users with venue membership here match your filters."
                 : "No membership placeholders match your filters."
             }
             isLoading={isLoading}
@@ -294,6 +408,27 @@ export default function AdminUserMembershipPage() {
                   typeof u.role === "object" && u.role?.name ? u.role.name : u.roleId,
               },
               { key: "status", label: "Status" },
+              ...(canUpdate
+                ? [
+                    {
+                      key: "actions",
+                      label: "Actions",
+                      headClassName: "text-right w-[72px]",
+                      className: "text-right",
+                      render: (row: UserApi) => (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Edit ${row.email}`}
+                          onClick={() => openEdit(row)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      ),
+                    } as const,
+                  ]
+                : []),
             ]}
           />
           {!isLoading && users.length > 0 && (
@@ -433,6 +568,160 @@ export default function AdminUserMembershipPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={editModalOpen}
+        onOpenChange={(open) => {
+          setEditModalOpen(open);
+          if (!open) {
+            setEditingUser(null);
+            setEditError(null);
+            updateUser.reset();
+            membershipSyncedRef.current = null;
+          }
+        }}
+      >
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit user / membership</DialogTitle>
+          </DialogHeader>
+          {editingUser && (
+            <form onSubmit={submitEdit} className="space-y-4">
+              {editUserDetailError && (
+                <p className="text-sm text-destructive">Could not load user details. Try again.</p>
+              )}
+              {editError && <p className="text-sm text-destructive">{editError}</p>}
+              {!editFormReady && !editUserDetailError && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading membership…
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Email: <span className="font-medium text-foreground">{editingUser.email}</span>
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>First name</Label>
+                  <Input
+                    value={editForm.firstName}
+                    onChange={(e) => {
+                      setEditError(null);
+                      setEditForm((f) => ({ ...f, firstName: e.target.value }));
+                    }}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Last name</Label>
+                  <Input
+                    value={editForm.lastName}
+                    onChange={(e) => {
+                      setEditError(null);
+                      setEditForm((f) => ({ ...f, lastName: e.target.value }));
+                    }}
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <Label>Phone</Label>
+                <UsPhoneField
+                  variant="compact"
+                  value={editForm.phone}
+                  onChange={(value) => {
+                    setEditError(null);
+                    setEditForm((f) => ({ ...f, phone: value }));
+                  }}
+                />
+              </div>
+              <div>
+                <Label>Address (optional)</Label>
+                <Input
+                  value={editForm.homeAddress}
+                  onChange={(e) => {
+                    setEditError(null);
+                    setEditForm((f) => ({ ...f, homeAddress: e.target.value }));
+                  }}
+                />
+              </div>
+              {(editingUser.accountType === "membership" ||
+                editingUser.accountType === "normal") && (
+                <div>
+                  <Label>Account type</Label>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Set to <strong>Normal</strong> after they register as an app user, or keep{" "}
+                    <strong>Pre-approved</strong> for placeholders only.
+                  </p>
+                  <Select
+                    value={editForm.accountType}
+                    onValueChange={(v) => {
+                      setEditError(null);
+                      setEditForm((f) => ({
+                        ...f,
+                        accountType: v as "membership" | "normal",
+                      }));
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="membership">Pre-approved (membership)</SelectItem>
+                      <SelectItem value="normal">Normal (app user)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div>
+                <Label>Venue membership</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Choose <strong>None</strong> to remove all venue memberships for this user.
+                  {user?.role === "super_user" && (
+                    <span className="block mt-1">
+                      Venue staff cannot clear all memberships; pick another location or ask an admin.
+                    </span>
+                  )}
+                </p>
+                <Select
+                  value={editForm.membershipLocationId}
+                  onValueChange={(v) => {
+                    setEditError(null);
+                    setEditForm((f) => ({ ...f, membershipLocationId: v }));
+                  }}
+                  disabled={!editFormReady}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Loading…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {user?.role !== "super_user" && (
+                      <SelectItem value="__none__">None (remove all)</SelectItem>
+                    )}
+                    {locationOptionsForCreate.map((loc) => (
+                      <SelectItem key={loc.id} value={loc.id}>
+                        {`${loc.name} (${loc.kind ?? "child"})`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={!editFormReady || updateUser.isPending || !!editUserDetailError}
+                >
+                  {updateUser.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {updateUser.isPending ? "Saving…" : "Save"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>
