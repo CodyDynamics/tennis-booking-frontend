@@ -65,7 +65,7 @@ export function Navbar() {
               // whileHover={{ rotate: 180, scale: 1.1 }}
               whileHover={{ scale: 1.1 }}
               transition={{ duration: 0.3 }}
-              className="rounded-xl p-2 text-primary-foreground shadow-brand"
+              className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl p-2 text-primary-foreground shadow-brand"
             >
               <Activity className="h-6 w-6" />
               {/* <div className="w-10 h-10 justify-center items-center flex">

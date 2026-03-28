@@ -140,7 +140,7 @@ export default function AdminLayout({
               <motion.div
                 whileHover={{ scale: 1.06 }}
                 transition={{ duration: 0.3 }}
-                className="rounded-xl p-2.5 bg-primary text-primary-foreground shadow-md shadow-primary/25 ring-1 ring-primary/20"
+                className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl p-2.5 text-primary-foreground shadow-md shadow-primary/25 ring-1 ring-primary/20"
               >
                 <Activity className="h-6 w-6" />
               </motion.div>
