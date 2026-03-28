@@ -10,7 +10,7 @@ export interface LocationMembershipApi {
 
 export interface LocationApi {
   id: string;
-  branchId: string;
+  branchId?: string | null;
   parentLocationId?: string | null;
   kind?: "root" | "child";
   name: string;
@@ -28,7 +28,7 @@ export interface LocationApi {
 }
 
 export interface CreateLocationBody {
-  branchId: string;
+  branchId?: string;
   parentLocationId?: string;
   kind?: "root" | "child";
   name: string;

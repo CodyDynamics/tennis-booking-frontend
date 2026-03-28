@@ -26,7 +26,7 @@ export function SportSelector() {
         value={value}
         onValueChange={(v) => setSport(v)}
       >
-        <SelectTrigger className="w-full bg-slate-50 dark:bg-slate-800 border-0 focus:ring-2 focus:ring-blue-500 rounded-xl h-12">
+        <SelectTrigger className="w-full bg-slate-50 dark:bg-slate-800 border-0 focus:ring-2 focus:ring-primary rounded-xl h-12">
           <SelectValue placeholder="Select sport" />
         </SelectTrigger>
         <SelectContent className="rounded-xl border-slate-100 dark:border-slate-800 shadow-xl">

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { User } from "@/types";
-import type { AuthUser, AuthUserMembership } from "@/types/api";
+import type { AuthUser, AuthUserMembership, RegisterInput } from "@/types/api";
 import { api, ApiError } from "@/lib/api";
 
 function parseRolePermissions(role: unknown): string[] {
@@ -123,16 +123,13 @@ export function useAuth() {
     },
   });
 
-  const registerMutation = useMutation({
-    mutationFn: (data: {
-      email: string;
-      password: string;
-      fullName: string;
-      firstName?: string;
-      lastName?: string;
-      phone: string;
-      homeAddress?: string | null;
-    }) => api.auth.register(data),
+  const requestRegisterOtpMutation = useMutation({
+    mutationFn: (data: RegisterInput) => api.auth.requestRegisterOtp(data),
+  });
+
+  const verifyRegisterOtpMutation = useMutation({
+    mutationFn: ({ email, otp }: { email: string; otp: string }) =>
+      api.auth.verifyRegisterOtp({ email, otp }),
     onSuccess: (res) => {
       queryClient.setQueryData(["auth", "user"], mapAuthUserToUser(res.user));
       void queryClient.invalidateQueries({ queryKey: ["auth", "user"] });
@@ -167,17 +164,13 @@ export function useAuth() {
       .mutateAsync({ email, otp, rememberMe })
       .then((res) => mapAuthUserToUser(res.user));
 
-  const register = (data: {
-    email: string;
-    password: string;
-    fullName: string;
-    firstName?: string;
-    lastName?: string;
-    phone: string;
-    homeAddress?: string | null;
-  }) => {
-    return registerMutation.mutateAsync(data).then((res) => mapAuthUserToUser(res.user));
-  };
+  const requestRegisterOtp = (data: RegisterInput) =>
+    requestRegisterOtpMutation.mutateAsync(data);
+
+  const verifyRegisterOtp = (email: string, otp: string) =>
+    verifyRegisterOtpMutation
+      .mutateAsync({ email, otp })
+      .then((res) => mapAuthUserToUser(res.user));
 
   const logout = () => logoutMutation.mutateAsync();
 
@@ -186,12 +179,14 @@ export function useAuth() {
     isLoading: !mounted || isLoading,
     isAuthenticated: !!user,
     login,
-    register,
+    requestRegisterOtp,
+    verifyRegisterOtp,
     logout,
     requestLoginOtp,
     loginWithOtp,
     isLoggingIn: loginMutation.isPending,
-    isRegistering: registerMutation.isPending,
+    isRequestingRegisterOtp: requestRegisterOtpMutation.isPending,
+    isVerifyingRegisterOtp: verifyRegisterOtpMutation.isPending,
     isRequestingOtp: requestLoginOtpMutation.isPending,
     isVerifyingOtp: verifyLoginOtpMutation.isPending,
   };

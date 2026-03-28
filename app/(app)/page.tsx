@@ -31,7 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { usePublicLocations, useBookableAreas, useBookableLocations } from "@/lib/queries";
+import { usePublicLocations, useBookableLocations } from "@/lib/queries";
 import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
 import { LogIn } from "lucide-react";
@@ -65,8 +65,8 @@ type Partner = { name: string; logo: string; href: string; featured?: boolean };
 const PARTNERS: Partner[] = [
   {
     name: "CodyPlay",
-    // logo: "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=400&h=300&fit=crop&q=80",
-    logo: "/images/home/logo.jpeg",
+    logo: "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=400&h=300&fit=crop&q=80",
+    // logo: "/images/home/logo.jpeg",
     href: "#",
     featured: true,
   },
@@ -160,8 +160,6 @@ export default function Home() {
 
   const { data: publicLocations = [], isLoading: publicLoading } =
     usePublicLocations();
-  const { data: bookableAreas = [], isLoading: bookableAreasLoading } =
-    useBookableAreas(isAuthenticated && !authLoading);
   const { data: bookableLocations, isLoading: bookableLoading } =
     useBookableLocations(isAuthenticated && !authLoading);
 
@@ -170,18 +168,11 @@ export default function Home() {
     [isAuthenticated, bookableLocations, publicLocations],
   );
 
-  const reserveLocationNameById = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const l of locationsForUi) m.set(l.id, l.name);
-    return m;
-  }, [locationsForUi]);
-
   const locationsLoading =
     authLoading || (isAuthenticated ? bookableLoading : publicLoading);
-  const reserveAreasLoading = authLoading || (isAuthenticated ? bookableAreasLoading : false);
 
   const [showLocationSelect, setShowLocationSelect] = useState(false);
-  const [selectedAreaId, setSelectedAreaId] = useState<string>("");
+  const [selectedLocationId, setSelectedLocationId] = useState<string>("");
   const [reserveLoginOpen, setReserveLoginOpen] = useState(false);
   const [selectedMapLocationId, setSelectedMapLocationId] = useState<
     string | null
@@ -211,12 +202,17 @@ export default function Home() {
     setShowLocationSelect(true);
   };
 
-  const handleAreaChosen = (areaId: string) => {
-    setSelectedAreaId(areaId);
-    const area = bookableAreas.find((a) => a.id === areaId);
-    if (!area?.locationId) return;
-    router.push(`/locations/${area.locationId}/courts?areaId=${area.id}`);
+  const handleLocationChosen = (locationId: string) => {
+    setSelectedLocationId(locationId);
+    router.push(`/locations/${locationId}/courts`);
   };
+
+  /** Logged-in users with membership locations: show venue list without an extra click. */
+  useEffect(() => {
+    if (authLoading || !isAuthenticated) return;
+    const list = bookableLocations ?? [];
+    if (list.length > 0) setShowLocationSelect(true);
+  }, [authLoading, isAuthenticated, bookableLocations]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -277,7 +273,7 @@ export default function Home() {
               variants={itemVariants}
               className="mt-4 max-w-2xl mx-auto text-xl text-muted-foreground mb-12"
             >
-              Book tennis and pickleball courts, hire pro coaches, and track
+              Reserve tennis and pickleball courts, hire pro coaches, and track
               your progress. Quality facilities and programs, all in one place.
             </motion.p>
 
@@ -291,13 +287,13 @@ export default function Home() {
                 className="w-full sm:w-auto text-lg h-14 px-8 rounded-full bg-primary hover:opacity-90 text-primary-foreground shadow-brand transition-all font-bold"
                 onClick={handleReserveCourtClick}
               >
-                Reserve a court <ArrowRight className="ml-2 w-5 h-5" />
+                Reserve <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
               {showLocationSelect && isAuthenticated && (
                 <Select
-                  value={selectedAreaId || undefined}
-                  onValueChange={handleAreaChosen}
-                  disabled={reserveAreasLoading || bookableAreas.length === 0}
+                  value={selectedLocationId || undefined}
+                  onValueChange={handleLocationChosen}
+                  disabled={locationsLoading || (bookableLocations?.length ?? 0) === 0}
                 >
                   <SelectTrigger
                     className="w-full sm:w-[min(100%,280px)] h-14 rounded-full border-2 border-border bg-card font-bold text-foreground shadow-sm"
@@ -306,24 +302,19 @@ export default function Home() {
                     <SelectValue
                       placeholder={
                         locationsLoading
-                          ? "Loading areas…"
-                          : bookableAreas.length === 0
-                            ? "No areas available for your account"
-                            : "Choose an area"
+                          ? "Loading locations…"
+                          : (bookableLocations?.length ?? 0) === 0
+                            ? "No locations available for your account"
+                            : "Choose a location"
                       }
                     />
                   </SelectTrigger>
                   <SelectContent>
-                    {bookableAreas.map((area) => {
-                      const club =
-                        reserveLocationNameById.get(area.locationId) ?? "Club";
-                      return (
-                        <SelectItem key={area.id} value={area.id}>
-                          {club} — {area.name}
-                          {area.visibility === "private" ? " (members)" : ""}
-                        </SelectItem>
-                      );
-                    })}
+                    {(bookableLocations ?? []).map((loc) => (
+                      <SelectItem key={loc.id} value={loc.id}>
+                        {loc.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               )}

@@ -12,14 +12,14 @@ import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeho
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Mail, ShieldCheck } from "lucide-react";
+import { Mail } from "lucide-react";
 import { PasswordInput } from "@/components/ui/password-input";
 import { useAuth } from "@/lib/auth-store";
 import { api, ApiError } from "@/lib/api";
 import { requestOtpSchema, type RequestOtpFormValues } from "@/features/auth/schemas/request-otp.schema";
-import { verifyOtpSchema, type VerifyOtpFormValues } from "@/features/auth/schemas/verify-otp.schema";
 import { loginSchema, type LoginFormValues } from "@/features/auth/schemas/login.schema";
 import { safeNextPath } from "@/lib/safe-next-path";
+import { VerifyOtpStep } from "./verify-otp-step";
 
 interface LoginFormProps {
   onSwitchToRegister?: () => void;
@@ -44,7 +44,7 @@ export function LoginForm({
     queryFn: () => api.auth.getConfig(),
     staleTime: 5 * 60 * 1000,
   });
-  const loginOtpEnabled = authConfig?.loginOtpEnabled ?? true;
+  const loginOtpEnabled = authConfig?.loginOtpEnabled ?? false;
 
   const { requestLoginOtp, loginWithOtp, login, isRequestingOtp, isVerifyingOtp, isLoggingIn } =
     useAuth();
@@ -60,18 +60,12 @@ export function LoginForm({
     defaultValues: { email: "", password: "", rememberMe: false },
   });
 
-  const otpForm = useForm<VerifyOtpFormValues>({
-    resolver: zodResolver(verifyOtpSchema),
-    defaultValues: { email: "", otp: "" },
-  });
-
   const onEmailSubmit = async (data: RequestOtpFormValues) => {
     setSubmitError(null);
     try {
       await requestLoginOtp(data.email, data.password);
       setPendingEmail(data.email);
       setPendingRememberMe(!!data.rememberMe);
-      otpForm.setValue("email", data.email);
       setStep("otp");
     } catch (error) {
       if (error instanceof ApiError) {
@@ -102,21 +96,6 @@ export function LoginForm({
         setSubmitError(Array.isArray(msg) ? msg[0] : (msg ?? error.message));
       } else {
         setSubmitError("Invalid email or password.");
-      }
-    }
-  };
-
-  const onOtpSubmit = async (data: VerifyOtpFormValues) => {
-    setSubmitError(null);
-    try {
-      await loginWithOtp(data.email, data.otp, pendingRememberMe);
-      afterLoginRedirect();
-    } catch (error) {
-      if (error instanceof ApiError) {
-        const msg = error.body?.message;
-        setSubmitError(Array.isArray(msg) ? msg[0] : (msg ?? error.message));
-      } else {
-        setSubmitError("Invalid or expired OTP. Please request a new code.");
       }
     }
   };
@@ -228,60 +207,28 @@ export function LoginForm({
   // OTP flow: step 2
   if (step === "otp") {
     return (
-      <div>
-        <Card className="w-full shadow-soft-lg border-0 bg-transparent">
-          <CardContent>
-            <form onSubmit={otpForm.handleSubmit(onOtpSubmit)} className="space-y-4">
-              <p className="text-sm text-muted-foreground mb-2">
-                We sent a 6-digit code to{" "}
-                <strong className="text-foreground">{pendingEmail}</strong>
-              </p>
-              <div className="space-y-2">
-                <Label htmlFor="otp">Verification code</Label>
-                <div className="relative">
-                  <ShieldCheck className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="otp"
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    placeholder="000000"
-                    maxLength={6}
-                    className="pl-10 font-mono text-lg tracking-widest"
-                    {...otpForm.register("otp")}
-                  />
-                </div>
-                {otpForm.formState.errors.otp && (
-                  <p className="text-sm text-destructive">
-                    {otpForm.formState.errors.otp.message}
-                  </p>
-                )}
-              </div>
-              <input type="hidden" {...otpForm.register("email")} />
-              {submitError && (
-                <p className="text-sm text-destructive">{submitError}</p>
-              )}
-              <Button
-                type="submit"
-                className="w-full text-md font-bold h-11 bg-primary hover:opacity-90 text-primary-foreground shadow-brand"
-                disabled={isVerifyingOtp}
-                aria-busy={isVerifyingOtp}
-              >
-                {isVerifyingOtp ? <LoadingLabel>Verifying code</LoadingLabel> : "Verify & sign in"}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full text-sm text-muted-foreground"
-                onClick={handleBackToEmail}
-                disabled={isVerifyingOtp}
-              >
-                Use a different email
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+      <VerifyOtpStep
+        email={pendingEmail}
+        submitLabel="Verify & sign in"
+        backLabel="Use a different email"
+        isSubmitting={isVerifyingOtp}
+        error={submitError}
+        onVerify={async (otp) => {
+          setSubmitError(null);
+          try {
+            await loginWithOtp(pendingEmail, otp, pendingRememberMe);
+            afterLoginRedirect();
+          } catch (error) {
+            if (error instanceof ApiError) {
+              const msg = error.body?.message;
+              setSubmitError(Array.isArray(msg) ? msg[0] : (msg ?? error.message));
+            } else {
+              setSubmitError("Invalid or expired OTP. Please request a new code.");
+            }
+          }
+        }}
+        onBack={handleBackToEmail}
+      />
     );
   }
 

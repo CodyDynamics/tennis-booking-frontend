@@ -34,6 +34,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { cn } from "@/lib/utils";
 import type { CourtSlotApi } from "@/types/api";
 import { ApiError } from "@/lib/api";
+import { motion } from "framer-motion";
 
 type Sport = string;
 type CourtType = "indoor" | "outdoor";
@@ -109,6 +110,8 @@ export function LocationCourtBookingWizard({
   } | null>(null);
   const lastPrefillIdRef = useRef(0);
   const skipNextFilterResetRef = useRef(false);
+  /** Increment when user picks a date before choosing activity — retriggers motion wrapper. */
+  const [activityAttentionKey, setActivityAttentionKey] = useState(0);
 
   const selectedCalendarDate = useMemo(
     () => parse(bookingDate, "yyyy-MM-dd", new Date()),
@@ -359,7 +362,7 @@ export function LocationCourtBookingWizard({
   const canBook =
     !!selectedSlot && !!sport && !!courtType && !slotMutationPending;
 
-  const handleBookNow = async () => {
+  const handleConfirmBooking = async () => {
     if (!selectedSlot || !canBook) return;
     setBookError(null);
     const payload = {
@@ -411,6 +414,49 @@ export function LocationCourtBookingWizard({
     }
   };
 
+  const handleCancelSelections = useCallback(() => {
+    if (selectedSlot && sport && courtType) {
+      releaseSlotHold({
+        sport,
+        courtType,
+        date: bookingDate,
+        startTime: selectedSlot.startTime,
+        endTime: selectedSlot.endTime,
+      });
+    }
+    setSelectedSlot(null);
+    setSport(null);
+    setCourtType(null);
+    setDurationMinutes(90);
+    setBookingDate(todayVenueYmd);
+    setBookError(null);
+    setEditingBookingId(null);
+    setSlotAutoTarget(null);
+    setActivityAttentionKey(0);
+    void refetch();
+  }, [
+    selectedSlot,
+    sport,
+    courtType,
+    bookingDate,
+    releaseSlotHold,
+    todayVenueYmd,
+    refetch,
+  ]);
+
+  const handleCalendarSelect = useCallback(
+    (d: Date) => {
+      const ymd = format(d, "yyyy-MM-dd");
+      setBookingDate(ymd);
+      if (!sport) {
+        setActivityAttentionKey((k) => k + 1);
+      }
+    },
+    [sport],
+  );
+
+  const readyToConfirm = !!(sport && courtType && selectedSlot);
+
   return (
     <Card className="w-full border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl">
       <CardHeader>
@@ -454,11 +500,31 @@ export function LocationCourtBookingWizard({
           <div className="space-y-5">
             {/* Sport + Court Type */}
             <div className="flex flex-wrap gap-4">
-              <div className="space-y-2">
+              <motion.div
+                key={activityAttentionKey}
+                className="space-y-2 rounded-lg p-1 -m-1"
+                initial={false}
+                animate={
+                  activityAttentionKey > 0 && !sport
+                    ? {
+                        boxShadow: [
+                          "0 0 0 0px rgba(234,88,12,0)",
+                          "0 0 0 3px rgba(234,88,12,0.45)",
+                          "0 0 0 0px rgba(234,88,12,0)",
+                        ],
+                        scale: [1, 1.02, 1],
+                      }
+                    : false
+                }
+                transition={{ duration: 0.5, ease: "easeOut" }}
+              >
                 <Label>Select Activity</Label>
                 <Select
                   value={sport ?? ""}
-                  onValueChange={(v) => setSport(v as Sport)}
+                  onValueChange={(v) => {
+                    setSport(v as Sport);
+                    setActivityAttentionKey(0);
+                  }}
                 >
                   <SelectTrigger className="w-[160px]">
                     <SelectValue placeholder="Select sport" />
@@ -471,7 +537,7 @@ export function LocationCourtBookingWizard({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </motion.div>
 
               {sport && (
                 <div className="space-y-2">
@@ -663,15 +729,15 @@ export function LocationCourtBookingWizard({
             <Label>Date</Label>
             <CalendarGrid
               selectedDate={selectedCalendarDate}
-              onSelectDate={(d) => setBookingDate(format(d, "yyyy-MM-dd"))}
+              onSelectDate={handleCalendarSelect}
               isDateDisabled={(d) => format(d, "yyyy-MM-dd") < todayVenueYmd}
               className="border rounded-xl p-0 shadow-none"
             />
           </div>
         </div>
 
-        {/* ── Booking summary + confirm ── */}
-        {selectedSlot && (
+        {/* ── Booking summary: only after activity + type + slot are chosen ── */}
+        {readyToConfirm && selectedSlot && (
           <div className="mt-6 rounded-xl border border-primary/30 bg-primary/5 dark:bg-primary/10 p-4 space-y-3">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
               Your selection
@@ -702,34 +768,31 @@ export function LocationCourtBookingWizard({
               </li>
             </ul>
 
-            <Button
-              type="button"
-              size="lg"
-              className="w-full sm:w-auto rounded-full px-10 mt-1"
-              disabled={!canBook || slotMutationPending}
-              onClick={handleBookNow}
-            >
-              {slotMutationPending
-                ? editingBookingId
-                  ? "Updating…"
-                  : "Booking…"
-                : editingBookingId
-                  ? "Update now"
-                  : "Book now"}
-            </Button>
-          </div>
-        )}
-
-        {!selectedSlot && (
-          <div className="mt-4 pt-2">
-            <Button
-              type="button"
-              size="lg"
-              className="rounded-full px-10"
-              disabled
-            >
-              {editingBookingId ? "Update now" : "Book now"}
-            </Button>
+            <div className="flex flex-wrap gap-3 mt-1">
+              <Button
+                type="button"
+                size="lg"
+                variant="outline"
+                className="rounded-full px-8"
+                disabled={slotMutationPending}
+                onClick={handleCancelSelections}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="lg"
+                className="rounded-full px-10"
+                disabled={!canBook || slotMutationPending}
+                onClick={handleConfirmBooking}
+              >
+                {slotMutationPending
+                  ? editingBookingId
+                    ? "Updating…"
+                    : "Confirming…"
+                  : "Confirm"}
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>

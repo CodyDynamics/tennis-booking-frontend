@@ -463,6 +463,9 @@ export function useCancelBooking() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["courtSlots"] });
+      queryClient.invalidateQueries({ queryKey: ["courtWizardAvailability"] });
+      queryClient.invalidateQueries({ queryKey: ["courtAvailability"] });
     },
   });
 }
@@ -752,10 +755,11 @@ export function useLocationMembership(
 }
 
 // ----- Admin: Branches -----
-export function useBranches(organizationId?: string) {
+export function useBranches(organizationId?: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["branches", organizationId],
     queryFn: () => api.branches.getBranches(organizationId ? { organizationId } : undefined),
+    enabled: options?.enabled !== false,
   });
 }
 
@@ -786,6 +790,8 @@ export function useUsers(params?: {
   noMembershipAnywhere?: boolean;
   membershipAtLocationId?: string;
   areaId?: string;
+  accountType?: string;
+  excludeAccountType?: string;
   enabled?: boolean;
 }) {
   const { enabled = true, ...rest } = params ?? {};
@@ -800,6 +806,8 @@ export function useUsers(params?: {
       rest.noMembershipAnywhere,
       rest.membershipAtLocationId,
       rest.areaId,
+      rest.accountType,
+      rest.excludeAccountType,
     ],
     queryFn: () => api.users.getUsers(rest),
     enabled,
@@ -830,7 +838,10 @@ export function useUpdateCourt() {
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: Parameters<typeof api.courts.updateCourt>[1] }) =>
       api.courts.updateCourt(id, body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["courts"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["courts"] });
+      queryClient.invalidateQueries({ queryKey: ["court-booking-windows"] });
+    },
   });
 }
 
@@ -838,7 +849,34 @@ export function useDeleteCourt() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.courts.deleteCourt(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["courts"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["courts"] });
+      queryClient.invalidateQueries({ queryKey: ["court-booking-windows"] });
+    },
+  });
+}
+
+export function useCourtBookingWindows(params?: {
+  branchId?: string;
+  search?: string;
+  enabled?: boolean;
+}) {
+  const { enabled = true, ...rest } = params ?? {};
+  return useQuery({
+    queryKey: ["court-booking-windows", rest.branchId, rest.search],
+    queryFn: () => api.courts.getCourtBookingWindows(rest),
+    enabled,
+  });
+}
+
+export function useDeleteCourtBookingWindow() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (windowId: string) => api.courts.deleteCourtBookingWindow(windowId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["court-booking-windows"] });
+      queryClient.invalidateQueries({ queryKey: ["courts"] });
+    },
   });
 }
 
@@ -848,6 +886,18 @@ export function useCreateUser() {
   return useMutation({
     mutationFn: (body: Parameters<typeof api.users.createUser>[0]) => api.users.createUser(body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
+export function useCreateMembershipPlaceholder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Parameters<typeof api.users.createMembershipPlaceholder>[0]) =>
+      api.users.createMembershipPlaceholder(body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["users", "venue-memberships"] });
+    },
   });
 }
 
@@ -861,10 +911,13 @@ export function useUpdateUser() {
       id: string;
       body: Parameters<typeof api.users.updateUser>[1];
     }) => api.users.updateUser(id, body),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       queryClient.invalidateQueries({
         queryKey: ["users", "venue-memberships"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["users", variables.id, "detail"],
       });
     },
   });

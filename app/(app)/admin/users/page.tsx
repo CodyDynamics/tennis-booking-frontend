@@ -33,20 +33,25 @@ import {
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
-import PhoneInput from "react-phone-number-input";
 import { ApiError } from "@/lib/api";
 import type { UserApi } from "@/lib/api/endpoints/users";
 import { AdminFilter, AdminTable, AdminPagination } from "../components";
 import { hasAdminPermission } from "@/lib/admin-rbac";
+import { useAdmin } from "../admin-context";
+import { UsPhoneField } from "@/components/ui/us-phone-field";
+import { formatPhoneDisplay } from "@/lib/us-phone";
 
 const PAGE_SIZE = 10;
 
 export default function AdminUsersPage() {
   const { user } = useAuth();
+  const { locationId: adminLocationId } = useAdmin();
   const [search, setSearch] = useState("");
   const [roleId, setRoleId] = useState<string>("all");
-  const [onlyMembership, setOnlyMembership] = useState(false);
-  const [filterLocationId, setFilterLocationId] = useState<string>("all");
+  /** Default: hide pre-added membership placeholders (accountType membership). */
+  const [accountTypeScope, setAccountTypeScope] = useState<
+    "exclude_membership" | "all" | "system" | "normal" | "membership"
+  >("exclude_membership");
   const [filterAreaId, setFilterAreaId] = useState<string>("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserApi | null>(null);
@@ -65,10 +70,17 @@ export default function AdminUsersPage() {
   const { data: users = [], isLoading } = useUsers({
     roleId: roleId && roleId !== "all" ? roleId : undefined,
     search: search || undefined,
-    onlyMembership,
+    accountType:
+      accountTypeScope === "system" ||
+      accountTypeScope === "normal" ||
+      accountTypeScope === "membership"
+        ? accountTypeScope
+        : undefined,
+    excludeAccountType:
+      accountTypeScope === "exclude_membership" ? "membership" : undefined,
     membershipAtLocationId:
-      showScopeFilters && filterAreaId === "all" && filterLocationId !== "all"
-        ? filterLocationId
+      showScopeFilters && filterAreaId === "all" && adminLocationId !== "all"
+        ? adminLocationId
         : undefined,
     areaId: showScopeFilters && filterAreaId !== "all" ? filterAreaId : undefined,
   });
@@ -92,12 +104,6 @@ export default function AdminUsersPage() {
     [bookableLocations],
   );
 
-  const locationsForScopeFilter = useMemo(() => {
-    if (user?.role === "super_user") return bookableLocations;
-    if (user?.role === "super_admin" || user?.role === "admin") return locations;
-    return [];
-  }, [user?.role, bookableLocations, locations]);
-
   const areasForScopeFilter = useMemo(() => {
     if (user?.role === "super_user") {
       return areas.filter((a) => bookableLocationIds.has(a.locationId));
@@ -107,33 +113,20 @@ export default function AdminUsersPage() {
   }, [user?.role, areas, bookableLocationIds]);
 
   const areasScopedByLocationFilter = useMemo(() => {
-    if (filterLocationId === "all") return areasForScopeFilter;
-    return areasForScopeFilter.filter((a) => a.locationId === filterLocationId);
-  }, [areasForScopeFilter, filterLocationId]);
+    if (adminLocationId === "all") return areasForScopeFilter;
+    return areasForScopeFilter.filter((a) => a.locationId === adminLocationId);
+  }, [areasForScopeFilter, adminLocationId]);
 
-  const targetMembershipLocationIds = useMemo(() => {
-    if (!editUserDetail?.memberships?.length) return [];
-    return Array.from(new Set(editUserDetail.memberships.map((m) => m.locationId)));
-  }, [editUserDetail]);
-
-  /** Areas allowed in membership dropdown: target user’s venue(s), or bookable venues for super_user, or all for super_admin. */
-  const areasForMembershipDropdown = useMemo(() => {
-    if (editingUser && targetMembershipLocationIds.length > 0) {
-      return areas.filter((a) => targetMembershipLocationIds.includes(a.locationId));
-    }
-    if (!editingUser) {
-      if (user?.role === "super_admin") return areas;
-      if (user?.role === "super_user") {
-        return areas.filter((a) => bookableLocationIds.has(a.locationId));
-      }
-      return areas;
-    }
-    if (user?.role === "super_admin") return areas;
+  /** Venue locations assignable from Edit/Create user (membership row uses locationId). */
+  const locationsForMembershipPick = useMemo(() => {
     if (user?.role === "super_user") {
-      return areas.filter((a) => bookableLocationIds.has(a.locationId));
+      return bookableLocations.length > 0
+        ? bookableLocations
+        : locations.filter((l) => bookableLocationIds.has(l.id));
     }
-    return areas;
-  }, [areas, editingUser, targetMembershipLocationIds, user?.role, bookableLocationIds]);
+    if (user?.role === "super_admin" || user?.role === "admin") return locations;
+    return [];
+  }, [user?.role, locations, bookableLocations, bookableLocationIds]);
 
   const membershipSyncedRef = useRef<string | null>(null);
 
@@ -143,11 +136,11 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     setFilterAreaId("all");
-  }, [filterLocationId]);
+  }, [adminLocationId]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, roleId, onlyMembership, filterLocationId, filterAreaId]);
+  }, [search, roleId, accountTypeScope, adminLocationId, filterAreaId]);
 
   const paginatedUsers = useMemo(
     () => users.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
@@ -163,7 +156,7 @@ export default function AdminUsersPage() {
     roleId: "",
     status: "active" as "active" | "inactive",
     mustChangePasswordOnFirstLogin: false,
-    membershipAreaId: "",
+    membershipLocationId: "__none__",
     password: "",
   });
 
@@ -178,7 +171,7 @@ export default function AdminUsersPage() {
       roleId: roles[0]?.id ?? "",
       status: "active",
       mustChangePasswordOnFirstLogin: false,
-      membershipAreaId: "",
+      membershipLocationId: "__none__",
       password: "",
     });
   };
@@ -201,7 +194,7 @@ export default function AdminUsersPage() {
       roleId: u.roleId,
       status: u.status as "active" | "inactive",
       mustChangePasswordOnFirstLogin: u.mustChangePasswordOnFirstLogin ?? false,
-      membershipAreaId: "",
+      membershipLocationId: "__none__",
       password: "",
     });
     setModalOpen(true);
@@ -220,20 +213,24 @@ export default function AdminUsersPage() {
     if (membershipSyncedRef.current === syncKey) return;
     membershipSyncedRef.current = syncKey;
     if (!locId) {
-      setForm((f) => ({ ...f, membershipAreaId: "" }));
+      setForm((f) => ({ ...f, membershipLocationId: "__none__" }));
       return;
     }
-    const candidates = areasForMembershipDropdown.filter((a) => a.locationId === locId);
-    const picked = [...candidates].sort((a, b) => a.name.localeCompare(b.name))[0];
-    setForm((f) => ({ ...f, membershipAreaId: picked?.id ?? "" }));
-  }, [editingUser?.id, modalOpen, editUserDetail, areasForMembershipDropdown]);
+    const allowed = new Set(locationsForMembershipPick.map((l) => l.id));
+    setForm((f) => ({
+      ...f,
+      membershipLocationId: allowed.has(locId) ? locId : "__none__",
+    }));
+  }, [editingUser?.id, modalOpen, editUserDetail, locationsForMembershipPick]);
 
   const fullName = `${form.firstName} ${form.lastName}`.trim();
   const phoneValid = true;
 
-  const resolveMembershipLocationId = (): string | undefined => {
-    if (!form.membershipAreaId || form.membershipAreaId === "__none__") return undefined;
-    return areas.find((a) => a.id === form.membershipAreaId)?.locationId;
+  const resolvedMembershipLocationPayload = (): string | null | undefined => {
+    if (!form.membershipLocationId || form.membershipLocationId === "__none__") {
+      return editingUser ? null : undefined;
+    }
+    return form.membershipLocationId;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -242,7 +239,6 @@ export default function AdminUsersPage() {
     if (editingUser && editUserDetailLoading) return;
 
     if (editingUser) {
-      const locId = resolveMembershipLocationId();
       const err = await updateUser
         .mutateAsync({
           id: editingUser.id,
@@ -256,8 +252,7 @@ export default function AdminUsersPage() {
             roleId: form.roleId,
             status: form.status,
             mustChangePasswordOnFirstLogin: form.mustChangePasswordOnFirstLogin,
-            membershipLocationId:
-              !form.membershipAreaId || form.membershipAreaId === "__none__" ? null : locId ?? null,
+            membershipLocationId: resolvedMembershipLocationPayload() ?? null,
             ...(form.password ? { password: form.password } : {}),
           },
         })
@@ -277,7 +272,8 @@ export default function AdminUsersPage() {
           homeAddress: form.homeAddress || undefined,
           roleId: form.roleId,
           mustChangePasswordOnFirstLogin: form.mustChangePasswordOnFirstLogin,
-          membershipLocationId: resolveMembershipLocationId(),
+          membershipLocationId:
+            resolvedMembershipLocationPayload() ?? undefined,
         })
         .then(() => null)
         .catch((err) => err);
@@ -331,29 +327,20 @@ export default function AdminUsersPage() {
             ))}
           </SelectContent>
         </Select>
-        <div className="flex items-center gap-2 px-2">
-          <Checkbox
-            id="onlyMembership"
-            checked={onlyMembership}
-            onCheckedChange={(v) => setOnlyMembership(Boolean(v))}
-          />
-          <Label htmlFor="onlyMembership">Only membership users</Label>
-        </div>
+        <Select value={accountTypeScope} onValueChange={(v) => setAccountTypeScope(v as typeof accountTypeScope)}>
+          <SelectTrigger className="w-[220px]">
+            <SelectValue placeholder="Account type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="exclude_membership">App users (no placeholders)</SelectItem>
+            <SelectItem value="all">All account types</SelectItem>
+            <SelectItem value="system">System only</SelectItem>
+            <SelectItem value="normal">Normal only</SelectItem>
+            <SelectItem value="membership">Membership placeholders</SelectItem>
+          </SelectContent>
+        </Select>
         {showScopeFilters && (
           <>
-            <Select value={filterLocationId} onValueChange={setFilterLocationId}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Location" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All locations</SelectItem>
-                {locationsForScopeFilter.map((loc) => (
-                  <SelectItem key={loc.id} value={loc.id}>
-                    {loc.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <Select value={filterAreaId} onValueChange={setFilterAreaId}>
               <SelectTrigger className="w-[220px]">
                 <SelectValue placeholder="Area" />
@@ -395,8 +382,23 @@ export default function AdminUsersPage() {
                 render: (u) => <span className="font-medium">{u.firstName ?? "—"}</span>,
               },
               { key: "email", label: "Email" },
-              { key: "phone", label: "Phone", render: (u) => u.phone ?? "—" },
+              {
+                key: "phone",
+                label: "Phone",
+                render: (u) => (
+                  <span className="tabular-nums">{formatPhoneDisplay(u.phone)}</span>
+                ),
+              },
               { key: "homeAddress", label: "Address", render: (u) => u.homeAddress ?? "—" },
+              {
+                key: "accountType",
+                label: "Type",
+                render: (u) => (
+                  <span className="capitalize text-muted-foreground">
+                    {u.accountType ?? "—"}
+                  </span>
+                ),
+              },
               {
                 key: "role",
                 label: "Role",
@@ -504,16 +506,13 @@ export default function AdminUsersPage() {
             </div>
             <div>
               <Label>Phone</Label>
-              <PhoneInput
-                international
-                defaultCountry="US"
-                countryCallingCodeEditable={false}
-                placeholder="Enter phone number"
-                value={form.phone || ""}
-                onChange={(value) =>
-                  setForm((f) => ({ ...f, phone: value || "" }))
-                }
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              <p className="text-xs text-muted-foreground mb-1.5">
+                10-digit US number; stored as +1…
+              </p>
+              <UsPhoneField
+                variant="compact"
+                value={form.phone}
+                onChange={(value) => setForm((f) => ({ ...f, phone: value }))}
               />
             </div>
             <div>
@@ -543,20 +542,19 @@ export default function AdminUsersPage() {
               </Select>
             </div>
             <div>
-              <Label>Area membership (optional)</Label>
+              <Label>Venue membership (optional)</Label>
               <p className="text-muted-foreground mb-2 text-xs">
-                {targetMembershipLocationIds.length > 0
-                  ? "Only areas under this user’s assigned location(s) are listed. Membership is stored per location; picking an area sets that location."
-                  : user?.role === "super_admin"
-                    ? "Choose an area to set membership location, or None. For venue staff, assign a location on Locations first if you need a restricted list."
-                    : "Only areas at locations you operate (or the user’s assigned venue when editing) are listed. Membership is stored per location."}
+                Pick a <strong>location</strong> to create or replace this user&apos;s venue membership
+                row. Choose <strong>None</strong> to remove all venue memberships (not allowed for
+                venue operators on other users when clearing). Users then appear under{" "}
+                <strong>User Membership</strong> when that location is selected in the sidebar.
               </p>
               <Select
-                value={form.membershipAreaId || "__none__"}
+                value={form.membershipLocationId || "__none__"}
                 onValueChange={(v) =>
                   setForm((f) => ({
                     ...f,
-                    membershipAreaId: v === "__none__" ? "" : v,
+                    membershipLocationId: v === "__none__" ? "__none__" : v,
                   }))
                 }
                 disabled={!!editingUser && editUserDetailLoading}
@@ -566,9 +564,10 @@ export default function AdminUsersPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">None</SelectItem>
-                  {areasForMembershipDropdown.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {locationNameById.get(a.locationId) ?? "Location"} — {a.name}
+                  {locationsForMembershipPick.map((loc) => (
+                    <SelectItem key={loc.id} value={loc.id}>
+                      {loc.name}
+                      {loc.kind ? ` (${loc.kind})` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>

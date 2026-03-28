@@ -3,6 +3,7 @@ import type {
   AuthResponse,
   LoginInput,
   RegisterInput,
+  VerifyRegisterOtpInput,
   ForgotPasswordInput,
   ForgotPasswordResponse,
   RequestLoginOtpInput,
@@ -12,7 +13,8 @@ import type { ApiClient } from "../client";
 
 const PATHS = {
   login: "/auth/login",
-  register: "/auth/register",
+  registerRequestOtp: "/auth/register/request-otp",
+  registerVerifyOtp: "/auth/register/verify-otp",
   refresh: "/auth/refresh",
   logout: "/auth/logout",
   profile: "/users/profile",
@@ -26,7 +28,10 @@ export function createAuthEndpoints(client: ApiClient) {
   return {
     getConfig: () => client.get<AuthConfig>(PATHS.config),
     login: (body: LoginInput) => client.post<AuthResponse>(PATHS.login, body),
-    register: (body: RegisterInput) => client.post<AuthResponse>(PATHS.register, body),
+    requestRegisterOtp: (body: RegisterInput) =>
+      client.post<{ message: string }>(PATHS.registerRequestOtp, body),
+    verifyRegisterOtp: (body: VerifyRegisterOtpInput) =>
+      client.post<AuthResponse>(PATHS.registerVerifyOtp, body),
     refresh: () => client.post<AuthResponse>(PATHS.refresh, {}),
     logout: () => client.post<{ message: string }>(PATHS.logout, {}),
     getProfile: () => client.get<AuthResponse["user"]>(PATHS.profile),

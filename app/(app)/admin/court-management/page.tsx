@@ -10,6 +10,7 @@ import {
   useBookableLocations,
 } from "@/lib/queries";
 import { useAuth } from "@/lib/auth-store";
+import { useAdmin } from "../admin-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,9 +37,10 @@ const COURTS_PAGE_SIZE = 10;
 
 export default function AdminCourtManagementPage() {
   const { user } = useAuth();
+  const { locationId } = useAdmin();
   const [search, setSearch] = useState("");
-  const [locationId, setLocationId] = useState<string>("all");
   const [modalOpen, setModalOpen] = useState(false);
+  const [courtFormLocationId, setCourtFormLocationId] = useState("");
   const [name, setName] = useState("");
   const [sportCode, setSportCode] = useState("tennis");
 
@@ -88,7 +90,14 @@ export default function AdminCourtManagementPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Court Management</h1>
-        <Button onClick={() => setModalOpen(true)}>
+        <Button
+          onClick={() => {
+            setCourtFormLocationId(
+              locationId !== "all" ? locationId : (locations[0]?.id ?? ""),
+            );
+            setModalOpen(true);
+          }}
+        >
           <Plus className="mr-2 h-4 w-4" />
           Add Court
         </Button>
@@ -96,25 +105,11 @@ export default function AdminCourtManagementPage() {
 
       <AdminFilter
         title="Filters"
-        description="Manage court master data (name + sport) by location child."
+        description="Courts are scoped by Location in the sidebar. Manage court master data (name + sport) per venue."
         searchPlaceholder="Search by court name..."
         searchValue={search}
         onSearchChange={setSearch}
-      >
-        <Select value={locationId} onValueChange={setLocationId}>
-          <SelectTrigger className="w-[220px]">
-            <SelectValue placeholder="All location child" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All location child</SelectItem>
-            {locations.map((loc) => (
-              <SelectItem key={loc.id} value={loc.id}>
-                {loc.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </AdminFilter>
+      />
 
       <Card>
         <CardContent className="pt-6">
@@ -176,7 +171,10 @@ export default function AdminCourtManagementPage() {
           <div className="space-y-4">
             <div>
               <Label>Location Child</Label>
-              <Select value={locationId} onValueChange={setLocationId}>
+              <Select
+                value={courtFormLocationId || locations[0]?.id}
+                onValueChange={setCourtFormLocationId}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select location child" />
                 </SelectTrigger>
@@ -212,9 +210,10 @@ export default function AdminCourtManagementPage() {
           <DialogFooter>
             <Button
               onClick={async () => {
-                if (!locationId || locationId === "all" || !name.trim()) return;
+                const loc = courtFormLocationId || locations[0]?.id;
+                if (!loc || !name.trim()) return;
                 await createCourt.mutateAsync({
-                  locationId,
+                  locationId: loc,
                   name: name.trim(),
                   sport: sportCode,
                 });

@@ -22,7 +22,7 @@ export interface AuthUser {
   memberships?: AuthUserMembership[];
 }
 
-/** Response from POST /auth/login, /auth/register, /auth/refresh */
+/** Response from POST /auth/login, /auth/register/verify-otp, /auth/refresh */
 export interface AuthResponse {
   accessToken: string;
   refreshToken?: string;
@@ -37,17 +37,27 @@ export interface LoginInput {
   rememberMe?: boolean;
 }
 
-/** Body for POST /auth/register */
+/** Body for POST /auth/register/request-otp */
 export interface RegisterInput {
   email: string;
   password: string;
   fullName: string;
   firstName?: string;
   lastName?: string;
+  /** E.164 US (+1 + 10 digits) */
   phone: string;
-  homeAddress?: string | null;
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
   organizationId?: string;
   branchId?: string;
+}
+
+/** Body for POST /auth/register/verify-otp */
+export interface VerifyRegisterOtpInput {
+  email: string;
+  otp: string;
 }
 
 /** Body for POST /auth/request-login-otp */

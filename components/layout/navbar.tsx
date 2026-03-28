@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
 import type { User as AppUser } from "@/types";
 import { motion } from "framer-motion";
-import { LogIn, LogOut, Shield, User, Users } from "lucide-react";
+import { Activity, LogIn, LogOut, Shield, User, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -67,15 +67,15 @@ export function Navbar() {
               transition={{ duration: 0.3 }}
               className="rounded-xl p-2 text-primary-foreground shadow-brand"
             >
-              {/* <Activity className="h-6 w-6" /> */}
-              <div className="w-10 h-10 justify-center items-center flex">
+              <Activity className="h-6 w-6" />
+              {/* <div className="w-10 h-10 justify-center items-center flex">
                 <Image
                   src="/images/home/logo.jpeg"
                   alt="CodyPlay Logo"
                   width={50}
                   height={50}
                 />
-              </div>
+              </div> */}
             </motion.div>
             <span className="text-2xl font-black tracking-tight text-foreground">
               CodyPlay

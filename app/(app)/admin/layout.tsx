@@ -6,15 +6,16 @@ import { cn } from "@/lib/utils";
 import type { User } from "@/types";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft,
-  Building2,
-  LayoutDashboard,
-  LogOut,
-  MapPin,
-  Network,
-  Shapes,
-  Shield,
-  Users
+    Activity,
+    ArrowLeft,
+    Building2,
+    LayoutDashboard,
+    LogOut,
+    MapPin,
+    Network,
+    Shapes,
+    Shield,
+    Users
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -65,7 +66,7 @@ function canAccessAdmin(user: User | null, pathname: string): boolean {
 import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 import { AdminProvider } from "./admin-context";
 import { SportSelector } from "./components/sport-selector";
-import Image from "next/image";
+import { LocationScopeSelector } from "./components/location-scope-selector";
 
 export default function AdminLayout({
   children,
@@ -114,15 +115,15 @@ export default function AdminLayout({
   const navItems =
     user.role === "super_user"
       ? allNavItems.filter((i) =>
-          [
-            "/admin",
-            "/admin/users",
-            "/admin/user-memberships",
-            "/admin/court-management",
-            "/admin/courts",
-            "/admin/areas",
-          ].includes(i.href),
-        )
+        [
+          "/admin",
+          "/admin/users",
+          "/admin/user-memberships",
+          "/admin/court-management",
+          "/admin/courts",
+          "/admin/areas",
+        ].includes(i.href),
+      )
       : allNavItems;
 
   const handleLogout = async () => {
@@ -137,30 +138,22 @@ export default function AdminLayout({
           <div className="p-6 border-b border-slate-100 dark:border-slate-800">
             <Link href="/admin" className="flex items-center space-x-3 group">
               <motion.div
-                // whileHover={{ rotate: 180, scale: 1.1 }}
-                whileHover={{ scale: 1.1 }}
+                whileHover={{ scale: 1.06 }}
                 transition={{ duration: 0.3 }}
-                className="rounded-xl p-2 text-white shadow-lg shadow-blue-500/30"
+                className="rounded-xl p-2.5 bg-primary text-primary-foreground shadow-md shadow-primary/25 ring-1 ring-primary/20"
               >
-                {/* <Activity className="h-6 w-6" /> */}
-                <div className="w-10 h-10 justify-center items-center flex">
-                  <Image
-                    src="/images/home/logo.jpeg"
-                    alt="CodyPlay Logo"
-                    width={50}
-                    height={50}
-                  />
-                </div>
+                <Activity className="h-6 w-6" />
               </motion.div>
               <span className="text-2xl flex flex-col font-black tracking-tight text-slate-900 dark:text-white">
                 CodyPlay
-                <span className="text-blue-600 text-sm">Admin</span>
+                <span className="text-primary text-sm font-semibold">Admin</span>
               </span>
             </Link>
           </div>
 
-          <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+          <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 space-y-4">
             <SportSelector />
+            <LocationScopeSelector />
           </div>
 
           <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto">
@@ -175,11 +168,16 @@ export default function AdminLayout({
                     className={cn(
                       "w-full justify-start h-12 text-md transition-all rounded-xl font-medium",
                       isActive
-                        ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20"
+                        ? "bg-primary hover:bg-primary/90 text-primary-foreground shadow-md shadow-primary/20"
                         : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                     )}
                   >
-                    <Icon className={cn("mr-3 h-5 w-5", isActive ? "text-blue-200" : "text-slate-400")} />
+                    <Icon
+                      className={cn(
+                        "mr-3 h-5 w-5",
+                        isActive ? "text-primary-foreground/90" : "text-slate-400",
+                      )}
+                    />
                     {item.label}
                   </Button>
                 </Link>

@@ -13,6 +13,8 @@ export interface UserApi {
   firstName?: string | null;
   lastName?: string | null;
   phone?: string | null;
+  /** system | normal | membership */
+  accountType?: string | null;
   homeAddress?: string | null;
   organizationId?: string | null;
   branchId?: string | null;
@@ -70,6 +72,18 @@ export interface UpdateUserBody {
   membershipLocationId?: string | null;
 }
 
+export interface CreateMembershipPlaceholderBody {
+  email: string;
+  phone: string;
+  fullName: string;
+  firstName?: string;
+  lastName?: string;
+  homeAddress?: string;
+  organizationId?: string;
+  branchId?: string;
+  membershipLocationId?: string;
+}
+
 export function createUsersEndpoints(client: ApiClient) {
   return {
     getUsers: (params?: {
@@ -84,6 +98,8 @@ export function createUsersEndpoints(client: ApiClient) {
       noMembershipAnywhere?: boolean;
       membershipAtLocationId?: string;
       areaId?: string;
+      accountType?: string;
+      excludeAccountType?: string;
     }) => {
       const q: Record<string, string> = {};
       if (params?.roleId) q.roleId = params.roleId;
@@ -94,6 +110,8 @@ export function createUsersEndpoints(client: ApiClient) {
       if (params?.noMembershipAnywhere) q.noMembershipAnywhere = "true";
       if (params?.membershipAtLocationId) q.membershipAtLocationId = params.membershipAtLocationId;
       if (params?.areaId) q.areaId = params.areaId;
+      if (params?.accountType) q.accountType = params.accountType;
+      if (params?.excludeAccountType) q.excludeAccountType = params.excludeAccountType;
       return client.get<UserApi[]>("/users", {
         params: Object.keys(q).length ? q : undefined,
       });
@@ -108,6 +126,8 @@ export function createUsersEndpoints(client: ApiClient) {
             : undefined,
       }),
     createUser: (body: CreateUserBody) => client.post<UserApi>("/users", body),
+    createMembershipPlaceholder: (body: CreateMembershipPlaceholderBody) =>
+      client.post<UserApi>("/users/membership-placeholder", body),
     updateUser: (id: string, body: UpdateUserBody) =>
       client.patch<UserApi>(`/users/${id}`, body),
     deleteUser: (id: string) => client.delete<{ deleted: boolean }>(`/users/${id}`),

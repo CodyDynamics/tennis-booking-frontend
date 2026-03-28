@@ -2,6 +2,23 @@ import type { ApiClient } from "../client";
 import type { ListResponse } from "../list-response";
 import type { CoachApi } from "./coaches";
 
+/** Row for admin “Court Time Slot” (per-court booking window). */
+export interface CourtBookingWindowAdminApi {
+  id: string;
+  courtId: string;
+  courtName: string;
+  locationId: string;
+  locationName: string;
+  sport: string;
+  courtType: string;
+  windowStartTime: string;
+  windowEndTime: string;
+  isActive: boolean;
+  pricePerHour: number;
+  courtStatus: string;
+  description: string | null;
+}
+
 export interface CourtApi {
   id: string;
   locationId: string | null;
@@ -20,7 +37,12 @@ export interface CourtApi {
   sport: string;
   createdAt?: string;
   updatedAt?: string;
-  location?: { id: string; name: string; address?: string | null; branchId: string } | null;
+  location?: {
+    id: string;
+    name: string;
+    address?: string | null;
+    branchId?: string | null;
+  } | null;
   /** Present on GET /courts/:id — coaches assigned to this court */
   coaches?: CoachApi[];
 }
@@ -55,6 +77,16 @@ export interface UpdateCourtBody {
 
 export function createCourtsEndpoints(client: ApiClient) {
   return {
+    getCourtBookingWindows: (params?: { branchId?: string; search?: string }) => {
+      const q: Record<string, string> = {};
+      if (params?.branchId) q.branchId = params.branchId;
+      if (params?.search) q.search = params.search;
+      return client.get<CourtBookingWindowAdminApi[]>("/courts/booking-windows", {
+        params: Object.keys(q).length ? q : undefined,
+      });
+    },
+    deleteCourtBookingWindow: (windowId: string) =>
+      client.delete<{ deleted: boolean }>(`/courts/booking-windows/${windowId}`),
     getCourts: (params?: {
       locationId?: string;
       branchId?: string;

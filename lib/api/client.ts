@@ -91,7 +91,8 @@ export async function request<T>(
       allowRetry &&
       !path.startsWith("/auth/refresh") &&
       !path.startsWith("/auth/login") &&
-      !path.startsWith("/auth/register") &&
+      !path.startsWith("/auth/register/request-otp") &&
+      !path.startsWith("/auth/register/verify-otp") &&
       !path.startsWith("/auth/request-login-otp") &&
       !path.startsWith("/auth/verify-login-otp")
     ) {

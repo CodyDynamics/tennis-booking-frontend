@@ -5,18 +5,16 @@ import { useAuth } from "@/lib/auth-store";
 import { useAdmin } from "../admin-context";
 import {
   useCourts,
+  useCourtBookingWindows,
   useBookableLocations,
   useBranches,
-  useLocations,
-  useAreas,
-  useCreateCourt,
   useUpdateCourt,
-  useDeleteCourt,
+  useDeleteCourtBookingWindow,
   useSports,
 } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -34,7 +32,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/format";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
-import { api, ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/api";
+import type { CourtBookingWindowAdminApi } from "@/lib/api/endpoints/courts";
 import type { Court } from "@/types";
 import { AdminFilter, AdminTable, AdminPagination } from "../components";
 import { hasAdminPermission } from "@/lib/admin-rbac";
@@ -54,93 +53,118 @@ function toAmPmLabel(hhmm: string): string {
   return `${h12.toString().padStart(2, "0")}:${m} ${suffix}`;
 }
 
+/** Map API time to grid values used in selects (30-min steps). */
+function normalizeGridTime(t: string): string {
+  const m = t.trim().match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return "08:00";
+  let h = parseInt(m[1], 10);
+  if (h > 23) h = 23;
+  const mm = m[2] === "30" ? "30" : "00";
+  return `${String(h).padStart(2, "0")}:${mm}`;
+}
+
 export default function AdminCourtsPage() {
   const { user } = useAuth();
-  const { sport } = useAdmin();
+  const { sport, locationId: adminLocationId } = useAdmin();
   const [search, setSearch] = useState("");
   const [branchId, setBranchId] = useState<string>("all");
-  const [status, setStatus] = useState<string>("all");
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingCourt, setEditingCourt] = useState<Court | null>(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [modalBranchId, setModalBranchId] = useState<string | undefined>(undefined);
+  const [editingRow, setEditingRow] = useState<CourtBookingWindowAdminApi | null>(null);
+  const [deleteConfirmWindowId, setDeleteConfirmWindowId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const canCreate = hasAdminPermission(user?.permissions, "courts:create", user?.role);
   const canUpdate = hasAdminPermission(user?.permissions, "courts:update", user?.role);
   const canDelete = hasAdminPermission(user?.permissions, "courts:delete", user?.role);
 
-  const { data: courts = [], isLoading } = useCourts({
-    branchId: branchId && branchId !== "all" ? branchId : undefined,
-    status: status && status !== "all" ? status : undefined,
-    search: search || undefined,
-    sport,
-  });
-
   const { data: bookableLocs = [] } = useBookableLocations(user?.role === "super_user");
 
-  const courtsForUi = useMemo(() => {
-    if (user?.role !== "super_user" || bookableLocs.length === 0) return courts;
+  const { data: timeSlots = [], isLoading: slotsLoading } = useCourtBookingWindows({
+    branchId: branchId && branchId !== "all" ? branchId : undefined,
+    search: search || undefined,
+  });
+
+  const { data: pickerCourtsRaw = [], isLoading: pickerLoading } = useCourts({
+    branchId: branchId && branchId !== "all" ? branchId : undefined,
+  });
+
+  const pickerCourtsForUi = useMemo(() => {
+    let rows = pickerCourtsRaw;
+    if (adminLocationId !== "all") {
+      rows = rows.filter((c) => c.locationId === adminLocationId);
+    }
+    if (user?.role !== "super_user" || bookableLocs.length === 0) return rows;
     const allowed = new Set(bookableLocs.map((l) => l.id));
-    return courts.filter((c) => Boolean(c.locationId && allowed.has(c.locationId)));
-  }, [courts, bookableLocs, user?.role]);
+    return rows.filter((c) => Boolean(c.locationId && allowed.has(c.locationId)));
+  }, [pickerCourtsRaw, bookableLocs, user?.role, adminLocationId]);
+
+  const slotsForUi = useMemo(() => {
+    let rows = timeSlots;
+    if (adminLocationId !== "all") {
+      rows = rows.filter((s) => s.locationId === adminLocationId);
+    }
+    if (user?.role !== "super_user" || bookableLocs.length === 0) return rows;
+    const allowed = new Set(bookableLocs.map((l) => l.id));
+    return rows.filter((s) => allowed.has(s.locationId));
+  }, [timeSlots, bookableLocs, user?.role, adminLocationId]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, branchId, status, sport, courtsForUi]);
+  }, [search, branchId, slotsForUi]);
 
-  const paginatedCourts = useMemo(
-    () => courtsForUi.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [courtsForUi, page]
+  const paginatedSlots = useMemo(
+    () => slotsForUi.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [slotsForUi, page],
   );
+
   const { data: branches = [] } = useBranches();
   const { data: sports = [] } = useSports();
-  const locationsBranchId = modalOpen ? (modalBranchId ?? (branchId !== "all" ? branchId : branches[0]?.id)) : (branchId !== "all" ? branchId : branches[0]?.id);
-  const { data: locations = [] } = useLocations(locationsBranchId);
-  const { data: areas = [] } = useAreas();
-  const createCourt = useCreateCourt();
   const updateCourt = useUpdateCourt();
-  const deleteCourt = useDeleteCourt();
+  const deleteCourtSlot = useDeleteCourtBookingWindow();
 
-  const formDefaults = useMemo(
-    () => ({
-      branchId: editingCourt?.branchId ?? (branches[0]?.id ?? ""),
-      areaId: editingCourt?.areaId ?? "",
-      locationId: editingCourt?.locationId ?? (locations[0]?.id ?? ""),
-      name: editingCourt?.name ?? "",
-      type: (editingCourt?.type ?? "outdoor") as "indoor" | "outdoor",
-      sport: editingCourt?.sport ?? sport ?? "tennis",
-      pricePerHour: editingCourt?.pricePerHour ?? 0,
-      description: editingCourt?.description ?? "",
-      status: (editingCourt?.status ?? "active") as "active" | "maintenance",
-      windowStartTime: "08:00",
-      windowEndTime: "11:00",
-    }),
-    [editingCourt, branches, locations, sport]
-  );
+  const courtPickerOptions = useMemo(() => {
+    const list = [...pickerCourtsForUi];
+    if (editingRow) {
+      const exists = list.some((c) => c.id === editingRow.courtId);
+      if (!exists) {
+        const synthetic: Court = {
+          id: editingRow.courtId,
+          name: editingRow.courtName,
+          type: editingRow.courtType === "indoor" ? "indoor" : "outdoor",
+          sport: editingRow.sport,
+          pricePerHour: editingRow.pricePerHour,
+          status: editingRow.courtStatus as Court["status"],
+          locationId: editingRow.locationId,
+          locationName: editingRow.locationName,
+          description: editingRow.description ?? undefined,
+        };
+        list.push(synthetic);
+      }
+    }
+    return list.sort(
+      (a, b) =>
+        (a.locationName ?? "").localeCompare(b.locationName ?? "") || a.name.localeCompare(b.name),
+    );
+  }, [pickerCourtsForUi, editingRow]);
 
-  const [form, setForm] = useState(formDefaults);
+  const [form, setForm] = useState({
+    selectedCourtId: "",
+    locationId: "",
+    name: "",
+    type: "outdoor" as "indoor" | "outdoor",
+    sport: "tennis",
+    pricePerHour: 0,
+    description: "",
+    status: "active" as "active" | "maintenance",
+    windowStartTime: "08:00",
+    windowEndTime: "11:00",
+  });
 
   const formTypeOptions = useMemo<Array<"indoor" | "outdoor">>(() => {
     if (form.sport === "ball-machine") return ["outdoor"];
     return ["outdoor", "indoor"];
   }, [form.sport]);
-
-  const courtNameOptions = useMemo(() => {
-    const selectedArea = areas.find((a) => a.id === form.areaId);
-    const byLocation = courtsForUi.filter((c) => {
-      if (selectedArea?.locationId && c.locationId !== selectedArea.locationId) {
-        return false;
-      }
-      if (form.areaId && c.areaId && c.areaId !== form.areaId) {
-        return false;
-      }
-      return true;
-    });
-    return Array.from(new Set(byLocation.map((c) => c.name))).sort((a, b) =>
-      a.localeCompare(b),
-    );
-  }, [courtsForUi, areas, form.areaId]);
 
   useEffect(() => {
     if (!formTypeOptions.includes(form.type)) {
@@ -149,11 +173,11 @@ export default function AdminCourtsPage() {
   }, [form.type, formTypeOptions]);
 
   const resetForm = () => {
-    setEditingCourt(null);
+    setEditingRow(null);
+    setFormError(null);
     setForm({
-      branchId: branches[0]?.id ?? "",
-      areaId: "",
-      locationId: locations[0]?.id ?? "",
+      selectedCourtId: "",
+      locationId: "",
       name: "",
       type: "outdoor",
       sport: sport ?? "tennis",
@@ -166,39 +190,43 @@ export default function AdminCourtsPage() {
   };
 
   const openCreate = () => {
-    setModalBranchId(branchId !== "all" ? branchId : branches[0]?.id);
     resetForm();
     setModalOpen(true);
   };
 
-  const openEdit = (court: Court) => {
-    setModalBranchId(court.branchId ?? undefined);
-    setEditingCourt(court);
+  const openEdit = (row: CourtBookingWindowAdminApi) => {
+    setFormError(null);
+    setEditingRow(row);
     setForm({
-      branchId: court.branchId ?? branches[0]?.id ?? "",
-      areaId: court.areaId ?? "",
-      locationId: court.locationId ?? "",
-      name: court.name,
-      type: court.type,
-      sport: court.sport,
-      pricePerHour: court.pricePerHour,
-      description: court.description ?? "",
-      status: court.status,
-      windowStartTime: "08:00",
-      windowEndTime: "11:00",
+      selectedCourtId: row.courtId,
+      locationId: row.locationId,
+      name: row.courtName,
+      type: row.courtType === "indoor" ? "indoor" : "outdoor",
+      sport: row.sport,
+      pricePerHour: row.pricePerHour,
+      description: row.description ?? "",
+      status: row.courtStatus === "maintenance" ? "maintenance" : "active",
+      windowStartTime: normalizeGridTime(row.windowStartTime),
+      windowEndTime: normalizeGridTime(row.windowEndTime),
     });
     setModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.areaId && !editingCourt) return;
-    const selectedArea = areas.find((a) => a.id === form.areaId);
-    const resolvedLocationId = selectedArea?.locationId ?? form.locationId;
-    if (!resolvedLocationId) return;
+    setFormError(null);
+    const resolvedLocationId = form.locationId?.trim();
+    if (!resolvedLocationId) {
+      setFormError("Select a court from Court Management (it includes the location).");
+      return;
+    }
+    const courtId = editingRow?.courtId ?? form.selectedCourtId;
+    if (!courtId) {
+      setFormError("Select a court from the list (create courts under Court Management first).");
+      return;
+    }
     const body = {
       locationId: resolvedLocationId,
-      areaId: form.areaId || undefined,
       name: form.name,
       type: form.type,
       sport: form.sport,
@@ -208,35 +236,44 @@ export default function AdminCourtsPage() {
       windowStartTime: form.windowStartTime,
       windowEndTime: form.windowEndTime,
     };
-    const err = editingCourt
-      ? await updateCourt
-          .mutateAsync({ id: editingCourt.id, body: { ...body, locationId: resolvedLocationId || undefined } })
-          .then(() => null)
-          .catch((e) => e)
-      : await createCourt.mutateAsync(body as Parameters<typeof api.courts.createCourt>[0]).then(() => null).catch((e) => e);
 
-    if (err) return;
+    const err = await updateCourt
+      .mutateAsync({ id: courtId, body })
+      .then(() => null)
+      .catch((e) => e);
+
+    if (err) {
+      if (err instanceof ApiError) {
+        const msg = err.body?.message;
+        setFormError(Array.isArray(msg) ? msg.join(", ") : (msg ?? err.message));
+      }
+      return;
+    }
     setModalOpen(false);
     resetForm();
   };
 
-  const handleDelete = async (id: string) => {
-    await deleteCourt.mutateAsync(id).catch(() => {});
-    setDeleteConfirmId(null);
+  const handleDeleteSlot = async (windowId: string) => {
+    await deleteCourtSlot.mutateAsync(windowId).catch(() => {});
+    setDeleteConfirmWindowId(null);
   };
 
-  const submitError =
-    createCourt.error instanceof ApiError
-      ? createCourt.error
-      : updateCourt.error instanceof ApiError
-        ? updateCourt.error
-        : null;
+  const submitError = updateCourt.error instanceof ApiError ? updateCourt.error : null;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Court Time Slot</h1>
-        {canCreate && (
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            Court Time Slot
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
+            Configure booking hours and pricing for courts that already exist in{" "}
+            <strong>Court Management</strong>. New courts do not appear here until you add a time
+            window.
+          </p>
+        </div>
+        {(canCreate || canUpdate) && (
           <Button
             onClick={openCreate}
             className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
@@ -249,8 +286,8 @@ export default function AdminCourtsPage() {
 
       <AdminFilter
         title="Filters"
-        description="Filter by branch (location), then view courts at that location"
-        searchPlaceholder="Search by name..."
+        description="Per-court time slots only. Branch filter applies to both list and court picker."
+        searchPlaceholder="Search court or location name..."
         searchValue={search}
         onSearchChange={setSearch}
       >
@@ -267,45 +304,59 @@ export default function AdminCourtsPage() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="maintenance">Maintenance</SelectItem>
-          </SelectContent>
-        </Select>
       </AdminFilter>
 
       <Card>
         <CardContent className="pt-6">
-          <AdminTable<Court>
-            data={paginatedCourts}
-            keyExtractor={(c) => c.id}
-            emptyMessage="No courts found."
-            isLoading={isLoading}
+          <AdminTable<CourtBookingWindowAdminApi>
+            data={paginatedSlots}
+            keyExtractor={(r) => r.id}
+            emptyMessage="No time slots yet. Add a slot for a court from Court Management."
+            isLoading={slotsLoading}
             loadingNode={
               <div className="flex justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             }
             columns={[
-              { key: "name", label: "Name", render: (c) => <span className="font-medium">{c.name}</span> },
+              {
+                key: "court",
+                label: "Court",
+                render: (r) => <span className="font-medium">{r.courtName}</span>,
+              },
+              { key: "sport", label: "Sport", render: (r) => r.sport },
               {
                 key: "locationName",
                 label: "Location",
-                render: (c) => c.locationName ?? branches.find((b) => b.id === c.branchId)?.name ?? "—",
+                render: (r) => r.locationName || "—",
               },
-              { key: "type", label: "Type", render: (c) => c.type },
-              { key: "pricePerHour", label: "Price/hour", render: (c) => formatCurrency(c.pricePerHour) },
               {
-                key: "status",
-                label: "Status",
-                render: (c) => (
-                  <span className={c.status === "active" ? "text-green-600" : "text-amber-600"}>
-                    {c.status}
+                key: "window",
+                label: "Time window",
+                render: (r) =>
+                  `${toAmPmLabel(normalizeGridTime(r.windowStartTime))} – ${toAmPmLabel(normalizeGridTime(r.windowEndTime))}`,
+              },
+              { key: "type", label: "Type", render: (r) => r.courtType },
+              {
+                key: "pricePerHour",
+                label: "Price/hour",
+                render: (r) => formatCurrency(r.pricePerHour),
+              },
+              {
+                key: "courtStatus",
+                label: "Court status",
+                render: (r) => (
+                  <span className={r.courtStatus === "active" ? "text-green-600" : "text-amber-600"}>
+                    {r.courtStatus}
+                  </span>
+                ),
+              },
+              {
+                key: "slot",
+                label: "Slot",
+                render: (r) => (
+                  <span className={r.isActive ? "text-green-600" : "text-muted-foreground"}>
+                    {r.isActive ? "active" : "off"}
                   </span>
                 ),
               },
@@ -316,10 +367,10 @@ export default function AdminCourtsPage() {
                       label: "Actions",
                       headClassName: "text-right",
                       className: "text-right",
-                      render: (court: Court) => (
+                      render: (row: CourtBookingWindowAdminApi) => (
                         <>
                           {canUpdate && (
-                            <Button variant="ghost" size="icon" onClick={() => openEdit(court)}>
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(row)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
                           )}
@@ -328,23 +379,29 @@ export default function AdminCourtsPage() {
                               variant="ghost"
                               size="icon"
                               className="text-destructive"
-                              onClick={() => setDeleteConfirmId(court.id)}
+                              onClick={() => setDeleteConfirmWindowId(row.id)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           )}
                         </>
                       ),
-                    } as { key: string; label: string; headClassName?: string; className?: string; render: (row: Court) => React.ReactNode },
+                    } as {
+                      key: string;
+                      label: string;
+                      headClassName?: string;
+                      className?: string;
+                      render: (row: CourtBookingWindowAdminApi) => React.ReactNode;
+                    },
                   ]
                 : []),
             ]}
           />
-          {!isLoading && courtsForUi.length > 0 && (
+          {!slotsLoading && slotsForUi.length > 0 && (
             <AdminPagination
               page={page}
               pageSize={PAGE_SIZE}
-              total={courtsForUi.length}
+              total={slotsForUi.length}
               onPageChange={setPage}
               className="mt-4 border-t pt-4"
             />
@@ -352,58 +409,74 @@ export default function AdminCourtsPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      <Dialog
+        open={modalOpen}
+        onOpenChange={(open) => {
+          setModalOpen(open);
+          if (!open) {
+            resetForm();
+            updateCourt.reset();
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-2xl rounded-2xl border-slate-200 dark:border-slate-800">
           <DialogHeader>
-            <DialogTitle>{editingCourt ? "Edit Court Time Slot" : "Create Court Time Slot"}</DialogTitle>
+            <DialogTitle>
+              {editingRow ? "Edit Court Time Slot" : "Create Court Time Slot"}
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 pr-2">
-            {submitError && (
+            {formError && <p className="text-sm text-destructive">{formError}</p>}
+            {submitError && !formError && (
               <p className="text-sm text-destructive">
                 {submitError.body?.message ?? submitError.message}
               </p>
             )}
             <div>
-              <Label>Area</Label>
+              <Label>Court</Label>
+              <p className="text-muted-foreground text-xs mb-2">
+                Choose a court from <strong>Court Management</strong>. This defines which court gets
+                the booking window and pricing below.
+              </p>
               <Select
-                value={form.areaId}
-                onValueChange={(v) => {
-                  const area = areas.find((a) => a.id === v);
+                value={editingRow ? form.selectedCourtId : form.selectedCourtId || "__none__"}
+                onValueChange={(id) => {
+                  setFormError(null);
+                  if (id === "__none__") {
+                    setForm((f) => ({
+                      ...f,
+                      selectedCourtId: "",
+                      locationId: "",
+                    }));
+                    return;
+                  }
+                  const c = courtPickerOptions.find((x) => x.id === id);
+                  if (!c) return;
                   setForm((f) => ({
                     ...f,
-                    areaId: v,
-                    locationId: area?.locationId ?? f.locationId,
+                    selectedCourtId: id,
+                    locationId: c.locationId ?? "",
+                    name: c.name,
+                    sport: c.sport,
+                    type: c.type,
                   }));
                 }}
-                required
-                disabled={areas.length === 0}
+                disabled={!!editingRow || pickerLoading}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select area" />
+                  <SelectValue
+                    placeholder={
+                      courtPickerOptions.length === 0
+                        ? "No courts — add one in Court Management"
+                        : "Select court"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {areas.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Court</Label>
-              <Select
-                value={form.name}
-                onValueChange={(v) => setForm((f) => ({ ...f, name: v }))}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select court from Court Management" />
-                </SelectTrigger>
-                <SelectContent>
-                  {courtNameOptions.map((name) => (
-                    <SelectItem key={name} value={name}>
-                      {name}
+                  {!editingRow && <SelectItem value="__none__">Select…</SelectItem>}
+                  {courtPickerOptions.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {`${c.locationName ? `${c.locationName} — ` : ""}${c.name} (${c.sport})`}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -413,7 +486,10 @@ export default function AdminCourtsPage() {
               <Label>Sport</Label>
               <Select
                 value={form.sport}
-                onValueChange={(v) => setForm((f) => ({ ...f, sport: v }))}
+                onValueChange={(v) => {
+                  setFormError(null);
+                  setForm((f) => ({ ...f, sport: v }));
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select sport" />
@@ -513,7 +589,7 @@ export default function AdminCourtsPage() {
               />
             </div>
             <div>
-              <Label>Status</Label>
+              <Label>Court status</Label>
               <Select
                 value={form.status}
                 onValueChange={(v) =>
@@ -534,40 +610,38 @@ export default function AdminCourtsPage() {
             </div>
 
             <DialogFooter className="border-t pt-4">
-              <Button type="button" variant="outline" onClick={() => setModalOpen(false)} disabled={createCourt.isPending || updateCourt.isPending}>
+              <Button type="button" variant="outline" onClick={() => setModalOpen(false)} disabled={updateCourt.isPending}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={createCourt.isPending || updateCourt.isPending} aria-busy={createCourt.isPending || updateCourt.isPending}>
-                {(createCourt.isPending || updateCourt.isPending) && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                {createCourt.isPending ? "Creating…" : updateCourt.isPending ? "Saving…" : editingCourt ? "Save" : "Create"}
+              <Button type="submit" disabled={updateCourt.isPending} aria-busy={updateCourt.isPending}>
+                {updateCourt.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {updateCourt.isPending ? "Saving…" : editingRow ? "Save" : "Create"}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
+      <Dialog open={!!deleteConfirmWindowId} onOpenChange={() => setDeleteConfirmWindowId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete court</DialogTitle>
+            <DialogTitle>Remove time slot</DialogTitle>
           </DialogHeader>
           <p className="text-muted-foreground">
-            Are you sure you want to delete this court? This action cannot be undone.
+            This removes the booking window only. The court stays in Court Management.
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>
+            <Button variant="outline" onClick={() => setDeleteConfirmWindowId(null)}>
               Cancel
             </Button>
             <Button
               variant="destructive"
-              disabled={deleteCourt.isPending}
-              onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
-              aria-busy={deleteCourt.isPending}
+              disabled={deleteCourtSlot.isPending}
+              onClick={() => deleteConfirmWindowId && handleDeleteSlot(deleteConfirmWindowId)}
+              aria-busy={deleteCourtSlot.isPending}
             >
-              {deleteCourt.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {deleteCourt.isPending ? "Deleting…" : "Delete"}
+              {deleteCourtSlot.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {deleteCourtSlot.isPending ? "Removing…" : "Remove slot"}
             </Button>
           </DialogFooter>
         </DialogContent>

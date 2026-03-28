@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { Controller } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -12,16 +11,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { User, Mail, MapPin } from "lucide-react";
-import PhoneInput from "react-phone-number-input";
+import { UsPhoneField } from "@/components/ui/us-phone-field";
 import { PasswordInput } from "@/components/ui/password-input";
 import { useAuth } from "@/lib/auth-store";
 import { registerSchema, type RegisterFormValues } from "@/features/auth/schemas/register.schema";
 import { ApiError } from "@/lib/api";
 import { safeNextPath } from "@/lib/safe-next-path";
+import { VerifyOtpStep } from "./verify-otp-step";
 
 interface RegisterFormProps {
   onSwitchToLogin?: () => void;
-  /** When set, called after successful registration instead of navigating to `/`. */
   onRegisterSuccess?: () => void;
   redirectTo?: string | null;
 }
@@ -31,6 +30,9 @@ export function RegisterForm({
   onRegisterSuccess,
   redirectTo,
 }: RegisterFormProps) {
+  const [step, setStep] = useState<"details" | "otp">("details");
+  const [pendingEmail, setPendingEmail] = useState("");
+
   const {
     register,
     control,
@@ -38,45 +40,94 @@ export function RegisterForm({
     formState: { errors },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
+    defaultValues: { phone: "" },
   });
 
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const { register: registerUser, isRegistering } = useAuth();
+  const {
+    requestRegisterOtp,
+    verifyRegisterOtp,
+    isRequestingRegisterOtp,
+    isVerifyingRegisterOtp,
+  } = useAuth();
   const router = useRouter();
 
-  const onSubmit = async (data: RegisterFormValues) => {
+  const onDetailsSubmit = async (data: RegisterFormValues) => {
     setSubmitError(null);
+    const email = data.email.trim().toLowerCase();
     const fullName = `${data.firstName.trim()} ${data.lastName.trim()}`;
     try {
-      await registerUser({
-        email: data.email,
+      await requestRegisterOtp({
+        email,
         password: data.password,
         fullName,
         firstName: data.firstName.trim(),
         lastName: data.lastName.trim(),
         phone: data.phone,
-        homeAddress: data.address?.trim() || null,
+        street: data.street.trim(),
+        city: data.city.trim(),
+        state: data.state.trim(),
+        zipCode: data.zipCode.trim(),
       });
-      if (onRegisterSuccess) onRegisterSuccess();
-      else {
-        const next = safeNextPath(redirectTo);
-        router.push(next ?? "/");
-      }
+      setPendingEmail(email);
+      setStep("otp");
     } catch (error) {
       if (error instanceof ApiError) {
         const msg = error.body?.message;
-        setSubmitError(Array.isArray(msg) ? msg[0] : (msg ?? "Registration failed."));
+        setSubmitError(Array.isArray(msg) ? msg[0] : (msg ?? "Could not send verification code."));
       } else {
-        setSubmitError("Registration failed. Please try again.");
+        setSubmitError("Could not send verification code. Please try again.");
       }
     }
   };
+
+  const afterRegister = () => {
+    if (onRegisterSuccess) onRegisterSuccess();
+    else {
+      const next = safeNextPath(redirectTo);
+      router.push(next ?? "/");
+    }
+  };
+
+  const handleBackToDetails = () => {
+    setStep("details");
+    setSubmitError(null);
+  };
+
+  if (step === "otp") {
+    return (
+      <VerifyOtpStep
+        email={pendingEmail}
+        submitLabel="Verify & create account"
+        backLabel="Edit registration details"
+        isSubmitting={isVerifyingRegisterOtp}
+        error={submitError}
+        onVerify={async (otp) => {
+          setSubmitError(null);
+          try {
+            await verifyRegisterOtp(pendingEmail, otp);
+            afterRegister();
+          } catch (error) {
+            if (error instanceof ApiError) {
+              const msg = error.body?.message;
+              setSubmitError(
+                Array.isArray(msg) ? msg[0] : (msg ?? "Invalid or expired code."),
+              );
+            } else {
+              setSubmitError("Invalid or expired code. Request a new code from the previous step.");
+            }
+          }
+        }}
+        onBack={handleBackToDetails}
+      />
+    );
+  }
 
   return (
     <div>
       <Card className="w-full shadow-soft-lg border-0 bg-transparent">
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={handleSubmit(onDetailsSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name</Label>
@@ -126,20 +177,18 @@ export function RegisterForm({
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
+              <Label htmlFor="phone">Phone (US)</Label>
+              <p className="text-xs text-muted-foreground">
+                10-digit US number; stored as +1…
+              </p>
               <Controller
                 control={control}
                 name="phone"
                 render={({ field }) => (
-                  <PhoneInput
+                  <UsPhoneField
                     id="phone"
-                    international
-                    defaultCountry="US"
-                    countryCallingCodeEditable={false}
-                    placeholder="Enter phone number"
-                    value={field.value || ""}
-                    onChange={(value) => field.onChange(value || "")}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={field.value}
+                    onChange={field.onChange}
                   />
                 )}
               />
@@ -147,20 +196,52 @@ export function RegisterForm({
                 <p className="text-sm text-destructive">{errors.phone.message}</p>
               )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="address"
-                  placeholder="123 Nguyen Trai, District 1, HCMC"
-                  className="pl-10"
-                  {...register("address")}
-                />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="street">Street address</Label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="street"
+                    placeholder="123 Main Street"
+                    className="pl-10"
+                    {...register("street")}
+                  />
+                </div>
+                {errors.street && (
+                  <p className="text-sm text-destructive">{errors.street.message}</p>
+                )}
               </div>
-              {errors.address && (
-                <p className="text-sm text-destructive">{errors.address.message}</p>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="city">City</Label>
+                <Input id="city" placeholder="Austin" {...register("city")} />
+                {errors.city && (
+                  <p className="text-sm text-destructive">{errors.city.message}</p>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="state">State</Label>
+                  <Input id="state" placeholder="TX" maxLength={50} {...register("state")} />
+                  {errors.state && (
+                    <p className="text-sm text-destructive">{errors.state.message}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="zipCode">ZIP code</Label>
+                  <Input
+                    id="zipCode"
+                    placeholder="78701"
+                    inputMode="numeric"
+                    autoComplete="postal-code"
+                    maxLength={10}
+                    {...register("zipCode")}
+                  />
+                  {errors.zipCode && (
+                    <p className="text-sm text-destructive">{errors.zipCode.message}</p>
+                  )}
+                </div>
+              </div>
             </div>
             <div>
               <Label htmlFor="password">Password</Label>
@@ -178,19 +259,23 @@ export function RegisterForm({
                 error={errors.confirmPassword?.message}
               />
             </div>
+            <p className="text-xs text-muted-foreground">
+              After you continue, we&apos;ll email a 6-digit code. Your account is created only after
+              you enter that code.
+            </p>
             {submitError && (
               <p className="text-sm text-destructive">{submitError}</p>
             )}
             <Button
               type="submit"
               className="w-full text-md font-bold h-11 bg-primary hover:opacity-90 text-primary-foreground shadow-brand"
-              disabled={isRegistering}
-              aria-busy={isRegistering}
+              disabled={isRequestingRegisterOtp}
+              aria-busy={isRequestingRegisterOtp}
             >
-              {isRegistering ? (
-                <LoadingLabel>Creating account</LoadingLabel>
+              {isRequestingRegisterOtp ? (
+                <LoadingLabel>Sending code</LoadingLabel>
               ) : (
-                "Register"
+                "Continue"
               )}
             </Button>
             <div className="text-center text-sm text-muted-foreground">

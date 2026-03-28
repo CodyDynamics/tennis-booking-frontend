@@ -205,7 +205,7 @@ export default function AdminOverviewPage() {
           value={metrics.totals.courtBookingsOpen}
           icon={CalendarCheck}
           delay={0.2}
-          accent="bg-gradient-to-br from-orange-500 to-rose-500"
+          accent="bg-gradient-to-br from-sky-500 to-blue-600"
         />
         <KpiCard
           label="Coach sessions (scheduled)"
