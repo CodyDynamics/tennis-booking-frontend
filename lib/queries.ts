@@ -13,7 +13,7 @@ import type { CourtBookingApi, CoachSessionApi } from "@/types/api";
 import { api } from "@/lib/api";
 import type { CourtApi } from "@/lib/api/endpoints/courts";
 import type { CoachApi } from "@/lib/api/endpoints/coaches";
-import type { UserApi } from "@/lib/api/endpoints/users";
+import type { UserApi, VenueMembershipAssignmentRow } from "@/lib/api/endpoints/users";
 import type { PermissionSchemaItem } from "@/lib/api/endpoints/roles";
 import type { AreaApi } from "@/lib/api/endpoints/areas";
 
@@ -607,10 +607,33 @@ export function useLocations(branchId?: string) {
   });
 }
 
-export function useAreas(locationId?: string) {
+export function useAreas(
+  locationId?: string | string[],
+  options?: { enabled?: boolean },
+) {
+  const ids =
+    locationId === undefined
+      ? []
+      : Array.isArray(locationId)
+        ? locationId
+        : [locationId];
+  const key = ids.length ? [...ids].sort().join(",") : "all";
+  const enabled = options?.enabled !== false;
   return useQuery<AreaApi[]>({
-    queryKey: ["areas", locationId],
-    queryFn: () => api.areas.getAreas(locationId ? { locationId } : undefined),
+    queryKey: ["areas", key],
+    queryFn: async () => {
+      if (ids.length === 0) {
+        return api.areas.getAreas(undefined);
+      }
+      if (ids.length === 1) {
+        return api.areas.getAreas({ locationId: ids[0] });
+      }
+      const parts = await Promise.all(
+        ids.map((id) => api.areas.getAreas({ locationId: id })),
+      );
+      return parts.flat();
+    },
+    enabled,
   });
 }
 
@@ -744,15 +767,42 @@ export function useOrganizations() {
   });
 }
 
+/** super_admin Locations page — all memberships at child venues */
+export function useVenueMembershipAssignments(enabled: boolean) {
+  return useQuery<VenueMembershipAssignmentRow[]>({
+    queryKey: ["users", "venue-memberships"],
+    queryFn: () => api.users.getVenueMembershipAssignments(),
+    enabled,
+  });
+}
+
 // ----- Admin: Users (list with filters) -----
 export function useUsers(params?: {
   roleId?: string;
   search?: string;
   onlyMembership?: boolean;
+  noMembershipAtLocationId?: string;
+  forAreaAssignment?: boolean;
+  noMembershipAnywhere?: boolean;
+  membershipAtLocationId?: string;
+  areaId?: string;
+  enabled?: boolean;
 }) {
+  const { enabled = true, ...rest } = params ?? {};
   return useQuery<UserApi[]>({
-    queryKey: ["users", params?.roleId, params?.search, params?.onlyMembership],
-    queryFn: () => api.users.getUsers(params),
+    queryKey: [
+      "users",
+      rest.roleId,
+      rest.search,
+      rest.onlyMembership,
+      rest.noMembershipAtLocationId,
+      rest.forAreaAssignment,
+      rest.noMembershipAnywhere,
+      rest.membershipAtLocationId,
+      rest.areaId,
+    ],
+    queryFn: () => api.users.getUsers(rest),
+    enabled,
   });
 }
 
@@ -811,7 +861,12 @@ export function useUpdateUser() {
       id: string;
       body: Parameters<typeof api.users.updateUser>[1];
     }) => api.users.updateUser(id, body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({
+        queryKey: ["users", "venue-memberships"],
+      });
+    },
   });
 }
 

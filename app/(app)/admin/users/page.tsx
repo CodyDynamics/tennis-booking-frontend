@@ -11,6 +11,7 @@ import {
   useLocations,
   useAreas,
   useAdminUserDetail,
+  useBookableLocations,
 } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,8 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState("");
   const [roleId, setRoleId] = useState<string>("all");
   const [onlyMembership, setOnlyMembership] = useState(false);
+  const [filterLocationId, setFilterLocationId] = useState<string>("all");
+  const [filterAreaId, setFilterAreaId] = useState<string>("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserApi | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -54,14 +57,25 @@ export default function AdminUsersPage() {
   const canUpdate = hasAdminPermission(user?.permissions, "users:update", user?.role);
   const canDelete = hasAdminPermission(user?.permissions, "users:delete", user?.role);
 
+  const showScopeFilters =
+    user?.role === "super_admin" ||
+    user?.role === "admin" ||
+    user?.role === "super_user";
+
   const { data: users = [], isLoading } = useUsers({
     roleId: roleId && roleId !== "all" ? roleId : undefined,
     search: search || undefined,
     onlyMembership,
+    membershipAtLocationId:
+      showScopeFilters && filterAreaId === "all" && filterLocationId !== "all"
+        ? filterLocationId
+        : undefined,
+    areaId: showScopeFilters && filterAreaId !== "all" ? filterAreaId : undefined,
   });
   const { data: roles = [] } = useRolesList();
   const { data: locations = [] } = useLocations();
   const { data: areas = [] } = useAreas();
+  const { data: bookableLocations = [] } = useBookableLocations(user?.role === "super_user");
   const { data: editUserDetail, isLoading: editUserDetailLoading } = useAdminUserDetail(
     editingUser?.id,
     modalOpen && !!editingUser,
@@ -73,6 +87,54 @@ export default function AdminUsersPage() {
     return m;
   }, [locations]);
 
+  const bookableLocationIds = useMemo(
+    () => new Set(bookableLocations.map((l) => l.id)),
+    [bookableLocations],
+  );
+
+  const locationsForScopeFilter = useMemo(() => {
+    if (user?.role === "super_user") return bookableLocations;
+    if (user?.role === "super_admin" || user?.role === "admin") return locations;
+    return [];
+  }, [user?.role, bookableLocations, locations]);
+
+  const areasForScopeFilter = useMemo(() => {
+    if (user?.role === "super_user") {
+      return areas.filter((a) => bookableLocationIds.has(a.locationId));
+    }
+    if (user?.role === "super_admin" || user?.role === "admin") return areas;
+    return [];
+  }, [user?.role, areas, bookableLocationIds]);
+
+  const areasScopedByLocationFilter = useMemo(() => {
+    if (filterLocationId === "all") return areasForScopeFilter;
+    return areasForScopeFilter.filter((a) => a.locationId === filterLocationId);
+  }, [areasForScopeFilter, filterLocationId]);
+
+  const targetMembershipLocationIds = useMemo(() => {
+    if (!editUserDetail?.memberships?.length) return [];
+    return Array.from(new Set(editUserDetail.memberships.map((m) => m.locationId)));
+  }, [editUserDetail]);
+
+  /** Areas allowed in membership dropdown: target user’s venue(s), or bookable venues for super_user, or all for super_admin. */
+  const areasForMembershipDropdown = useMemo(() => {
+    if (editingUser && targetMembershipLocationIds.length > 0) {
+      return areas.filter((a) => targetMembershipLocationIds.includes(a.locationId));
+    }
+    if (!editingUser) {
+      if (user?.role === "super_admin") return areas;
+      if (user?.role === "super_user") {
+        return areas.filter((a) => bookableLocationIds.has(a.locationId));
+      }
+      return areas;
+    }
+    if (user?.role === "super_admin") return areas;
+    if (user?.role === "super_user") {
+      return areas.filter((a) => bookableLocationIds.has(a.locationId));
+    }
+    return areas;
+  }, [areas, editingUser, targetMembershipLocationIds, user?.role, bookableLocationIds]);
+
   const membershipSyncedRef = useRef<string | null>(null);
 
   const createUser = useCreateUser();
@@ -80,8 +142,12 @@ export default function AdminUsersPage() {
   const deleteUser = useDeleteUser();
 
   useEffect(() => {
+    setFilterAreaId("all");
+  }, [filterLocationId]);
+
+  useEffect(() => {
     setPage(1);
-  }, [search, roleId, onlyMembership]);
+  }, [search, roleId, onlyMembership, filterLocationId, filterAreaId]);
 
   const paginatedUsers = useMemo(
     () => users.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
@@ -148,7 +214,7 @@ export default function AdminUsersPage() {
   }, [modalOpen]);
 
   useEffect(() => {
-    if (!editingUser || !modalOpen || !editUserDetail || areas.length === 0) return;
+    if (!editingUser || !modalOpen || !editUserDetail) return;
     const locId = editUserDetail.memberships?.[0]?.locationId;
     const syncKey = `${editingUser.id}-${locId ?? "none"}`;
     if (membershipSyncedRef.current === syncKey) return;
@@ -157,10 +223,10 @@ export default function AdminUsersPage() {
       setForm((f) => ({ ...f, membershipAreaId: "" }));
       return;
     }
-    const candidates = areas.filter((a) => a.locationId === locId);
+    const candidates = areasForMembershipDropdown.filter((a) => a.locationId === locId);
     const picked = [...candidates].sort((a, b) => a.name.localeCompare(b.name))[0];
     setForm((f) => ({ ...f, membershipAreaId: picked?.id ?? "" }));
-  }, [editingUser?.id, modalOpen, editUserDetail, areas]);
+  }, [editingUser?.id, modalOpen, editUserDetail, areasForMembershipDropdown]);
 
   const fullName = `${form.firstName} ${form.lastName}`.trim();
   const phoneValid = true;
@@ -273,6 +339,36 @@ export default function AdminUsersPage() {
           />
           <Label htmlFor="onlyMembership">Only membership users</Label>
         </div>
+        {showScopeFilters && (
+          <>
+            <Select value={filterLocationId} onValueChange={setFilterLocationId}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Location" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All locations</SelectItem>
+                {locationsForScopeFilter.map((loc) => (
+                  <SelectItem key={loc.id} value={loc.id}>
+                    {loc.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterAreaId} onValueChange={setFilterAreaId}>
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="Area" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All areas</SelectItem>
+                {areasScopedByLocationFilter.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {locationNameById.get(a.locationId) ?? "Location"} — {a.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        )}
       </AdminFilter>
 
       <Card>
@@ -449,10 +545,11 @@ export default function AdminUsersPage() {
             <div>
               <Label>Area membership (optional)</Label>
               <p className="text-muted-foreground mb-2 text-xs">
-                This list is every area in the system so you can assign a membership location;
-                it is not the user&apos;s current memberships. &quot;None&quot; means no
-                membership row. Membership is stored per location; picking an area sets that
-                location.
+                {targetMembershipLocationIds.length > 0
+                  ? "Only areas under this user’s assigned location(s) are listed. Membership is stored per location; picking an area sets that location."
+                  : user?.role === "super_admin"
+                    ? "Choose an area to set membership location, or None. For venue staff, assign a location on Locations first if you need a restricted list."
+                    : "Only areas at locations you operate (or the user’s assigned venue when editing) are listed. Membership is stored per location."}
               </p>
               <Select
                 value={form.membershipAreaId || "__none__"}
@@ -469,7 +566,7 @@ export default function AdminUsersPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">None</SelectItem>
-                  {areas.map((a) => (
+                  {areasForMembershipDropdown.map((a) => (
                     <SelectItem key={a.id} value={a.id}>
                       {locationNameById.get(a.locationId) ?? "Location"} — {a.name}
                     </SelectItem>

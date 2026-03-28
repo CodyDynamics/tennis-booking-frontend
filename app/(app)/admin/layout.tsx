@@ -20,25 +20,40 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-const ADMIN_VIEW_PERMISSIONS = ["courts:view", "users:view", "roles:view", "branches:view", "organizations:view", "locations:view", "sports:view", "bookings:view"];
+const ADMIN_VIEW_PERMISSIONS = [
+  "dashboard:view",
+  "courts:view",
+  "users:view",
+  "memberships:view",
+  "roles:view",
+  "branches:view",
+  "organizations:view",
+  "locations:view",
+  "areas:view",
+  "sports:view",
+  "bookings:view",
+];
 
 /** Required permission (view) per admin path. Only super_admin has full access; others need assigned permission. */
 function getRequiredPermissionForPath(path: string): string | null {
-  if (path === "/admin" || path === "/admin/") return null;
+  if (path === "/admin" || path === "/admin/") return "dashboard:view";
   if (path.startsWith("/admin/courts")) return "courts:view";
   if (path.startsWith("/admin/court-management")) return "courts:view";
   if (path.startsWith("/admin/users")) return "users:view";
-  if (path.startsWith("/admin/user-memberships")) return "users:view";
+  if (path.startsWith("/admin/user-memberships")) return "memberships:view";
   if (path.startsWith("/admin/roles")) return "roles:view";
   if (path.startsWith("/admin/branches")) return "branches:view";
   if (path.startsWith("/admin/organizations")) return "organizations:view";
-  if (path.startsWith("/admin/locations")) return "locations:view";
+  if (path.startsWith("/admin/areas")) return "areas:view";
   if (path.startsWith("/admin/sports")) return "sports:view";
   return null;
 }
 
 function canAccessAdmin(user: User | null, pathname: string): boolean {
   if (!user) return false;
+  if (pathname.startsWith("/admin/locations") && user.role !== "super_admin") {
+    return false;
+  }
   if (user.role === "super_admin" || user.role === "admin") return true;
   const required = getRequiredPermissionForPath(pathname);
   if (!required) {
@@ -70,7 +85,7 @@ export default function AdminLayout({
     if (!isLoading && user && !allowed) {
       router.push("/");
     }
-  }, [isLoading, isAuthenticated, user, allowed, router]);
+  }, [isLoading, isAuthenticated, user, allowed, router, pathname]);
 
   if (isLoading || !user) {
     return (
@@ -82,18 +97,33 @@ export default function AdminLayout({
 
   if (!allowed) return null;
 
-  const navItems = [
+  const allNavItems = [
     { href: "/admin", label: "Overview", icon: LayoutDashboard },
     { href: "/admin/court-management", label: "Court Management", icon: MapPin },
     { href: "/admin/courts", label: "Court Time Slot", icon: MapPin },
     { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/user-memberships", label: "User Membership", icon: Users },
     { href: "/admin/roles", label: "Roles & Permissions", icon: Shield },
-    { href: "/admin/locations", label: "Areas", icon: MapPin },
+    { href: "/admin/locations", label: "Locations", icon: Building2 },
+    { href: "/admin/areas", label: "Areas", icon: MapPin },
     { href: "/admin/sports", label: "Sports", icon: Shapes },
     { href: "/admin/branches", label: "Branches", icon: Building2 },
     { href: "/admin/organizations", label: "Organizations", icon: Network },
   ];
+
+  const navItems =
+    user.role === "super_user"
+      ? allNavItems.filter((i) =>
+          [
+            "/admin",
+            "/admin/users",
+            "/admin/user-memberships",
+            "/admin/court-management",
+            "/admin/courts",
+            "/admin/areas",
+          ].includes(i.href),
+        )
+      : allNavItems;
 
   const handleLogout = async () => {
     await logout();

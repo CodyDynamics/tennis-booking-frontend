@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -12,141 +13,283 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Loader2, Trash2 } from "lucide-react";
+import { useAuth } from "@/lib/auth-store";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
-import { AdminFilter, AdminTable } from "../components";
-import {
-  useBranches,
   useLocations,
-  useAreas,
-  useCreateArea,
-  useUpdateArea,
-  useDeleteArea,
+  useUpdateUser,
+  useUsers,
+  useVenueMembershipAssignments,
 } from "@/lib/queries";
+import { ApiError } from "@/lib/api";
+import { AdminFilter, AdminTable, AdminPagination } from "../components";
+import type { VenueMembershipAssignmentRow } from "@/lib/api/endpoints/users";
 
-export default function AdminLocationsPage() {
-  const [branchId, setBranchId] = useState<string>("all");
-  const [locationId, setLocationId] = useState<string>("all");
-  const [search, setSearch] = useState("");
-  const { data: branches = [] } = useBranches();
-  const { data: locations = [] } = useLocations(
-    branchId !== "all" ? branchId : undefined,
-  );
+const SEARCH_MIN = 2;
+const MEMBERSHIP_PAGE_SIZE = 10;
+
+export default function AdminLocationStaffPage() {
+  const { user: adminUser } = useAuth();
+  const { data: locations = [], isLoading: locationsLoading } = useLocations();
   const locationChildren = useMemo(
     () => locations.filter((l) => (l.kind ?? "child") === "child"),
     [locations],
   );
-  const { data: areas = [], isLoading } = useAreas(
-    locationId !== "all" ? locationId : undefined,
-  );
-  const createArea = useCreateArea();
-  const updateArea = useUpdateArea();
-  const deleteArea = useDeleteArea();
 
-  const [open, setOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    locationId: "",
-    name: "",
-    status: "active" as "active" | "inactive",
-    visibility: "public" as "public" | "private",
+  const [userSearch, setUserSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(userSearch), 300);
+    return () => clearTimeout(t);
+  }, [userSearch]);
+
+  const [onlyNoVenueMembership, setOnlyNoVenueMembership] = useState(true);
+
+  const assignUsersQueryEnabled =
+    adminUser?.role === "super_admin" &&
+    (onlyNoVenueMembership || debouncedSearch.trim().length >= SEARCH_MIN);
+
+  const { data: assignUserCandidates = [], isLoading: assignUsersLoading } = useUsers({
+    search: debouncedSearch.trim() || undefined,
+    noMembershipAnywhere: onlyNoVenueMembership,
+    enabled: assignUsersQueryEnabled,
   });
 
-  const filtered = useMemo(
+  const {
+    data: assignments = [],
+    isLoading: assignmentsLoading,
+  } = useVenueMembershipAssignments(adminUser?.role === "super_admin");
+  const updateUser = useUpdateUser();
+
+  const [locationId, setLocationId] = useState<string>("");
+  const [userId, setUserId] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null);
+
+  const [membershipSearch, setMembershipSearch] = useState("");
+  const [membershipLocationFilter, setMembershipLocationFilter] = useState<string>("all");
+  const [membershipPage, setMembershipPage] = useState(1);
+
+  const filteredMemberships = useMemo(() => {
+    let rows = assignments;
+    if (membershipLocationFilter !== "all") {
+      rows = rows.filter((r) => r.locationId === membershipLocationFilter);
+    }
+    const q = membershipSearch.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) => {
+      const hay = [
+        r.email,
+        r.firstName,
+        r.lastName,
+        r.locationName,
+        r.roleName ?? "",
+        r.status,
+      ]
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [assignments, membershipSearch, membershipLocationFilter]);
+
+  const paginatedMemberships = useMemo(
     () =>
-      areas.filter(
-        (l) =>
-          !search.trim() ||
-          l.name.toLowerCase().includes(search.toLowerCase()),
+      filteredMemberships.slice(
+        (membershipPage - 1) * MEMBERSHIP_PAGE_SIZE,
+        membershipPage * MEMBERSHIP_PAGE_SIZE,
       ),
-    [areas, search],
+    [filteredMemberships, membershipPage],
   );
 
-  const openCreate = () => {
-    setEditingId(null);
-    setForm({
-      locationId:
-        locationId !== "all"
-          ? locationId
-          : locationChildren[0]?.id ?? "",
-      name: "",
-      status: "active",
-      visibility: "public",
-    });
-    setOpen(true);
-  };
+  useEffect(() => {
+    setMembershipPage(1);
+  }, [membershipSearch, membershipLocationFilter]);
 
-  const openEdit = (id: string) => {
-    const row = areas.find((x) => x.id === id);
-    if (!row) return;
-    setEditingId(id);
-    setForm({
-      locationId: row.locationId,
-      name: row.name,
-      status: (row.status as "active" | "inactive") ?? "active",
-      visibility: (row.visibility as "public" | "private") ?? "public",
-    });
-    setOpen(true);
-  };
-
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const body = {
-      locationId: form.locationId,
-      name: form.name.trim(),
-      status: form.status,
-      visibility: form.visibility,
-    };
-    if (editingId) {
-      await updateArea.mutateAsync({ id: editingId, body }).catch(() => {});
+  const onAssign = async () => {
+    if (!locationId || !userId) return;
+    setError(null);
+    const err = await updateUser
+      .mutateAsync({
+        id: userId,
+        body: { membershipLocationId: locationId },
+      })
+      .then(() => null)
+      .catch((e) => e);
+    if (err instanceof ApiError) {
+      const msg = err.body?.message;
+      setError(Array.isArray(msg) ? msg.join(", ") : (msg ?? err.message));
+    } else if (err) {
+      setError("Could not assign membership.");
     } else {
-      await createArea.mutateAsync(body).catch(() => {});
+      setUserId("");
     }
-    setOpen(false);
   };
+
+  const onRemove = async (row: VenueMembershipAssignmentRow) => {
+    if (
+      !window.confirm(
+        `Remove venue access for ${row.email} at ${row.locationName || row.locationId}?`,
+      )
+    ) {
+      return;
+    }
+    setRemovingUserId(row.userId);
+    const err = await updateUser
+      .mutateAsync({
+        id: row.userId,
+        body: { membershipLocationId: null },
+      })
+      .then(() => null)
+      .catch((e) => e);
+    setRemovingUserId(null);
+    if (err instanceof ApiError) {
+      const msg = err.body?.message;
+      setError(Array.isArray(msg) ? msg.join(", ") : (msg ?? err.message));
+    } else if (err) {
+      setError("Could not remove membership.");
+    }
+  };
+
+  if (adminUser?.role !== "super_admin") {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-3xl font-bold tracking-tight">Locations</h1>
+        <p className="text-muted-foreground">Only super administrators can manage location staff.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Areas</h1>
-        <Button onClick={openCreate} className="bg-blue-600 hover:bg-blue-700 text-white">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Area
-        </Button>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Locations</h1>
+        <p className="text-muted-foreground mt-2 max-w-2xl">
+          Attach any account to a venue (location child) via membership. One membership row per user;
+          choosing a new location replaces the previous one. Use search to find anyone, or limit to
+          people who are not on any venue yet.
+        </p>
+      </div>
+
+      <Card>
+        <CardContent className="pt-6 space-y-4 max-w-xl">
+          <div>
+            <Label>Location (venue)</Label>
+            <Select
+              value={locationId || "__none__"}
+              onValueChange={(v) => setLocationId(v === "__none__" ? "" : v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select location child" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Select…</SelectItem>
+                {locationChildren.map((loc) => (
+                  <SelectItem key={loc.id} value={loc.id}>
+                    {loc.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="loc-user-search">Search users</Label>
+            <Input
+              id="loc-user-search"
+              placeholder={`Email or name (min ${SEARCH_MIN} characters if not using filter below)`}
+              value={userSearch}
+              onChange={(e) => setUserSearch(e.target.value)}
+            />
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="only-no-venue"
+                checked={onlyNoVenueMembership}
+                onCheckedChange={(v) => setOnlyNoVenueMembership(Boolean(v))}
+              />
+              <Label htmlFor="only-no-venue" className="text-sm font-normal cursor-pointer">
+                Only users with <strong>no</strong> venue / location membership yet (e.g. just
+                registered)
+              </Label>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {onlyNoVenueMembership
+                ? "List loads automatically for accounts that have never been assigned to any location."
+                : `Turn on the filter above, or type at least ${SEARCH_MIN} characters to search all users.`}
+            </p>
+          </div>
+
+          <div>
+            <Label>User</Label>
+            <Select
+              value={userId || "__none__"}
+              onValueChange={(v) => setUserId(v === "__none__" ? "" : v)}
+              disabled={!assignUsersQueryEnabled || assignUsersLoading}
+            >
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={
+                    assignUsersLoading
+                      ? "Loading…"
+                      : !assignUsersQueryEnabled
+                        ? "Search or enable filter…"
+                        : "Select user"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Select…</SelectItem>
+                {assignUserCandidates.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.email} ({[u.firstName, u.lastName].filter(Boolean).join(" ") || "—"}
+                    {u.role?.name ? ` · ${u.role.name}` : ""})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <Button
+            type="button"
+            onClick={onAssign}
+            disabled={!locationId || !userId || updateUser.isPending}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            {updateUser.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving…
+              </>
+            ) : (
+              "Assign to location"
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight mb-1">Venue memberships</h2>
+        <p className="text-sm text-muted-foreground mb-4 max-w-2xl">
+          Every account with a membership at a child (venue) location — players, coaches, and staff.
+          Remove clears that venue membership (the account remains).
+        </p>
       </div>
 
       <AdminFilter
         title="Filters"
-        description="Filter by branch/location child and search area name"
-        searchPlaceholder="Search areas..."
-        searchValue={search}
-        onSearchChange={setSearch}
+        description="Search and narrow the membership list."
+        searchPlaceholder="Search email, name, location, role…"
+        searchValue={membershipSearch}
+        onSearchChange={setMembershipSearch}
       >
-        <Select value={branchId} onValueChange={setBranchId}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="All branches" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All branches</SelectItem>
-            {branches.map((b) => (
-              <SelectItem key={b.id} value={b.id}>
-                {b.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={locationId} onValueChange={setLocationId}>
+        <Select
+          value={membershipLocationFilter}
+          onValueChange={setMembershipLocationFilter}
+        >
           <SelectTrigger className="w-[220px]">
-            <SelectValue placeholder="All location child" />
+            <SelectValue placeholder="All venues" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All location child</SelectItem>
+            <SelectItem value="all">All venues</SelectItem>
             {locationChildren.map((loc) => (
               <SelectItem key={loc.id} value={loc.id}>
                 {loc.name}
@@ -158,124 +301,73 @@ export default function AdminLocationsPage() {
 
       <Card>
         <CardContent className="pt-6">
-          <AdminTable
-            data={filtered}
-            keyExtractor={(l) => l.id}
-            emptyMessage="No areas found."
-            isLoading={isLoading}
+          <AdminTable<VenueMembershipAssignmentRow>
+            data={paginatedMemberships}
+            keyExtractor={(r) => r.membershipId}
+            emptyMessage="No venue memberships match your filters."
+            isLoading={assignmentsLoading || locationsLoading}
             loadingNode={
               <div className="flex justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             }
             columns={[
-              { key: "name", label: "Name", render: (l) => <span className="font-medium">{l.name}</span> },
               {
                 key: "location",
-                label: "Location Child",
-                render: (a) =>
-                  locations.find((l) => l.id === a.locationId)?.name ?? "—",
+                label: "Location",
+                render: (r) => (
+                  <span className="font-medium">{r.locationName || r.locationId}</span>
+                ),
               },
-              { key: "visibility", label: "Visibility", render: (l) => l.visibility ?? "public" },
-              { key: "status", label: "Status", render: (l) => l.status ?? "active" },
+              { key: "email", label: "Email", render: (r) => r.email },
+              {
+                key: "name",
+                label: "Name",
+                render: (r) =>
+                  `${r.firstName ?? ""} ${r.lastName ?? ""}`.trim() || "—",
+              },
+              {
+                key: "role",
+                label: "Role",
+                render: (r) => r.roleName ?? "—",
+              },
+              { key: "status", label: "Membership status", render: (r) => r.status },
               {
                 key: "actions",
                 label: "Actions",
                 className: "text-right",
                 headClassName: "text-right",
-                render: (l) => (
-                  <>
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(l.id)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive"
-                      onClick={() => deleteArea.mutate(l.id)}
-                    >
+                render: (r) => (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:text-destructive"
+                    disabled={removingUserId === r.userId || updateUser.isPending}
+                    onClick={() => onRemove(r)}
+                    aria-label={`Remove ${r.email}`}
+                  >
+                    {removingUserId === r.userId ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
                       <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </>
+                    )}
+                  </Button>
                 ),
               },
             ]}
           />
+          {!assignmentsLoading && !locationsLoading && filteredMemberships.length > 0 && (
+            <AdminPagination
+              page={membershipPage}
+              pageSize={MEMBERSHIP_PAGE_SIZE}
+              total={filteredMemberships.length}
+              onPageChange={setMembershipPage}
+              className="mt-4 border-t pt-4"
+            />
+          )}
         </CardContent>
       </Card>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editingId ? "Edit Area" : "Create Area"}</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={onSubmit} className="space-y-4">
-            <div>
-              <Label>Location Child</Label>
-              <Select
-                value={form.locationId}
-                onValueChange={(v) => setForm((f) => ({ ...f, locationId: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select location child" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locationChildren.map((loc) => (
-                    <SelectItem key={loc.id} value={loc.id}>
-                      {loc.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Name</Label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                required
-              />
-            </div>
-            <div>
-              <Label>Visibility</Label>
-              <Select
-                value={form.visibility}
-                onValueChange={(v) =>
-                  setForm((f) => ({ ...f, visibility: v as "public" | "private" }))
-                }
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="public">public</SelectItem>
-                  <SelectItem value="private">private</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Status</Label>
-              <Select
-                value={form.status}
-                onValueChange={(v) =>
-                  setForm((f) => ({ ...f, status: v as "active" | "inactive" }))
-                }
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">active</SelectItem>
-                  <SelectItem value="inactive">inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit">{editingId ? "Save" : "Create"}</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
-

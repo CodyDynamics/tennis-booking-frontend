@@ -40,6 +40,19 @@ export interface CreateUserBody {
   membershipLocationId?: string;
 }
 
+/** Row from GET /users/venue-memberships */
+export interface VenueMembershipAssignmentRow {
+  membershipId: string;
+  userId: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  roleName: string | null;
+  locationId: string;
+  locationName: string;
+  status: string;
+}
+
 export interface UpdateUserBody {
   email?: string;
   fullName?: string;
@@ -59,15 +72,34 @@ export interface UpdateUserBody {
 
 export function createUsersEndpoints(client: ApiClient) {
   return {
-    getUsers: (params?: { roleId?: string; search?: string; onlyMembership?: boolean }) => {
+    getUsers: (params?: {
+      roleId?: string;
+      search?: string;
+      onlyMembership?: boolean;
+      /** Users without active/pending membership at this location (Area form onboarding). */
+      noMembershipAtLocationId?: string;
+      /** Area form: full list for super_admin; super_user sees venue members + users with no membership. */
+      forAreaAssignment?: boolean;
+      /** super_admin: user has no membership at any location (any venue). */
+      noMembershipAnywhere?: boolean;
+      membershipAtLocationId?: string;
+      areaId?: string;
+    }) => {
       const q: Record<string, string> = {};
       if (params?.roleId) q.roleId = params.roleId;
       if (params?.search) q.search = params.search;
       if (params?.onlyMembership) q.onlyMembership = "true";
+      if (params?.noMembershipAtLocationId) q.noMembershipAtLocationId = params.noMembershipAtLocationId;
+      if (params?.forAreaAssignment) q.forAreaAssignment = "true";
+      if (params?.noMembershipAnywhere) q.noMembershipAnywhere = "true";
+      if (params?.membershipAtLocationId) q.membershipAtLocationId = params.membershipAtLocationId;
+      if (params?.areaId) q.areaId = params.areaId;
       return client.get<UserApi[]>("/users", {
         params: Object.keys(q).length ? q : undefined,
       });
     },
+    getVenueMembershipAssignments: () =>
+      client.get<VenueMembershipAssignmentRow[]>("/users/venue-memberships"),
     getUser: (id: string, params?: { includeMemberships?: boolean }) =>
       client.get<UserApi>(`/users/${id}`, {
         params:

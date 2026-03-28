@@ -1,7 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useCourts, useCreateCourt, useDeleteCourt, useSports, useLocations } from "@/lib/queries";
+import { useMemo, useState, useEffect } from "react";
+import {
+  useCourts,
+  useCreateCourt,
+  useDeleteCourt,
+  useSports,
+  useLocations,
+  useBookableLocations,
+} from "@/lib/queries";
+import { useAuth } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,34 +27,61 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2 } from "lucide-react";
-import { AdminFilter, AdminTable } from "../components";
+import { Plus, Trash2, Loader2 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { AdminFilter, AdminTable, AdminPagination } from "../components";
 import type { Court } from "@/types";
 
+const COURTS_PAGE_SIZE = 10;
+
 export default function AdminCourtManagementPage() {
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [locationId, setLocationId] = useState<string>("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [name, setName] = useState("");
   const [sportCode, setSportCode] = useState("tennis");
 
-  const { data: locations = [] } = useLocations();
+  const { data: allLocations = [] } = useLocations();
+  const { data: bookableLocs = [] } = useBookableLocations(user?.role === "super_user");
+  const locations =
+    user?.role === "super_user" && bookableLocs.length > 0 ? bookableLocs : allLocations;
   const { data: sports = [] } = useSports();
-  const { data: courts = [] } = useCourts({
+  const { data: courts = [], isLoading: courtsLoading } = useCourts({
     locationId: locationId !== "all" ? locationId : undefined,
     search: search || undefined,
   });
   const createCourt = useCreateCourt();
   const deleteCourt = useDeleteCourt();
 
+  const courtsForUi = useMemo(() => {
+    if (user?.role !== "super_user" || bookableLocs.length === 0) return courts;
+    const allowed = new Set(bookableLocs.map((l) => l.id));
+    return courts.filter((c) => Boolean(c.locationId && allowed.has(c.locationId)));
+  }, [courts, bookableLocs, user?.role]);
+
   const filtered = useMemo(
     () =>
-      courts.filter(
+      courtsForUi.filter(
         (c) =>
           !search.trim() ||
           c.name.toLowerCase().includes(search.trim().toLowerCase()),
       ),
-    [courts, search],
+    [courtsForUi, search],
+  );
+
+  const [courtsPage, setCourtsPage] = useState(1);
+  useEffect(() => {
+    setCourtsPage(1);
+  }, [search, locationId]);
+
+  const paginatedCourts = useMemo(
+    () =>
+      filtered.slice(
+        (courtsPage - 1) * COURTS_PAGE_SIZE,
+        courtsPage * COURTS_PAGE_SIZE,
+      ),
+    [filtered, courtsPage],
   );
 
   return (
@@ -81,11 +116,19 @@ export default function AdminCourtManagementPage() {
         </Select>
       </AdminFilter>
 
-      <AdminTable<Court>
-        data={filtered}
-        keyExtractor={(c) => c.id}
-        emptyMessage="No courts."
-        columns={[
+      <Card>
+        <CardContent className="pt-6">
+          <AdminTable<Court>
+            data={paginatedCourts}
+            keyExtractor={(c) => c.id}
+            emptyMessage="No courts."
+            isLoading={courtsLoading}
+            loadingNode={
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            }
+            columns={[
           { key: "name", label: "Court Name", render: (c) => <span className="font-medium">{c.name}</span> },
           { key: "sport", label: "Sport", render: (c) => c.sport },
           { key: "locationName", label: "Location Child", render: (c) => c.locationName ?? "—" },
@@ -112,7 +155,18 @@ export default function AdminCourtManagementPage() {
             render: (row: Court) => React.ReactNode;
           },
         ]}
-      />
+          />
+          {!courtsLoading && filtered.length > 0 && (
+            <AdminPagination
+              page={courtsPage}
+              pageSize={COURTS_PAGE_SIZE}
+              total={filtered.length}
+              onPageChange={setCourtsPage}
+              className="mt-4 border-t pt-4"
+            />
+          )}
+        </CardContent>
+      </Card>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent>

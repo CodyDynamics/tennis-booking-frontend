@@ -3,6 +3,13 @@
  * Keep this file free of imports from lib/api or lib/auth-store to avoid circular deps.
  */
 
+/** Membership row on GET /users/profile (includeMemberships) */
+export interface AuthUserMembership {
+  id: string;
+  locationId: string;
+  status: string;
+}
+
 /** User payload returned by auth API (matches backend AuthResponse.user) */
 export interface AuthUser {
   id: string;
@@ -12,6 +19,7 @@ export interface AuthUser {
   organizationId?: string;
   branchId?: string;
   mustChangePasswordOnFirstLogin?: boolean;
+  memberships?: AuthUserMembership[];
 }
 
 /** Response from POST /auth/login, /auth/register, /auth/refresh */

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
-import { AdminTable } from "../components";
+import { AdminFilter, AdminTable, AdminPagination } from "../components";
 import {
   useSports,
   useCreateSport,
@@ -22,12 +22,16 @@ import {
 } from "@/lib/queries";
 import type { SportApi } from "@/lib/api/endpoints/sports";
 
+const SPORTS_PAGE_SIZE = 10;
+
 export default function AdminSportsPage() {
   const { data: sports = [], isLoading } = useSports();
   const createSport = useCreateSport();
   const updateSport = useUpdateSport();
   const deleteSport = useDeleteSport();
 
+  const [search, setSearch] = useState("");
+  const [sportsPage, setSportsPage] = useState(1);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<SportApi | null>(null);
   const [form, setForm] = useState({
@@ -58,6 +62,30 @@ export default function AdminSportsPage() {
     setOpen(true);
   };
 
+  const filteredSports = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return sports;
+    return sports.filter(
+      (s) =>
+        s.code.toLowerCase().includes(q) ||
+        s.name.toLowerCase().includes(q) ||
+        (s.description ?? "").toLowerCase().includes(q),
+    );
+  }, [sports, search]);
+
+  useEffect(() => {
+    setSportsPage(1);
+  }, [search]);
+
+  const paginatedSports = useMemo(
+    () =>
+      filteredSports.slice(
+        (sportsPage - 1) * SPORTS_PAGE_SIZE,
+        sportsPage * SPORTS_PAGE_SIZE,
+      ),
+    [filteredSports, sportsPage],
+  );
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const body = {
@@ -85,12 +113,19 @@ export default function AdminSportsPage() {
         </Button>
       </div>
 
+      <AdminFilter
+        title="Filters"
+        searchPlaceholder="Search by code, name, or description…"
+        searchValue={search}
+        onSearchChange={setSearch}
+      />
+
       <Card>
         <CardContent className="pt-6">
           <AdminTable<SportApi>
-            data={sports}
+            data={paginatedSports}
             keyExtractor={(s) => s.id}
-            emptyMessage="No sports found."
+            emptyMessage="No sports match your filters."
             isLoading={isLoading}
             loadingNode={
               <div className="flex justify-center py-12">
@@ -124,6 +159,15 @@ export default function AdminSportsPage() {
               },
             ]}
           />
+          {!isLoading && filteredSports.length > 0 && (
+            <AdminPagination
+              page={sportsPage}
+              pageSize={SPORTS_PAGE_SIZE}
+              total={filteredSports.length}
+              onPageChange={setSportsPage}
+              className="mt-4 border-t pt-4"
+            />
+          )}
         </CardContent>
       </Card>
 

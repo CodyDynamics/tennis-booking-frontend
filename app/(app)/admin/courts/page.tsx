@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-store";
 import { useAdmin } from "../admin-context";
 import {
   useCourts,
+  useBookableLocations,
   useBranches,
   useLocations,
   useAreas,
@@ -76,13 +77,21 @@ export default function AdminCourtsPage() {
     sport,
   });
 
+  const { data: bookableLocs = [] } = useBookableLocations(user?.role === "super_user");
+
+  const courtsForUi = useMemo(() => {
+    if (user?.role !== "super_user" || bookableLocs.length === 0) return courts;
+    const allowed = new Set(bookableLocs.map((l) => l.id));
+    return courts.filter((c) => Boolean(c.locationId && allowed.has(c.locationId)));
+  }, [courts, bookableLocs, user?.role]);
+
   useEffect(() => {
     setPage(1);
-  }, [search, branchId, status, sport]);
+  }, [search, branchId, status, sport, courtsForUi]);
 
   const paginatedCourts = useMemo(
-    () => courts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [courts, page]
+    () => courtsForUi.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [courtsForUi, page]
   );
   const { data: branches = [] } = useBranches();
   const { data: sports = [] } = useSports();
@@ -119,7 +128,7 @@ export default function AdminCourtsPage() {
 
   const courtNameOptions = useMemo(() => {
     const selectedArea = areas.find((a) => a.id === form.areaId);
-    const byLocation = courts.filter((c) => {
+    const byLocation = courtsForUi.filter((c) => {
       if (selectedArea?.locationId && c.locationId !== selectedArea.locationId) {
         return false;
       }
@@ -131,7 +140,7 @@ export default function AdminCourtsPage() {
     return Array.from(new Set(byLocation.map((c) => c.name))).sort((a, b) =>
       a.localeCompare(b),
     );
-  }, [courts, areas, form.areaId]);
+  }, [courtsForUi, areas, form.areaId]);
 
   useEffect(() => {
     if (!formTypeOptions.includes(form.type)) {
@@ -331,11 +340,11 @@ export default function AdminCourtsPage() {
                 : []),
             ]}
           />
-          {!isLoading && courts.length > 0 && (
+          {!isLoading && courtsForUi.length > 0 && (
             <AdminPagination
               page={page}
               pageSize={PAGE_SIZE}
-              total={courts.length}
+              total={courtsForUi.length}
               onPageChange={setPage}
               className="mt-4 border-t pt-4"
             />

@@ -1,8 +1,21 @@
-export type UserRole = "super_admin" | "admin" | "coach" | "student" | "parent" | "player";
+export type UserRole =
+  | "super_admin"
+  | "super_user"
+  | "admin"
+  | "coach"
+  | "student"
+  | "parent"
+  | "player";
 
 export type BookingType = "COURT_ONLY" | "COURT_COACH" | "TRAINING";
 
 export type { AuthResponse, AuthUser, LoginInput, RegisterInput, RoleDto, ApiErrorBody } from "./api";
+
+export interface UserMembershipScope {
+  id: string;
+  locationId: string;
+  status: string;
+}
 
 export interface User {
   id: string;
@@ -17,6 +30,8 @@ export interface User {
   status?: "active" | "inactive";
   /** Permission codes from role (e.g. courts:view, users:create). Used for RBAC. */
   permissions?: string[];
+  /** From GET /users/profile — venue scope for super_user admin UI */
+  memberships?: UserMembershipScope[];
 }
 
 export interface Court {

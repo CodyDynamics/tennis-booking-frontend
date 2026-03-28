@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { AdminPagination } from "../components";
+import { AdminFilter, AdminPagination } from "../components";
 import { useAuth } from "@/lib/auth-store";
 import { useRolesList, usePermissionsSchema, useUpdateRolePermissions } from "@/lib/queries";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,6 +51,7 @@ export default function AdminRolesPage() {
   const [localPerms, setLocalPerms] = useState<Set<string>>(new Set());
   const [saveFeedbackUntil, setSaveFeedbackUntil] = useState<number>(0);
   const [permPage, setPermPage] = useState(1);
+  const [permSearch, setPermSearch] = useState("");
 
   // Sync localPerms only when user switches role — do NOT sync when refetch updates selectedRole.permissions
   // (that would overwrite local unsaved changes after a save and make the Save button incorrectly disabled)
@@ -61,15 +62,25 @@ export default function AdminRolesPage() {
 
   useEffect(() => {
     setPermPage(1);
-  }, [selectedRoleId]);
+  }, [selectedRoleId, permSearch]);
+
+  const filteredSchema = useMemo(() => {
+    const q = permSearch.trim().toLowerCase();
+    if (!q) return schema;
+    return schema.filter(
+      (item) =>
+        item.label.toLowerCase().includes(q) ||
+        item.resource.toLowerCase().includes(q),
+    );
+  }, [schema, permSearch]);
 
   const paginatedSchema = useMemo(
     () =>
-      schema.slice(
+      filteredSchema.slice(
         (permPage - 1) * PERMISSIONS_PAGE_SIZE,
         permPage * PERMISSIONS_PAGE_SIZE
       ),
-    [schema, permPage]
+    [filteredSchema, permPage]
   );
 
   const isDirty = useMemo(() => {
@@ -196,7 +207,15 @@ export default function AdminRolesPage() {
               </Button>
             )}
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <AdminFilter
+              title="Filters"
+              description="Narrow the permission rows by resource name or label."
+              searchPlaceholder="Search resources…"
+              searchValue={permSearch}
+              onSearchChange={setPermSearch}
+              className="shadow-none"
+            />
             <div className="overflow-x-auto rounded-md border">
               <Table>
                 <TableHeader>
@@ -234,11 +253,11 @@ export default function AdminRolesPage() {
                 </TableBody>
               </Table>
             </div>
-            {schema.length > 0 && (
+            {filteredSchema.length > 0 && (
               <AdminPagination
                 page={permPage}
                 pageSize={PERMISSIONS_PAGE_SIZE}
-                total={schema.length}
+                total={filteredSchema.length}
                 onPageChange={setPermPage}
                 className="mt-4 border-t pt-4"
               />

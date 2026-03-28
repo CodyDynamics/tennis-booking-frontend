@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { User } from "@/types";
-import type { AuthUser } from "@/types/api";
+import type { AuthUser, AuthUserMembership } from "@/types/api";
 import { api, ApiError } from "@/lib/api";
 
 function parseRolePermissions(role: unknown): string[] {
@@ -21,6 +21,15 @@ function mapAuthUserToUser(a: AuthUser): User {
       ? rawRole.name
       : (rawRole as User["role"]);
   const permissions = typeof rawRole === "object" && rawRole ? parseRolePermissions(rawRole) : undefined;
+  const rawM = (a as AuthUser).memberships;
+  const memberships: AuthUserMembership[] | undefined = Array.isArray(rawM)
+    ? rawM.map((m) => ({
+        id: m.id,
+        locationId: m.locationId,
+        status: m.status,
+      }))
+    : undefined;
+
   return {
     id: a.id,
     email: a.email,
@@ -32,6 +41,7 @@ function mapAuthUserToUser(a: AuthUser): User {
     mustChangePasswordOnFirstLogin: a.mustChangePasswordOnFirstLogin ?? false,
     status: "active",
     permissions: permissions?.length ? permissions : undefined,
+    memberships: memberships?.length ? memberships : undefined,
   };
 }
 
