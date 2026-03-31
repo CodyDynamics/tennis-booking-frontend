@@ -24,8 +24,6 @@ export interface User {
   role: UserRole;
   phone?: string;
   avatarUrl?: string;
-  organizationId: string;
-  branchId?: string;
   mustChangePasswordOnFirstLogin?: boolean;
   status?: "active" | "inactive";
   /** Permission codes from role (e.g. courts:view, users:create). Used for RBAC. */
@@ -38,14 +36,15 @@ export interface Court {
   id: string;
   name: string;
   type: "indoor" | "outdoor";
+  /** Supported sports on this physical court (shared slot grid). */
+  sports: string[];
+  /** Primary label for display (first sport or legacy). */
   sport: string;
-  sportId?: string | null;
   areaId?: string | null;
   pricePerHour: number;
   description?: string;
   status: "active" | "maintenance";
   locationId?: string | null;
-  branchId?: string;
   locationName?: string | null;
   imageUrl?: string | null;
   /** Array of image URLs for gallery */
@@ -60,8 +59,6 @@ export interface Court {
 
 export interface CourtBooking {
   id: string;
-  organizationId: string;
-  branchId: string;
   userId: string;
   courtId: string;
   coachId?: string | null;
@@ -94,8 +91,6 @@ export interface Coach {
 
 export interface CoachSession {
   id: string;
-  organizationId: string;
-  branchId: string;
   coachId: string;
   courtId?: string | null;
   sessionDate: string;
@@ -110,8 +105,6 @@ export interface CoachSession {
 
 export interface ProgressReport {
   id: string;
-  organizationId: string;
-  branchId: string;
   coachId: string;
   studentId: string;
   sessionId?: string | null;

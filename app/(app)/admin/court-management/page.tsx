@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, type ReactNode } from "react";
 import {
   useCourts,
   useCreateCourt,
+  useUpdateCourt,
   useDeleteCourt,
-  useSports,
   useLocations,
   useBookableLocations,
 } from "@/lib/queries";
@@ -28,32 +28,48 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { AdminFilter, AdminTable, AdminPagination } from "../components";
 import type { Court } from "@/types";
 
 const COURTS_PAGE_SIZE = 10;
 
+const SPORT_OPTIONS = [
+  { code: "tennis", label: "Tennis" },
+  { code: "pickleball", label: "Pickleball" },
+  { code: "ball-machine", label: "Ball machine" },
+] as const;
+
+function toggleSport(current: string[], code: string): string[] {
+  if (current.includes(code)) {
+    const next = current.filter((s) => s !== code);
+    return next.length ? next : current;
+  }
+  return [...current, code];
+}
+
 export default function AdminCourtManagementPage() {
   const { user } = useAuth();
   const { locationId } = useAdmin();
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [courtFormLocationId, setCourtFormLocationId] = useState("");
   const [name, setName] = useState("");
-  const [sportCode, setSportCode] = useState("tennis");
+  const [courtType, setCourtType] = useState<"indoor" | "outdoor">("outdoor");
+  const [selectedSports, setSelectedSports] = useState<string[]>(["tennis"]);
 
   const { data: allLocations = [] } = useLocations();
   const { data: bookableLocs = [] } = useBookableLocations(user?.role === "super_user");
   const locations =
     user?.role === "super_user" && bookableLocs.length > 0 ? bookableLocs : allLocations;
-  const { data: sports = [] } = useSports();
   const { data: courts = [], isLoading: courtsLoading } = useCourts({
     locationId: locationId !== "all" ? locationId : undefined,
     search: search || undefined,
   });
   const createCourt = useCreateCourt();
+  const updateCourt = useUpdateCourt();
   const deleteCourt = useDeleteCourt();
 
   const courtsForUi = useMemo(() => {
@@ -86,16 +102,41 @@ export default function AdminCourtManagementPage() {
     [filtered, courtsPage],
   );
 
+  const resetForm = () => {
+    setEditingId(null);
+    setCourtFormLocationId(locationId !== "all" ? locationId : (locations[0]?.id ?? ""));
+    setName("");
+    setCourtType("outdoor");
+    setSelectedSports(["tennis"]);
+  };
+
+  const openCreate = () => {
+    resetForm();
+    setCourtFormLocationId(
+      locationId !== "all" ? locationId : (locations[0]?.id ?? ""),
+    );
+    setModalOpen(true);
+  };
+
+  const openEdit = (c: Court) => {
+    setEditingId(c.id);
+    setCourtFormLocationId(c.locationId ?? "");
+    setName(c.name);
+    setCourtType(c.type);
+    setSelectedSports(c.sports?.length ? [...c.sports] : [c.sport]);
+    setModalOpen(true);
+  };
+
+  const sportsLabel = (c: Court) =>
+    c.sports?.length ? c.sports.join(", ") : c.sport;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Court Management</h1>
         <Button
           onClick={() => {
-            setCourtFormLocationId(
-              locationId !== "all" ? locationId : (locations[0]?.id ?? ""),
-            );
-            setModalOpen(true);
+            openCreate();
           }}
         >
           <Plus className="mr-2 h-4 w-4" />
@@ -105,7 +146,7 @@ export default function AdminCourtManagementPage() {
 
       <AdminFilter
         title="Filters"
-        description="Courts are scoped by Location in the sidebar. Manage court master data (name + sport) per venue."
+        description="Courts are scoped by Location in the sidebar. One physical court can list multiple sports (shared schedule)."
         searchPlaceholder="Search by court name..."
         searchValue={search}
         onSearchChange={setSearch}
@@ -124,32 +165,55 @@ export default function AdminCourtManagementPage() {
               </div>
             }
             columns={[
-          { key: "name", label: "Court Name", render: (c) => <span className="font-medium">{c.name}</span> },
-          { key: "sport", label: "Sport", render: (c) => c.sport },
-          { key: "locationName", label: "Location Child", render: (c) => c.locationName ?? "—" },
-          {
-            key: "actions",
-            label: "Actions",
-            className: "text-right",
-            headClassName: "text-right",
-            render: (c) => (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-destructive"
-                onClick={() => deleteCourt.mutate(c.id)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            ),
-          } as {
-            key: string;
-            label: string;
-            className?: string;
-            headClassName?: string;
-            render: (row: Court) => React.ReactNode;
-          },
-        ]}
+              {
+                key: "name",
+                label: "Court Name",
+                render: (c) => <span className="font-medium">{c.name}</span>,
+              },
+              {
+                key: "type",
+                label: "Type",
+                render: (c) => <span className="capitalize">{c.type}</span>,
+              },
+              {
+                key: "sports",
+                label: "Sports",
+                render: (c) => <span className="text-sm">{sportsLabel(c)}</span>,
+              },
+              {
+                key: "locationName",
+                label: "Location Child",
+                render: (c) => c.locationName ?? "—",
+              },
+              {
+                key: "actions",
+                label: "Actions",
+                className: "text-right",
+                headClassName: "text-right",
+                render: (c) => (
+                  <div className="flex justify-end gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(c)} title="Edit">
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive"
+                      onClick={() => deleteCourt.mutate(c.id)}
+                      title="Delete"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ),
+              } as {
+                key: string;
+                label: string;
+                className?: string;
+                headClassName?: string;
+                render: (row: Court) => ReactNode;
+              },
+            ]}
           />
           {!courtsLoading && filtered.length > 0 && (
             <AdminPagination
@@ -163,10 +227,16 @@ export default function AdminCourtManagementPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      <Dialog
+        open={modalOpen}
+        onOpenChange={(open) => {
+          setModalOpen(open);
+          if (!open) resetForm();
+        }}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create Court</DialogTitle>
+            <DialogTitle>{editingId ? "Edit court" : "Create court"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -191,37 +261,73 @@ export default function AdminCourtManagementPage() {
               <Label>Court Name</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} required />
             </div>
-            <div>
-              <Label>Sport</Label>
-              <Select value={sportCode} onValueChange={setSportCode}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {sports.map((s) => (
-                    <SelectItem key={s.id} value={s.code}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <div className="flex flex-wrap gap-2">
+                {(["outdoor", "indoor"] as const).map((t) => (
+                  <Button
+                    key={t}
+                    type="button"
+                    variant={courtType === t ? "default" : "outline"}
+                    size="sm"
+                    className="capitalize"
+                    onClick={() => setCourtType(t)}
+                  >
+                    {t}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Sports on this court</Label>
+              <p className="text-xs text-muted-foreground">
+                Same physical court can host multiple sports; booking uses one shared time grid.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {SPORT_OPTIONS.map(({ code, label }) => (
+                  <Button
+                    key={code}
+                    type="button"
+                    size="sm"
+                    variant={selectedSports.includes(code) ? "default" : "outline"}
+                    onClick={() => setSelectedSports((prev) => toggleSport(prev, code))}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
             </div>
           </div>
           <DialogFooter>
             <Button
+              disabled={createCourt.isPending || updateCourt.isPending}
               onClick={async () => {
                 const loc = courtFormLocationId || locations[0]?.id;
                 if (!loc || !name.trim()) return;
-                await createCourt.mutateAsync({
-                  locationId: loc,
-                  name: name.trim(),
-                  sport: sportCode,
-                });
-                setName("");
+                const sports = selectedSports.length ? selectedSports : ["tennis"];
+                if (editingId) {
+                  await updateCourt.mutateAsync({
+                    id: editingId,
+                    body: {
+                      locationId: loc,
+                      name: name.trim(),
+                      type: courtType,
+                      sports,
+                    },
+                  });
+                } else {
+                  await createCourt.mutateAsync({
+                    locationId: loc,
+                    name: name.trim(),
+                    type: courtType,
+                    sports,
+                  });
+                }
                 setModalOpen(false);
+                resetForm();
               }}
             >
-              Create
+              {editingId ? "Save" : "Create"}
             </Button>
           </DialogFooter>
         </DialogContent>

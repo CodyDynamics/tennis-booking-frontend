@@ -134,14 +134,6 @@ export default function ProfilePage() {
                   </Badge>
                 </div>
               </div>
-              {user.organizationId && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Organization ID</label>
-                  <div className="rounded-md border bg-muted/50 px-3 py-2 font-mono text-xs truncate">
-                    {user.organizationId}
-                  </div>
-                </div>
-              )}
               <div className="pt-4 border-t space-y-2">
                 <Link href="/forgot-password">
                   <Button variant="outline" className="w-full">

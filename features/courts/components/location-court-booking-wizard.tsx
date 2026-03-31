@@ -160,7 +160,9 @@ export function LocationCourtBookingWizard({
       ? locationCourts.filter((c) => c.areaId === areaId)
       : locationCourts;
     for (const c of scopedCourts) {
-      if (c.sport) allowed.add(String(c.sport));
+      if (c.sports?.length) {
+        for (const code of c.sports) allowed.add(String(code));
+      } else if (c.sport) allowed.add(String(c.sport));
     }
     allowed.add("ball-machine");
     return sportsData.filter((s) => allowed.has(s.code));
@@ -174,7 +176,9 @@ export function LocationCourtBookingWizard({
       ? locationCourts.filter((c) => c.areaId === areaId)
       : locationCourts;
     for (const c of scopedCourts) {
-      if (c.sport !== sport) continue;
+      const supports =
+        c.sports?.length > 0 ? c.sports.includes(sport) : c.sport === sport;
+      if (!supports) continue;
       if (c.type === "indoor" || c.type === "outdoor") types.add(c.type);
     }
     return Array.from(types);

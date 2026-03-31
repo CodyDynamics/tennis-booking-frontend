@@ -16,8 +16,6 @@ export interface AuthUser {
   email: string;
   fullName: string;
   role?: string;
-  organizationId?: string;
-  branchId?: string;
   mustChangePasswordOnFirstLogin?: boolean;
   memberships?: AuthUserMembership[];
 }
@@ -50,8 +48,6 @@ export interface RegisterInput {
   city: string;
   state: string;
   zipCode: string;
-  organizationId?: string;
-  branchId?: string;
 }
 
 /** Body for POST /auth/register/verify-otp */

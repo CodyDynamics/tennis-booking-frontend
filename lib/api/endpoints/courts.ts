@@ -23,7 +23,6 @@ export interface CourtApi {
   id: string;
   locationId: string | null;
   areaId?: string | null;
-  sportId?: string | null;
   name: string;
   type: string;
   pricePerHour: string | number;
@@ -34,6 +33,9 @@ export interface CourtApi {
   /** Google Maps embed URL */
   mapEmbedUrl?: string | null;
   status: string;
+  /** Supported sports (Postgres array from API) */
+  sports?: string[];
+  /** Legacy: first sport for older UIs */
   sport: string;
   createdAt?: string;
   updatedAt?: string;
@@ -41,7 +43,6 @@ export interface CourtApi {
     id: string;
     name: string;
     address?: string | null;
-    branchId?: string | null;
   } | null;
   /** Present on GET /courts/:id — coaches assigned to this court */
   coaches?: CoachApi[];
@@ -52,8 +53,10 @@ export interface CreateCourtBody {
   areaId?: string;
   name: string;
   type?: string;
+  /** Preferred: multi-sport court */
+  sports?: string[];
+  /** Legacy single sport */
   sport?: string;
-  sportId?: string;
   windowStartTime?: string;
   windowEndTime?: string;
   pricePerHour?: number;
@@ -66,8 +69,9 @@ export interface UpdateCourtBody {
   areaId?: string;
   name?: string;
   type?: string;
+  sports?: string[];
+  /** When updating a Court Time Slot row, sport targets that window */
   sport?: string;
-  sportId?: string;
   windowStartTime?: string;
   windowEndTime?: string;
   pricePerHour?: number;
@@ -77,9 +81,8 @@ export interface UpdateCourtBody {
 
 export function createCourtsEndpoints(client: ApiClient) {
   return {
-    getCourtBookingWindows: (params?: { branchId?: string; search?: string }) => {
+    getCourtBookingWindows: (params?: { search?: string }) => {
       const q: Record<string, string> = {};
-      if (params?.branchId) q.branchId = params.branchId;
       if (params?.search) q.search = params.search;
       return client.get<CourtBookingWindowAdminApi[]>("/courts/booking-windows", {
         params: Object.keys(q).length ? q : undefined,
@@ -89,21 +92,17 @@ export function createCourtsEndpoints(client: ApiClient) {
       client.delete<{ deleted: boolean }>(`/courts/booking-windows/${windowId}`),
     getCourts: (params?: {
       locationId?: string;
-      branchId?: string;
       status?: string;
       search?: string;
       sport?: string;
-      sportId?: string;
       page?: string;
       pageSize?: string;
     }) => {
       const q: Record<string, string> = {};
       if (params?.locationId) q.locationId = params.locationId;
-      if (params?.branchId) q.branchId = params.branchId;
       if (params?.status) q.status = params.status;
       if (params?.search) q.search = params.search;
       if (params?.sport) q.sport = params.sport;
-      if (params?.sportId) q.sportId = params.sportId;
       if (params?.page !== undefined) q.page = params.page;
       if (params?.pageSize !== undefined) q.pageSize = params.pageSize;
       return client.get<ListResponse<CourtApi>>("/courts", {

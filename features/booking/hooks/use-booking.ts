@@ -14,8 +14,6 @@ export function useBooking() {
       // TODO: API call
       const newBooking: CourtBooking = {
         id: Date.now().toString(),
-        organizationId: bookingData.organizationId || "",
-        branchId: bookingData.branchId || "",
         userId: bookingData.userId || "",
         courtId: bookingData.courtId || "",
         coachId: bookingData.coachId ?? null,
@@ -46,8 +44,6 @@ export function useBooking() {
       // TODO: API call
       const newSession: CoachSession = {
         id: Date.now().toString(),
-        organizationId: sessionData.organizationId || "",
-        branchId: sessionData.branchId || "",
         coachId: sessionData.coachId || "",
         courtId: sessionData.courtId ?? null,
         sessionDate: sessionData.sessionDate || "",

@@ -31,7 +31,6 @@ function mapCoachApiToCoach(c: CoachApi): Coach {
           email: c.user.email ?? "",
           avatarUrl: c.user.avatarUrl ?? undefined,
           role: "coach",
-          organizationId: "",
         }
       : undefined,
   };
@@ -47,18 +46,24 @@ function mapCourtApiToCourt(c: CourtApi): Court {
       imageGallery = undefined;
     }
   }
+  const sportsArr =
+    Array.isArray(c.sports) && c.sports.length > 0
+      ? [...c.sports]
+      : c.sport
+        ? [c.sport]
+        : [];
+  const primarySport = sportsArr[0] ?? (c.sport || "tennis");
   const base: Court = {
     id: c.id,
     name: c.name,
     type: c.type === "indoor" ? "indoor" : "outdoor",
-    sport: c.sport,
-    sportId: c.sportId ?? null,
+    sports: sportsArr.length ? sportsArr : [primarySport],
+    sport: primarySport,
     areaId: c.areaId ?? null,
     pricePerHour: typeof c.pricePerHour === "string" ? parseFloat(c.pricePerHour) : c.pricePerHour,
     description: c.description ?? undefined,
     status: c.status === "active" ? "active" : "maintenance",
     locationId: c.locationId ?? undefined,
-    branchId: c.location?.branchId ?? undefined,
     locationName: c.location?.name ?? undefined,
     imageUrl: c.imageUrl ?? undefined,
     imageGallery,
@@ -85,8 +90,6 @@ function mapCourtBookingApiToCourtBooking(b: CourtBookingApi): CourtBooking {
     courtTypeRaw === "indoor" || courtTypeRaw === "outdoor" ? courtTypeRaw : null;
   return {
     id: b.id,
-    organizationId: b.organizationId ?? "",
-    branchId: b.branchId ?? "",
     userId: b.userId,
     courtId: b.courtId,
     coachId: b.coachId ?? null,
@@ -110,8 +113,6 @@ function mapCoachSessionApiToCoachSession(s: CoachSessionApi): CoachSession {
   const dateStr = typeof s.sessionDate === "string" ? s.sessionDate : (s.sessionDate as unknown as Date)?.toString?.()?.slice(0, 10) ?? "";
   return {
     id: s.id,
-    organizationId: s.organizationId ?? "",
-    branchId: s.branchId ?? "",
     coachId: s.coachId,
     courtId: s.courtId ?? null,
     sessionDate: dateStr,
@@ -128,7 +129,6 @@ function mapCoachSessionApiToCoachSession(s: CoachSessionApi): CoachSession {
 // Courts queries
 export function useCourts(params?: {
   locationId?: string;
-  branchId?: string;
   status?: string;
   search?: string;
   sport?: string;
@@ -137,7 +137,7 @@ export function useCourts(params?: {
 }) {
   const { enabled, ...apiParams } = params ?? {};
   return useQuery<Court[]>({
-    queryKey: ["courts", apiParams.locationId, apiParams.branchId, apiParams.status, apiParams.search, apiParams.sport],
+    queryKey: ["courts", apiParams.locationId, apiParams.status, apiParams.search, apiParams.sport],
     queryFn: async () => {
       const res = await api.courts.getCourts({
         ...apiParams,
@@ -162,12 +162,11 @@ export function useCourt(id: string | null | undefined, options?: { enabled?: bo
 }
 
 // Coaches queries
-export function useCoaches(branchId?: string) {
+export function useCoaches() {
   return useQuery<Coach[]>({
-    queryKey: ["coaches", branchId],
+    queryKey: ["coaches"],
     queryFn: async () => {
       const res = await api.coaches.getCoaches({
-        ...(branchId ? { branchId } : {}),
         page: "0",
         pageSize: "200",
       });
@@ -533,8 +532,6 @@ export function useCreateReport() {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       const newReport: ProgressReport = {
         id: Date.now().toString(),
-        organizationId: "org1",
-        branchId: "branch1",
         coachId: data.coachId,
         studentId: data.studentId,
         sessionId: data.sessionId || null,
@@ -604,13 +601,12 @@ export function useDeleteSport() {
   });
 }
 
-// ----- Admin: Locations (by branch) -----
-export function useLocations(branchId?: string) {
+// ----- Admin: Locations -----
+export function useLocations() {
   return useQuery({
-    queryKey: ["locations", branchId],
+    queryKey: ["locations"],
     queryFn: async () => {
       const res = await api.locations.getLocations({
-        ...(branchId ? { branchId } : {}),
         page: "0",
         pageSize: "500",
       });
@@ -866,13 +862,12 @@ export function useDeleteCourt() {
 }
 
 export function useCourtBookingWindows(params?: {
-  branchId?: string;
   search?: string;
   enabled?: boolean;
 }) {
   const { enabled = true, ...rest } = params ?? {};
   return useQuery({
-    queryKey: ["court-booking-windows", rest.branchId, rest.search],
+    queryKey: ["court-booking-windows", rest.search],
     queryFn: () => api.courts.getCourtBookingWindows(rest),
     enabled,
   });

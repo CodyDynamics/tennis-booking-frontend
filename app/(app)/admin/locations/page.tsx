@@ -28,7 +28,6 @@ import {
   useUpdateUser,
   useUsers,
   useVenueMembershipAssignments,
-  useBranches,
   useCreateLocation,
 } from "@/lib/queries";
 import { ApiError } from "@/lib/api";
@@ -44,7 +43,6 @@ const LOC_PAGE_SIZE = 10;
 function LocationsDirectoryTab() {
   const { user } = useAuth();
   const { data: locations = [], isLoading } = useLocations();
-  const { data: branches = [] } = useBranches();
   const createLocation = useCreateLocation();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -53,12 +51,6 @@ function LocationsDirectoryTab() {
   const [formError, setFormError] = useState<string | null>(null);
 
   const canCreate = hasAdminPermission(user?.permissions, "locations:create", user?.role);
-
-  const branchNameById = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const b of branches) m.set(b.id, b.name);
-    return m;
-  }, [branches]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -152,8 +144,7 @@ function LocationsDirectoryTab() {
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Locations</h2>
           <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            Roots and venue (child) locations. Branch is optional; link a branch later from admin if you
-            use org hierarchy. For a venue, create a root first, then add a child under it.
+            Roots and venue (child) locations. For a venue, create a root first, then add a child under it.
           </p>
         </div>
         {canCreate && (
@@ -194,12 +185,6 @@ function LocationsDirectoryTab() {
                 key: "kind",
                 label: "Kind",
                 render: (l) => <span className="capitalize">{l.kind ?? "—"}</span>,
-              },
-              {
-                key: "branch",
-                label: "Branch",
-                render: (l) =>
-                  l.branchId ? branchNameById.get(l.branchId) ?? l.branchId : "—",
               },
               { key: "address", label: "Address", render: (l) => l.address ?? "—" },
               {

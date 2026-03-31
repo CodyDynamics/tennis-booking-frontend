@@ -16,8 +16,6 @@ export interface UserApi {
   /** system | normal | membership */
   accountType?: string | null;
   homeAddress?: string | null;
-  organizationId?: string | null;
-  branchId?: string | null;
   roleId: string;
   status: string;
   mustChangePasswordOnFirstLogin?: boolean;
@@ -35,8 +33,6 @@ export interface CreateUserBody {
   lastName?: string;
   phone: string;
   homeAddress?: string;
-  organizationId?: string;
-  branchId?: string;
   roleId: string;
   mustChangePasswordOnFirstLogin?: boolean;
   membershipLocationId?: string;
@@ -62,8 +58,6 @@ export interface UpdateUserBody {
   lastName?: string;
   phone?: string;
   homeAddress?: string;
-  organizationId?: string;
-  branchId?: string;
   roleId?: string;
   status?: "active" | "inactive";
   password?: string;
@@ -81,8 +75,6 @@ export interface CreateMembershipPlaceholderBody {
   firstName?: string;
   lastName?: string;
   homeAddress?: string;
-  organizationId?: string;
-  branchId?: string;
   membershipLocationId?: string;
 }
 
