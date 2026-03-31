@@ -217,6 +217,15 @@ export function useAdminDashboardMetrics(enabled: boolean) {
   });
 }
 
+export function useAdminSportBookingBreakdown(sportKey: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ["admin", "dashboard", "sport-breakdown", sportKey],
+    queryFn: () => api.admin.getSportBookingBreakdown(sportKey!),
+    enabled: enabled && !!sportKey,
+    staleTime: 60_000,
+  });
+}
+
 // Sessions queries (coach sessions for current user)
 export function useSessions(coachId?: string, studentId?: string) {
   return useQuery<CoachSession[]>({

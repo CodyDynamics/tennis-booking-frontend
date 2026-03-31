@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Area,
@@ -14,11 +14,14 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useAdminDashboardMetrics } from "@/lib/queries";
-import { MOCK_ADMIN_DASHBOARD_METRICS } from "@/lib/admin-dashboard-mock";
+import { useAdminDashboardMetrics, useAdminSportBookingBreakdown } from "@/lib/queries";
+import {
+  MOCK_ADMIN_DASHBOARD_METRICS,
+  MOCK_SPORT_BREAKDOWNS,
+} from "@/lib/admin-dashboard-mock";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { DashboardMetricsApi } from "@/types/api";
+import type { DashboardMetricsApi, SportBookingBreakdownApi } from "@/types/api";
 import {
   Activity,
   BarChart3,
@@ -28,11 +31,38 @@ import {
   RefreshCw,
   Sparkles,
   Users,
+  X,
 } from "lucide-react";
 import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 import { AdminDataSourceToggle, type AdminDataMode } from "@/components/admin/admin-data-source-toggle";
 
 const PIE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#a855f7", "#ec4899", "#64748b"];
+
+type SportBarRow = { sportKey: string; name: string; value: number };
+
+function formatBookingTypeLabel(t: string): string {
+  if (t === "COURT_ONLY") return "Court only";
+  if (t === "COURT_COACH") return "Court + coach";
+  return t;
+}
+
+function formatAccountTypeLabel(t: string): string {
+  if (t === "normal") return "Normal signup";
+  if (t === "membership") return "Membership list";
+  if (t === "system") return "System / staff";
+  return t;
+}
+
+function parseSportBarClickEntry(entry: unknown): SportBarRow | null {
+  if (!entry || typeof entry !== "object") return null;
+  const o = entry as Record<string, unknown>;
+  const payload = o.payload as SportBarRow | undefined;
+  const sportKey = (payload?.sportKey ?? o.sportKey) as string | undefined;
+  const name = (payload?.name ?? o.name) as string | undefined;
+  const value = (payload?.value ?? o.value) as number | undefined;
+  if (!sportKey || name == null || value == null) return null;
+  return { sportKey, name, value };
+}
 
 const EMPTY_METRICS: DashboardMetricsApi = {
   totals: {
@@ -89,6 +119,9 @@ function KpiCard({
 
 export default function AdminOverviewPage() {
   const [mode, setMode] = useState<AdminDataMode>("mock");
+  const [sportSelection, setSportSelection] = useState<{ key: string; label: string } | null>(
+    null,
+  );
   const {
     data: realMetrics,
     isLoading: realLoading,
@@ -96,6 +129,29 @@ export default function AdminOverviewPage() {
     refetch,
     isFetching,
   } = useAdminDashboardMetrics(mode === "real");
+
+  const {
+    data: breakdownReal,
+    isLoading: breakdownLoading,
+    isError: breakdownError,
+  } = useAdminSportBookingBreakdown(sportSelection?.key ?? null, mode === "real" && !!sportSelection);
+
+  const breakdownMock = useMemo(() => {
+    if (!sportSelection || mode !== "mock") return undefined;
+    return MOCK_SPORT_BREAKDOWNS[sportSelection.key];
+  }, [sportSelection, mode]);
+
+  const breakdown: SportBookingBreakdownApi | undefined =
+    mode === "mock" ? breakdownMock : breakdownReal ?? undefined;
+
+  useEffect(() => {
+    if (!sportSelection) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSportSelection(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sportSelection]);
 
   const metrics: DashboardMetricsApi | null = useMemo(() => {
     if (mode === "mock") return MOCK_ADMIN_DASHBOARD_METRICS;
@@ -106,6 +162,7 @@ export default function AdminOverviewPage() {
   const pieData = useMemo(() => {
     if (!metrics) return [];
     return metrics.bookingsBySport.map((r) => ({
+      sportKey: r.sport,
       name: r.sport === "unknown" ? "Other" : r.sport,
       value: r.count,
     }));
@@ -292,7 +349,9 @@ export default function AdminOverviewPage() {
           className="lg:col-span-2 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-900"
         >
           <h2 className="text-lg font-bold text-slate-900 dark:text-white">By sport</h2>
-          <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">Share of non-cancelled bookings</p>
+          <p className="mb-1 text-sm text-slate-500 dark:text-slate-400">
+            Last 14 days, non-cancelled — click a bar for role and booking-type breakdown
+          </p>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={pieData} layout="vertical" margin={{ left: 8, right: 16 }}>
@@ -305,7 +364,20 @@ export default function AdminOverviewPage() {
                     border: "1px solid #e2e8f0",
                   }}
                 />
-                <Bar dataKey="value" name="Bookings" radius={[0, 8, 8, 0]}>
+                <Bar
+                  dataKey="value"
+                  name="Bookings"
+                  radius={[0, 8, 8, 0]}
+                  className="cursor-pointer outline-none"
+                  onClick={(entry: unknown, index?: number) => {
+                    let row = parseSportBarClickEntry(entry);
+                    if (!row && typeof index === "number" && pieData[index]) {
+                      const d = pieData[index];
+                      row = { sportKey: d.sportKey, name: d.name, value: d.value };
+                    }
+                    if (row) setSportSelection({ key: row.sportKey, label: row.name });
+                  }}
+                >
                   {pieData.map((_, i) => (
                     <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                   ))}
@@ -374,6 +446,126 @@ export default function AdminOverviewPage() {
       </motion.div>
       </motion.div>
       )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {sportSelection && (
+          <>
+            <motion.button
+              type="button"
+              aria-label="Close details"
+              className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-[2px]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setSportSelection(null)}
+            />
+            <motion.aside
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="sport-breakdown-title"
+              className="fixed right-0 top-0 z-[60] flex h-full w-full max-w-md flex-col border-l border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950"
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 320 }}
+            >
+              <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Sport breakdown
+                  </p>
+                  <h2
+                    id="sport-breakdown-title"
+                    className="mt-1 text-xl font-bold text-slate-900 dark:text-white"
+                  >
+                    {sportSelection.label}
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Same 14-day window as the dashboard charts
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
+                  onClick={() => setSportSelection(null)}
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-5 py-4">
+                {mode === "real" && breakdownLoading && (
+                  <p className="text-sm text-slate-500">Loading breakdown…</p>
+                )}
+                {mode === "real" && breakdownError && (
+                  <p className="text-sm text-amber-700 dark:text-amber-300">
+                    Could not load breakdown. Try again or refresh metrics.
+                  </p>
+                )}
+                {mode === "mock" && !breakdown && (
+                  <p className="text-sm text-slate-500">No demo breakdown for this sport.</p>
+                )}
+                {breakdown && (
+                  <>
+                    <p className="text-2xl font-black tabular-nums text-slate-900 dark:text-white">
+                      {breakdown.totalBookings.toLocaleString()}{" "}
+                      <span className="text-base font-semibold text-slate-500">bookings</span>
+                    </p>
+                    <div className="mt-6">
+                      <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                        By user role
+                      </h3>
+                      <ul className="mt-2 space-y-2">
+                        {breakdown.byRole.map((r) => (
+                          <li
+                            key={r.role}
+                            className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/90 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-900/60"
+                          >
+                            <span>{r.role}</span>
+                            <span className="font-semibold tabular-nums">{r.count}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className="mt-6">
+                      <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                        Booking type
+                      </h3>
+                      <ul className="mt-2 space-y-2">
+                        {breakdown.byBookingType.map((r) => (
+                          <li
+                            key={r.bookingType}
+                            className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/90 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-900/60"
+                          >
+                            <span>{formatBookingTypeLabel(r.bookingType)}</span>
+                            <span className="font-semibold tabular-nums">{r.count}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className="mt-6">
+                      <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                        Account type (booker)
+                      </h3>
+                      <ul className="mt-2 space-y-2">
+                        {breakdown.byAccountType.map((r) => (
+                          <li
+                            key={r.accountType}
+                            className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/90 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-900/60"
+                          >
+                            <span>{formatAccountTypeLabel(r.accountType)}</span>
+                            <span className="font-semibold tabular-nums">{r.count}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </>
+                )}
+              </div>
+            </motion.aside>
+          </>
+        )}
       </AnimatePresence>
     </div>
   );

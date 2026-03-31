@@ -1,4 +1,70 @@
-import type { DashboardMetricsApi } from "@/types/api";
+import type { DashboardMetricsApi, SportBookingBreakdownApi } from "@/types/api";
+
+/** Demo drill-down when clicking a bar in mock mode */
+export const MOCK_SPORT_BREAKDOWNS: Record<string, SportBookingBreakdownApi> = {
+  tennis: {
+    sport: "tennis",
+    windowDays: 14,
+    totalBookings: 412,
+    byRole: [
+      { role: "student", count: 268 },
+      { role: "coach", count: 96 },
+      { role: "admin", count: 48 },
+    ],
+    byBookingType: [
+      { bookingType: "COURT_ONLY", count: 351 },
+      { bookingType: "COURT_COACH", count: 61 },
+    ],
+    byAccountType: [
+      { accountType: "normal", count: 298 },
+      { accountType: "membership", count: 104 },
+      { accountType: "system", count: 10 },
+    ],
+  },
+  pickleball: {
+    sport: "pickleball",
+    windowDays: 14,
+    totalBookings: 186,
+    byRole: [
+      { role: "student", count: 142 },
+      { role: "coach", count: 32 },
+      { role: "admin", count: 12 },
+    ],
+    byBookingType: [
+      { bookingType: "COURT_ONLY", count: 170 },
+      { bookingType: "COURT_COACH", count: 16 },
+    ],
+    byAccountType: [
+      { accountType: "normal", count: 150 },
+      { accountType: "membership", count: 36 },
+    ],
+  },
+  "ball-machine": {
+    sport: "ball-machine",
+    windowDays: 14,
+    totalBookings: 52,
+    byRole: [
+      { role: "student", count: 40 },
+      { role: "coach", count: 12 },
+    ],
+    byBookingType: [{ bookingType: "COURT_ONLY", count: 52 }],
+    byAccountType: [
+      { accountType: "normal", count: 44 },
+      { accountType: "membership", count: 8 },
+    ],
+  },
+  unknown: {
+    sport: "unknown",
+    windowDays: 14,
+    totalBookings: 9,
+    byRole: [
+      { role: "student", count: 5 },
+      { role: "No role", count: 4 },
+    ],
+    byBookingType: [{ bookingType: "COURT_ONLY", count: 9 }],
+    byAccountType: [{ accountType: "normal", count: 9 }],
+  },
+};
 
 /** Demo dataset when admin toggles “Mockup data” on the dashboard */
 export const MOCK_ADMIN_DASHBOARD_METRICS: DashboardMetricsApi = {

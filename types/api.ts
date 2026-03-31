@@ -241,6 +241,16 @@ export interface DashboardMetricsApi {
   dailyRevenue: { date: string; revenue: number }[];
 }
 
+/** GET /admin/dashboard/metrics/by-sport?sport= */
+export interface SportBookingBreakdownApi {
+  sport: string;
+  windowDays: number;
+  totalBookings: number;
+  byRole: { role: string; count: number }[];
+  byBookingType: { bookingType: string; count: number }[];
+  byAccountType: { accountType: string; count: number }[];
+}
+
 /** Coach session as returned by API */
 export interface CoachSessionApi {
   id: string;
