@@ -16,6 +16,7 @@ import type { CoachApi } from "@/lib/api/endpoints/coaches";
 import type { UserApi, VenueMembershipAssignmentRow } from "@/lib/api/endpoints/users";
 import type { PermissionSchemaItem } from "@/lib/api/endpoints/roles";
 import type { AreaApi } from "@/lib/api/endpoints/areas";
+import type { AdminCourtBookingRowApi } from "@/lib/api/endpoints/bookings";
 
 function mapCoachApiToCoach(c: CoachApi): Coach {
   return {
@@ -193,6 +194,36 @@ export function useBookings(userId?: string) {
       return (res.courtBookings ?? []).map(mapCourtBookingApiToCourtBooking);
     },
     enabled: !!userId,
+  });
+}
+
+// ----- Admin: Bookings -----
+export function useAdminCourtBookings(params?: {
+  locationId?: string;
+  search?: string;
+  from?: string;
+  to?: string;
+  status?: string;
+  paymentStatus?: string;
+  enabled?: boolean;
+}) {
+  const { enabled = true, ...rest } = params ?? {};
+  return useQuery<AdminCourtBookingRowApi[]>({
+    queryKey: ["admin", "bookings", "court", rest.locationId, rest.search, rest.from, rest.to, rest.status, rest.paymentStatus],
+    queryFn: () => api.bookings.adminListCourtBookings(rest),
+    enabled,
+  });
+}
+
+export function useAdminUpdateCourtBooking() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: { bookingStatus?: string; paymentStatus?: string } }) =>
+      api.bookings.adminUpdateCourtBooking(id, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+    },
   });
 }
 

@@ -47,6 +47,7 @@ function getRequiredPermissionForPath(path: string): string | null {
   if (path.startsWith("/admin/organizations")) return "organizations:view";
   if (path.startsWith("/admin/areas")) return "areas:view";
   if (path.startsWith("/admin/sports")) return "sports:view";
+  if (path.startsWith("/admin/bookings")) return "bookings:view";
   return null;
 }
 
@@ -102,6 +103,7 @@ export default function AdminLayout({
     { href: "/admin", label: "Overview", icon: LayoutDashboard },
     { href: "/admin/court-management", label: "Court Management", icon: MapPin },
     { href: "/admin/courts", label: "Court Time Assignments", icon: MapPin },
+    { href: "/admin/bookings", label: "Bookings", icon: Activity },
     { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/user-memberships", label: "Memberships", icon: Users },
     { href: "/admin/roles", label: "Roles & Permissions", icon: Shield },

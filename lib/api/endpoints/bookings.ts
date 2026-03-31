@@ -11,6 +11,29 @@ import type {
 } from "@/types/api";
 import type { ApiClient } from "../client";
 
+export interface AdminCourtBookingRowApi {
+  id: string;
+  locationId: string | null;
+  sport: string | null;
+  courtType: string | null;
+  courtId: string;
+  userId: string;
+  coachId: string | null;
+  bookingType: string;
+  bookingDate: string;
+  startTime: string;
+  endTime: string;
+  durationMinutes: number;
+  totalPrice: string | number;
+  paymentStatus: string;
+  bookingStatus: string;
+  createdAt?: string;
+  updatedAt?: string;
+  court?: { id: string; name: string } | null;
+  user?: { id: string; email: string; fullName: string } | null;
+  location?: { id: string; name: string } | null;
+}
+
 export function createBookingsEndpoints(client: ApiClient) {
   return {
     createCourtBooking: (body: CreateCourtBookingInput) =>
@@ -110,6 +133,31 @@ export function createBookingsEndpoints(client: ApiClient) {
 
     cancelBooking: (kind: "court" | "coach", id: string) =>
       client.delete<{ message?: string }>(`/bookings/${kind}/${id}`),
+
+    // ----- Admin -----
+    adminListCourtBookings: (params?: {
+      locationId?: string;
+      search?: string;
+      from?: string;
+      to?: string;
+      status?: string;
+      paymentStatus?: string;
+    }) => {
+      const q: Record<string, string> = {};
+      if (params?.locationId) q.locationId = params.locationId;
+      if (params?.search) q.search = params.search;
+      if (params?.from) q.from = params.from;
+      if (params?.to) q.to = params.to;
+      if (params?.status) q.status = params.status;
+      if (params?.paymentStatus) q.paymentStatus = params.paymentStatus;
+      return client.get<AdminCourtBookingRowApi[]>("/bookings/admin/court", {
+        params: Object.keys(q).length ? q : undefined,
+      });
+    },
+    adminUpdateCourtBooking: (
+      id: string,
+      body: { bookingStatus?: string; paymentStatus?: string },
+    ) => client.patch<AdminCourtBookingRowApi>(`/bookings/admin/court/${id}`, body),
   };
 }
 
