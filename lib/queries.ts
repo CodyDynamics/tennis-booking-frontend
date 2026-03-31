@@ -837,6 +837,7 @@ export function useUsers(params?: {
   areaId?: string;
   accountType?: string;
   excludeAccountType?: string;
+  includeMemberships?: boolean;
   enabled?: boolean;
 }) {
   const { enabled = true, ...rest } = params ?? {};
@@ -853,6 +854,7 @@ export function useUsers(params?: {
       rest.areaId,
       rest.accountType,
       rest.excludeAccountType,
+      rest.includeMemberships,
     ],
     queryFn: () => api.users.getUsers(rest),
     enabled,

@@ -47,7 +47,10 @@ export function AdminTable<T>({
         <TableHeader>
           <TableRow>
             {columns.map((col) => (
-              <TableHead key={col.key} className={col.headClassName}>
+              <TableHead
+                key={col.key}
+                className={cn("font-bold text-slate-700 dark:text-slate-200", col.headClassName)}
+              >
                 {col.label}
               </TableHead>
             ))}
