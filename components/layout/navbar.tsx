@@ -155,6 +155,12 @@ export function Navbar() {
 
             <div className="w-px h-8 bg-slate-200 dark:bg-slate-800 mx-2"></div>
 
+            {showAuthButtons && isAuthenticated && user && (
+              <div className="hidden lg:block text-sm text-muted-foreground mr-1">
+                Hi, <span className="font-semibold text-foreground">{user.fullName}</span>
+              </div>
+            )}
+
             {showAuthButtons && canShowAdminNav(user) && (
               <Link href="/admin">
                 <Button variant="outline" className={cn("rounded-full border-border", pathname.startsWith("/admin") && "bg-primary/10 text-primary border-primary/30")}>
