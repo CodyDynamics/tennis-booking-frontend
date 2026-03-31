@@ -550,7 +550,7 @@ export default function AdminUserMembershipPage() {
                   <SelectItem value="__none__">None</SelectItem>
                   {locationOptionsForCreate.map((loc) => (
                     <SelectItem key={loc.id} value={loc.id}>
-                      {`${loc.name} (${loc.kind ?? "child"})`}
+                      {loc.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -702,7 +702,7 @@ export default function AdminUserMembershipPage() {
                     )}
                     {locationOptionsForCreate.map((loc) => (
                       <SelectItem key={loc.id} value={loc.id}>
-                        {`${loc.name} (${loc.kind ?? "child"})`}
+                        {loc.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -212,7 +212,11 @@ export default function CourtDetailPage() {
             {court.description || "Premium court for tennis and pickleball."}
           </p>
           <div className="flex flex-wrap gap-4 mt-4 text-white/80 text-sm">
-            <span className="capitalize">{court.type}</span>
+            <span className="capitalize">
+              {court.courtTypes?.length
+                ? court.courtTypes.map((t) => t.charAt(0).toUpperCase() + t.slice(1)).join(", ")
+                : court.type}
+            </span>
             <span>•</span>
             <span className="capitalize">
               {court.sports?.length ? court.sports.join(", ") : court.sport}

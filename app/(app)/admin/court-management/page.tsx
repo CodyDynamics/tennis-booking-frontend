@@ -41,7 +41,17 @@ const SPORT_OPTIONS = [
   { code: "ball-machine", label: "Ball machine" },
 ] as const;
 
+const ENV_OPTIONS = ["outdoor", "indoor"] as const;
+
 function toggleSport(current: string[], code: string): string[] {
+  if (current.includes(code)) {
+    const next = current.filter((s) => s !== code);
+    return next.length ? next : current;
+  }
+  return [...current, code];
+}
+
+function toggleEnv(current: ("indoor" | "outdoor")[], code: "indoor" | "outdoor"): ("indoor" | "outdoor")[] {
   if (current.includes(code)) {
     const next = current.filter((s) => s !== code);
     return next.length ? next : current;
@@ -57,8 +67,9 @@ export default function AdminCourtManagementPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [courtFormLocationId, setCourtFormLocationId] = useState("");
   const [name, setName] = useState("");
-  const [courtType, setCourtType] = useState<"indoor" | "outdoor">("outdoor");
+  const [selectedCourtTypes, setSelectedCourtTypes] = useState<("indoor" | "outdoor")[]>(["outdoor"]);
   const [selectedSports, setSelectedSports] = useState<string[]>(["tennis"]);
+  const [courtStatus, setCourtStatus] = useState<"active" | "maintenance">("active");
 
   const { data: allLocations = [] } = useLocations();
   const { data: bookableLocs = [] } = useBookableLocations(user?.role === "super_user");
@@ -106,8 +117,9 @@ export default function AdminCourtManagementPage() {
     setEditingId(null);
     setCourtFormLocationId(locationId !== "all" ? locationId : (locations[0]?.id ?? ""));
     setName("");
-    setCourtType("outdoor");
+    setSelectedCourtTypes(["outdoor"]);
     setSelectedSports(["tennis"]);
+    setCourtStatus("active");
   };
 
   const openCreate = () => {
@@ -122,13 +134,17 @@ export default function AdminCourtManagementPage() {
     setEditingId(c.id);
     setCourtFormLocationId(c.locationId ?? "");
     setName(c.name);
-    setCourtType(c.type);
+    setSelectedCourtTypes(c.courtTypes?.length ? [...c.courtTypes] : [c.type]);
     setSelectedSports(c.sports?.length ? [...c.sports] : [c.sport]);
+    setCourtStatus(c.status);
     setModalOpen(true);
   };
 
   const sportsLabel = (c: Court) =>
     c.sports?.length ? c.sports.join(", ") : c.sport;
+
+  const envLabel = (c: Court) =>
+    c.courtTypes?.length ? c.courtTypes.map((t) => t.charAt(0).toUpperCase() + t.slice(1)).join(", ") : c.type;
 
   return (
     <div className="space-y-6">
@@ -146,7 +162,7 @@ export default function AdminCourtManagementPage() {
 
       <AdminFilter
         title="Filters"
-        description="Courts are scoped by Location in the sidebar. One physical court can list multiple sports (shared schedule)."
+        description="Courts are scoped by Location in the sidebar. Inactive courts are hidden from Court Time Slot until set active again."
         searchPlaceholder="Search by court name..."
         searchValue={search}
         onSearchChange={setSearch}
@@ -171,9 +187,9 @@ export default function AdminCourtManagementPage() {
                 render: (c) => <span className="font-medium">{c.name}</span>,
               },
               {
-                key: "type",
-                label: "Type",
-                render: (c) => <span className="capitalize">{c.type}</span>,
+                key: "env",
+                label: "Environment",
+                render: (c) => <span className="text-sm">{envLabel(c)}</span>,
               },
               {
                 key: "sports",
@@ -182,8 +198,17 @@ export default function AdminCourtManagementPage() {
               },
               {
                 key: "locationName",
-                label: "Location Child",
+                label: "Location",
                 render: (c) => c.locationName ?? "—",
+              },
+              {
+                key: "status",
+                label: "Status",
+                render: (c) => (
+                  <span className={c.status === "active" ? "text-green-600" : "text-amber-600"}>
+                    {c.status}
+                  </span>
+                ),
               },
               {
                 key: "actions",
@@ -240,13 +265,13 @@ export default function AdminCourtManagementPage() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Location Child</Label>
+              <Label>Location</Label>
               <Select
                 value={courtFormLocationId || locations[0]?.id}
                 onValueChange={setCourtFormLocationId}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select location child" />
+                  <SelectValue placeholder="Select location" />
                 </SelectTrigger>
                 <SelectContent>
                   {locations.map((loc) => (
@@ -262,21 +287,42 @@ export default function AdminCourtManagementPage() {
               <Input value={name} onChange={(e) => setName(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <Label>Type</Label>
+              <Label>Environment (indoor / outdoor)</Label>
+              <p className="text-xs text-muted-foreground">Select one or both if the same court is used in multiple settings.</p>
               <div className="flex flex-wrap gap-2">
-                {(["outdoor", "indoor"] as const).map((t) => (
+                {ENV_OPTIONS.map((t) => (
                   <Button
                     key={t}
                     type="button"
-                    variant={courtType === t ? "default" : "outline"}
+                    variant={selectedCourtTypes.includes(t) ? "default" : "outline"}
                     size="sm"
                     className="capitalize"
-                    onClick={() => setCourtType(t)}
+                    onClick={() => setSelectedCourtTypes((prev) => toggleEnv(prev, t))}
                   >
                     {t}
                   </Button>
                 ))}
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Court status</Label>
+              <div className="flex flex-wrap gap-2">
+                {(["active", "maintenance"] as const).map((s) => (
+                  <Button
+                    key={s}
+                    type="button"
+                    variant={courtStatus === s ? "default" : "outline"}
+                    size="sm"
+                    className="capitalize"
+                    onClick={() => setCourtStatus(s)}
+                  >
+                    {s === "maintenance" ? "Inactive / maintenance" : "Active"}
+                  </Button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Inactive courts do not appear under Court Time Slot until set active again.
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Sports on this court</Label>
@@ -305,22 +351,26 @@ export default function AdminCourtManagementPage() {
                 const loc = courtFormLocationId || locations[0]?.id;
                 if (!loc || !name.trim()) return;
                 const sports = selectedSports.length ? selectedSports : ["tennis"];
+                const courtTypes =
+                  selectedCourtTypes.length > 0 ? selectedCourtTypes : (["outdoor"] as ("indoor" | "outdoor")[]);
                 if (editingId) {
                   await updateCourt.mutateAsync({
                     id: editingId,
                     body: {
                       locationId: loc,
                       name: name.trim(),
-                      type: courtType,
+                      courtTypes,
                       sports,
+                      status: courtStatus,
                     },
                   });
                 } else {
                   await createCourt.mutateAsync({
                     locationId: loc,
                     name: name.trim(),
-                    type: courtType,
+                    courtTypes,
                     sports,
+                    status: courtStatus,
                   });
                 }
                 setModalOpen(false);

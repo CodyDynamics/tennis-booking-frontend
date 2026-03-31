@@ -82,7 +82,9 @@ export default function AdminCourtsPage() {
     search: search || undefined,
   });
 
-  const { data: pickerCourtsRaw = [], isLoading: pickerLoading } = useCourts({});
+  const { data: pickerCourtsRaw = [], isLoading: pickerLoading } = useCourts({
+    status: "active",
+  });
 
   const pickerCourtsForUi = useMemo(() => {
     let rows = pickerCourtsRaw;
@@ -125,6 +127,7 @@ export default function AdminCourtsPage() {
         const synthetic: Court = {
           id: editingRow.courtId,
           name: editingRow.courtName,
+          courtTypes: [editingRow.courtType === "indoor" ? "indoor" : "outdoor"],
           type: editingRow.courtType === "indoor" ? "indoor" : "outdoor",
           sports: [editingRow.sport],
           sport: editingRow.sport,
@@ -151,15 +154,17 @@ export default function AdminCourtsPage() {
     sport: "tennis",
     pricePerHour: 0,
     description: "",
-    status: "active" as "active" | "maintenance",
     windowStartTime: "08:00",
     windowEndTime: "11:00",
   });
 
   const formTypeOptions = useMemo<Array<"indoor" | "outdoor">>(() => {
     if (form.sport === "ball-machine") return ["outdoor"];
+    const c = courtPickerOptions.find((x) => x.id === form.selectedCourtId);
+    const fromCourt = c?.courtTypes?.filter((t) => t === "indoor" || t === "outdoor") ?? [];
+    if (fromCourt.length) return fromCourt as ("indoor" | "outdoor")[];
     return ["outdoor", "indoor"];
-  }, [form.sport]);
+  }, [form.sport, form.selectedCourtId, courtPickerOptions]);
 
   useEffect(() => {
     if (!formTypeOptions.includes(form.type)) {
@@ -178,7 +183,6 @@ export default function AdminCourtsPage() {
       sport: sport ?? "tennis",
       pricePerHour: 0,
       description: "",
-      status: "active",
       windowStartTime: "08:00",
       windowEndTime: "11:00",
     });
@@ -200,7 +204,6 @@ export default function AdminCourtsPage() {
       sport: row.sport,
       pricePerHour: row.pricePerHour,
       description: row.description ?? "",
-      status: row.courtStatus === "maintenance" ? "maintenance" : "active",
       windowStartTime: normalizeGridTime(row.windowStartTime),
       windowEndTime: normalizeGridTime(row.windowEndTime),
     });
@@ -227,7 +230,6 @@ export default function AdminCourtsPage() {
       sport: form.sport,
       pricePerHour: form.pricePerHour,
       description: form.description || undefined,
-      status: form.status,
       windowStartTime: form.windowStartTime,
       windowEndTime: form.windowEndTime,
     };
@@ -322,15 +324,6 @@ export default function AdminCourtsPage() {
                 key: "pricePerHour",
                 label: "Price/hour",
                 render: (r) => formatCurrency(r.pricePerHour),
-              },
-              {
-                key: "courtStatus",
-                label: "Court status",
-                render: (r) => (
-                  <span className={r.courtStatus === "active" ? "text-green-600" : "text-amber-600"}>
-                    {r.courtStatus}
-                  </span>
-                ),
               },
               {
                 key: "slot",
@@ -439,7 +432,7 @@ export default function AdminCourtsPage() {
                     locationId: c.locationId ?? "",
                     name: c.name,
                     sport: c.sports?.[0] ?? c.sport,
-                    type: c.type,
+                    type: (c.courtTypes?.[0] ?? c.type) as "indoor" | "outdoor",
                   }));
                 }}
                 disabled={!!editingRow || pickerLoading}
@@ -569,27 +562,6 @@ export default function AdminCourtsPage() {
                 placeholder="Optional"
               />
             </div>
-            <div>
-              <Label>Court status</Label>
-              <Select
-                value={form.status}
-                onValueChange={(v) =>
-                  setForm((f) => ({
-                    ...f,
-                    status: v as "active" | "maintenance",
-                  }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="maintenance">Maintenance</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
             <DialogFooter className="border-t pt-4">
               <Button type="button" variant="outline" onClick={() => setModalOpen(false)} disabled={updateCourt.isPending}>
                 Cancel

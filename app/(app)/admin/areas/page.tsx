@@ -305,7 +305,7 @@ export default function AdminAreasPage() {
         description={
           isSuperUser
             ? "Search within your venue(s). Location list is limited to venues you operate."
-            : "Filter by location (venue) and search area name"
+            : "Filter by location and search area name"
         }
         searchPlaceholder="Search areas..."
         searchValue={search}
@@ -314,10 +314,10 @@ export default function AdminAreasPage() {
         {!isSuperUser && (
           <Select value={locationId} onValueChange={setLocationId}>
             <SelectTrigger className="w-[220px]">
-              <SelectValue placeholder="All location child" />
+              <SelectValue placeholder="All locations" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All location child</SelectItem>
+              <SelectItem value="all">All locations</SelectItem>
               {locationChildren.map((loc) => (
                 <SelectItem key={loc.id} value={loc.id}>
                   {loc.name}
@@ -359,7 +359,7 @@ export default function AdminAreasPage() {
               { key: "name", label: "Name", render: (l) => <span className="font-medium">{l.name}</span> },
               {
                 key: "location",
-                label: "Location Child",
+                label: "Location",
                 render: (a) =>
                   locations.find((l) => l.id === a.locationId)?.name ?? "—",
               },
@@ -411,11 +411,11 @@ export default function AdminAreasPage() {
                 Area vs people
               </p>
               <p className="mt-1.5 leading-relaxed">
-                This form configures the area record (location child, name, visibility, status).
+                This form configures the area record (location, name, visibility, status).
                 <strong> Membership</strong> is stored per <strong>location</strong>. Use{" "}
                 <strong>Add member to this location</strong> below so people who registered
                 without a venue (or who are not yet on this location) get access to{" "}
-                <em>all areas</em> under the selected location child.
+                <em>all areas</em> under the selected location.
               </p>
               <p className="mt-2 leading-relaxed">
                 Full user CRUD and other roles:{" "}
@@ -435,7 +435,7 @@ export default function AdminAreasPage() {
               )}
             </div>
             <div>
-              <Label>Location Child</Label>
+              <Label>Location</Label>
               <Select
                 value={form.locationId}
                 onValueChange={(v) =>
@@ -444,7 +444,7 @@ export default function AdminAreasPage() {
                 disabled={isSuperUser && myVenueLocationIds.length === 1}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select location child" />
+                  <SelectValue placeholder="Select location" />
                 </SelectTrigger>
                 <SelectContent>
                   {locationChildren.map((loc) => (

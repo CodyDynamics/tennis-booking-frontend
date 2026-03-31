@@ -179,7 +179,10 @@ export function LocationCourtBookingWizard({
       const supports =
         c.sports?.length > 0 ? c.sports.includes(sport) : c.sport === sport;
       if (!supports) continue;
-      if (c.type === "indoor" || c.type === "outdoor") types.add(c.type);
+      const envs = c.courtTypes?.length ? c.courtTypes : [c.type];
+      for (const t of envs) {
+        if (t === "indoor" || t === "outdoor") types.add(t);
+      }
     }
     return Array.from(types);
   }, [locationCourts, sport, areaId]);
