@@ -108,6 +108,12 @@ export default function AdminUserMembershipPage() {
     (filterAreaId !== "all" ||
       (filterAreaId === "all" && adminLocationId !== "all"));
 
+  /** When sidebar filters by one location, list rows are scoped to that venue; used as fallback label. */
+  const listScopedLocationId =
+    showScopeFilters && filterAreaId === "all" && adminLocationId !== "all"
+      ? adminLocationId
+      : undefined;
+
   useEffect(() => {
     setFilterAreaId("all");
   }, [adminLocationId]);
@@ -125,6 +131,7 @@ export default function AdminUserMembershipPage() {
         ? adminLocationId
         : undefined,
     areaId: showScopeFilters && filterAreaId !== "all" ? filterAreaId : undefined,
+    includeMemberships: true,
   });
 
   const paginatedUsers = useMemo(
@@ -386,6 +393,27 @@ export default function AdminUserMembershipPage() {
               { key: "lastName", label: "Last Name", render: (u) => u.lastName ?? "—" },
               { key: "firstName", label: "First Name", render: (u) => u.firstName ?? "—" },
               { key: "email", label: "Email" },
+              {
+                key: "location",
+                label: "Location",
+                render: (u) => {
+                  const ids = Array.from(
+                    new Set((u.memberships ?? []).map((m) => m.locationId)),
+                  );
+                  if (ids.length > 0) {
+                    return ids
+                      .map((id) => locationNameById.get(id) ?? id)
+                      .join(", ");
+                  }
+                  if (listScopedLocationId) {
+                    return (
+                      locationNameById.get(listScopedLocationId) ??
+                      listScopedLocationId
+                    );
+                  }
+                  return "—";
+                },
+              },
               {
                 key: "phone",
                 label: "Phone",

@@ -78,6 +78,7 @@ export default function AdminUsersPage() {
         ? adminLocationId
         : undefined,
     areaId: showScopeFilters && filterAreaId !== "all" ? filterAreaId : undefined,
+    includeMemberships: true,
   });
   const { data: roles = [] } = useRolesList();
   const { data: locations = [] } = useLocations();
@@ -111,6 +112,11 @@ export default function AdminUsersPage() {
     if (adminLocationId === "all") return areasForScopeFilter;
     return areasForScopeFilter.filter((a) => a.locationId === adminLocationId);
   }, [areasForScopeFilter, adminLocationId]);
+
+  const listScopedLocationId =
+    showScopeFilters && filterAreaId === "all" && adminLocationId !== "all"
+      ? adminLocationId
+      : undefined;
 
   /** Venue locations assignable from Edit/Create user (membership row uses locationId). */
   const locationsForMembershipPick = useMemo(() => {
@@ -392,6 +398,27 @@ export default function AdminUsersPage() {
                 render: (u) => <span className="font-medium">{u.firstName ?? "—"}</span>,
               },
               { key: "email", label: "Email" },
+              {
+                key: "location",
+                label: "Location",
+                render: (u) => {
+                  const ids = Array.from(
+                    new Set((u.memberships ?? []).map((m) => m.locationId)),
+                  );
+                  if (ids.length > 0) {
+                    return ids
+                      .map((id) => locationNameById.get(id) ?? id)
+                      .join(", ");
+                  }
+                  if (listScopedLocationId) {
+                    return (
+                      locationNameById.get(listScopedLocationId) ??
+                      listScopedLocationId
+                    );
+                  }
+                  return "—";
+                },
+              },
               {
                 key: "phone",
                 label: "Phone",

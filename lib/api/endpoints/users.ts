@@ -94,6 +94,8 @@ export function createUsersEndpoints(client: ApiClient) {
       areaId?: string;
       accountType?: string;
       excludeAccountType?: string;
+      /** When true, API attaches `memberships` per user (for admin Location column). */
+      includeMemberships?: boolean;
     }) => {
       const q: Record<string, string> = {};
       if (params?.roleId) q.roleId = params.roleId;
@@ -106,6 +108,7 @@ export function createUsersEndpoints(client: ApiClient) {
       if (params?.areaId) q.areaId = params.areaId;
       if (params?.accountType) q.accountType = params.accountType;
       if (params?.excludeAccountType) q.excludeAccountType = params.excludeAccountType;
+      if (params?.includeMemberships) q.includeMemberships = "true";
       return client.get<UserApi[]>("/users", {
         params: Object.keys(q).length ? q : undefined,
       });
