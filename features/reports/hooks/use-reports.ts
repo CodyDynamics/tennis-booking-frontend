@@ -13,8 +13,6 @@ export function useReports(studentId?: string) {
     // TODO: API call
     const newReport: ProgressReport = {
       id: Date.now().toString(),
-      organizationId: reportData.organizationId || "",
-      branchId: reportData.branchId || "",
       coachId: reportData.coachId || "",
       studentId: reportData.studentId || "",
       sessionId: reportData.sessionId ?? null,

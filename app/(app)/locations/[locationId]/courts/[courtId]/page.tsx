@@ -214,7 +214,9 @@ export default function CourtDetailPage() {
           <div className="flex flex-wrap gap-4 mt-4 text-white/80 text-sm">
             <span className="capitalize">{court.type}</span>
             <span>•</span>
-            <span className="capitalize">{court.sport}</span>
+            <span className="capitalize">
+              {court.sports?.length ? court.sports.join(", ") : court.sport}
+            </span>
             {court.locationName && (
               <>
                 <span>•</span>

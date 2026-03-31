@@ -23,7 +23,6 @@ import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { AdminFilter, AdminTable, AdminPagination } from "../components";
 import {
-  useBranches,
   useLocations,
   useAreas,
   useCreateArea,
@@ -56,13 +55,9 @@ export default function AdminAreasPage() {
     );
   }, [adminUser?.memberships, isSuperUser]);
 
-  const [branchId, setBranchId] = useState<string>("all");
   const [locationId, setLocationId] = useState<string>("all");
   const [search, setSearch] = useState("");
-  const { data: branches = [] } = useBranches();
-  const { data: locations = [] } = useLocations(
-    isSuperUser ? undefined : branchId !== "all" ? branchId : undefined,
-  );
+  const { data: locations = [] } = useLocations();
 
   const locationChildren = useMemo(() => {
     const children = locations.filter((l) => (l.kind ?? "child") === "child");
@@ -89,7 +84,6 @@ export default function AdminAreasPage() {
   const myVenueKey = myVenueLocationIds.slice().sort().join(",");
   useEffect(() => {
     if (!isSuperUser) return;
-    setBranchId("all");
     const ids = myVenueLocationIds;
     if (ids.length === 1) setLocationId(ids[0]);
     else setLocationId("all");
@@ -156,7 +150,7 @@ export default function AdminAreasPage() {
   const [areasPage, setAreasPage] = useState(1);
   useEffect(() => {
     setAreasPage(1);
-  }, [search, branchId, locationId, isSuperUser, myVenueKey]);
+  }, [search, locationId, isSuperUser, myVenueKey]);
 
   const paginatedAreas = useMemo(
     () =>
@@ -311,27 +305,12 @@ export default function AdminAreasPage() {
         description={
           isSuperUser
             ? "Search within your venue(s). Location list is limited to venues you operate."
-            : "Filter by branch/location child and search area name"
+            : "Filter by location (venue) and search area name"
         }
         searchPlaceholder="Search areas..."
         searchValue={search}
         onSearchChange={setSearch}
       >
-        {!isSuperUser && (
-          <Select value={branchId} onValueChange={setBranchId}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="All branches" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All branches</SelectItem>
-              {branches.map((b) => (
-                <SelectItem key={b.id} value={b.id}>
-                  {b.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
         {!isSuperUser && (
           <Select value={locationId} onValueChange={setLocationId}>
             <SelectTrigger className="w-[220px]">

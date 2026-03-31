@@ -6,7 +6,6 @@ export interface CoachUserApi {
   email?: string;
   fullName?: string;
   avatarUrl?: string | null;
-  branchId?: string | null;
 }
 
 export interface CoachApi {
@@ -22,9 +21,8 @@ export interface CoachApi {
 
 export function createCoachesEndpoints(client: ApiClient) {
   return {
-    getCoaches: (params?: { branchId?: string; page?: string; pageSize?: string }) => {
+    getCoaches: (params?: { page?: string; pageSize?: string }) => {
       const q: Record<string, string> = {};
-      if (params?.branchId) q.branchId = params.branchId;
       if (params?.page !== undefined) q.page = params.page;
       if (params?.pageSize !== undefined) q.pageSize = params.pageSize;
       return client.get<ListResponse<CoachApi>>("/coaches", {

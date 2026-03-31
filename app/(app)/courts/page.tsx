@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CourtCard } from "@/features/courts/components/court-card";
 import { CourtBookingModal } from "@/features/courts/components/court-booking-modal";
-import { useCourts, useBranches } from "@/lib/queries";
+import { useCourts, usePublicLocations } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Court } from "@/types";
@@ -21,9 +21,10 @@ export default function CourtsPage() {
     "all" | "indoor" | "outdoor" | "tennis" | "pickleball"
   >("all");
 
-  const { data: locations = [], isLoading: loadingLocations } = useBranches();
+  const { data: locations = [], isLoading: loadingLocations } = usePublicLocations();
   const { data: courts = [], isLoading: loadingCourts } = useCourts({
-    branchId: selectedLocation || undefined,
+    locationId: selectedLocation || undefined,
+    enabled: Boolean(selectedLocation),
   });
 
   const handleBook = (court: Court) => {
@@ -42,11 +43,12 @@ export default function CourtsPage() {
       matchesType = court.type === filterType;
     } else if (filterType === "tennis") {
       matchesType =
+        court.sports.includes("tennis") ||
         court.name.toLowerCase().includes("tennis") ||
-        (court.description?.toLowerCase().includes("tennis") ?? false) ||
-        !court.name.toLowerCase().includes("pickleball");
+        (court.description?.toLowerCase().includes("tennis") ?? false);
     } else if (filterType === "pickleball") {
       matchesType =
+        court.sports.includes("pickleball") ||
         court.name.toLowerCase().includes("pickle") ||
         (court.description?.toLowerCase().includes("pickle") ?? false);
     }

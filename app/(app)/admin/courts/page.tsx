@@ -7,7 +7,6 @@ import {
   useCourts,
   useCourtBookingWindows,
   useBookableLocations,
-  useBranches,
   useUpdateCourt,
   useDeleteCourtBookingWindow,
   useSports,
@@ -67,7 +66,6 @@ export default function AdminCourtsPage() {
   const { user } = useAuth();
   const { sport, locationId: adminLocationId } = useAdmin();
   const [search, setSearch] = useState("");
-  const [branchId, setBranchId] = useState<string>("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<CourtBookingWindowAdminApi | null>(null);
   const [deleteConfirmWindowId, setDeleteConfirmWindowId] = useState<string | null>(null);
@@ -81,13 +79,10 @@ export default function AdminCourtsPage() {
   const { data: bookableLocs = [] } = useBookableLocations(user?.role === "super_user");
 
   const { data: timeSlots = [], isLoading: slotsLoading } = useCourtBookingWindows({
-    branchId: branchId && branchId !== "all" ? branchId : undefined,
     search: search || undefined,
   });
 
-  const { data: pickerCourtsRaw = [], isLoading: pickerLoading } = useCourts({
-    branchId: branchId && branchId !== "all" ? branchId : undefined,
-  });
+  const { data: pickerCourtsRaw = [], isLoading: pickerLoading } = useCourts({});
 
   const pickerCourtsForUi = useMemo(() => {
     let rows = pickerCourtsRaw;
@@ -111,14 +106,13 @@ export default function AdminCourtsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, branchId, slotsForUi]);
+  }, [search, slotsForUi]);
 
   const paginatedSlots = useMemo(
     () => slotsForUi.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
     [slotsForUi, page],
   );
 
-  const { data: branches = [] } = useBranches();
   const { data: sports = [] } = useSports();
   const updateCourt = useUpdateCourt();
   const deleteCourtSlot = useDeleteCourtBookingWindow();
@@ -132,6 +126,7 @@ export default function AdminCourtsPage() {
           id: editingRow.courtId,
           name: editingRow.courtName,
           type: editingRow.courtType === "indoor" ? "indoor" : "outdoor",
+          sports: [editingRow.sport],
           sport: editingRow.sport,
           pricePerHour: editingRow.pricePerHour,
           status: editingRow.courtStatus as Court["status"],
@@ -286,25 +281,11 @@ export default function AdminCourtsPage() {
 
       <AdminFilter
         title="Filters"
-        description="Per-court time slots only. Branch filter applies to both list and court picker."
+        description="Per-court time slots. Scoped by location in the admin sidebar when set."
         searchPlaceholder="Search court or location name..."
         searchValue={search}
         onSearchChange={setSearch}
-      >
-        <Select value={branchId} onValueChange={setBranchId}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="All branches" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All branches</SelectItem>
-            {branches.map((b) => (
-              <SelectItem key={b.id} value={b.id}>
-                {b.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </AdminFilter>
+      />
 
       <Card>
         <CardContent className="pt-6">
@@ -457,7 +438,7 @@ export default function AdminCourtsPage() {
                     selectedCourtId: id,
                     locationId: c.locationId ?? "",
                     name: c.name,
-                    sport: c.sport,
+                    sport: c.sports?.[0] ?? c.sport,
                     type: c.type,
                   }));
                 }}
@@ -476,7 +457,7 @@ export default function AdminCourtsPage() {
                   {!editingRow && <SelectItem value="__none__">Select…</SelectItem>}
                   {courtPickerOptions.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
-                      {`${c.locationName ? `${c.locationName} — ` : ""}${c.name} (${c.sport})`}
+                      {`${c.locationName ? `${c.locationName} — ` : ""}${c.name} (${c.sports?.length ? c.sports.join(", ") : c.sport})`}
                     </SelectItem>
                   ))}
                 </SelectContent>
