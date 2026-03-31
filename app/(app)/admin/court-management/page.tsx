@@ -82,6 +82,7 @@ export default function AdminCourtManagementPage() {
   const createCourt = useCreateCourt();
   const updateCourt = useUpdateCourt();
   const deleteCourt = useDeleteCourt();
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const courtsForUi = useMemo(() => {
     if (user?.role !== "super_user" || bookableLocs.length === 0) return courts;
@@ -224,7 +225,7 @@ export default function AdminCourtManagementPage() {
                       variant="ghost"
                       size="icon"
                       className="text-destructive"
-                      onClick={() => deleteCourt.mutate(c.id)}
+                      onClick={() => setDeleteConfirmId(c.id)}
                       title="Delete"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -259,7 +260,7 @@ export default function AdminCourtManagementPage() {
           if (!open) resetForm();
         }}
       >
-        <DialogContent>
+        <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit court" : "Create court"}</DialogTitle>
           </DialogHeader>
@@ -378,6 +379,32 @@ export default function AdminCourtManagementPage() {
               }}
             >
               {editingId ? "Save" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete court</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground">
+            Are you sure you want to delete this court? This will also remove its related time slot
+            rows once the court is gone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteCourt.isPending}
+              onClick={() => deleteConfirmId && deleteCourt.mutate(deleteConfirmId)}
+              aria-busy={deleteCourt.isPending}
+            >
+              {deleteCourt.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {deleteCourt.isPending ? "Deleting…" : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

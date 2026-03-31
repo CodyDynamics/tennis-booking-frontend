@@ -29,6 +29,7 @@ export default function AdminSportsPage() {
   const createSport = useCreateSport();
   const updateSport = useUpdateSport();
   const deleteSport = useDeleteSport();
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
   const [sportsPage, setSportsPage] = useState(1);
@@ -150,7 +151,7 @@ export default function AdminSportsPage() {
                       variant="ghost"
                       size="icon"
                       className="text-destructive"
-                      onClick={() => deleteSport.mutate(s.id)}
+                      onClick={() => setDeleteConfirmId(s.id)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -172,7 +173,7 @@ export default function AdminSportsPage() {
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Sport" : "Create Sport"}</DialogTitle>
           </DialogHeader>
@@ -218,6 +219,31 @@ export default function AdminSportsPage() {
               <Button type="submit">{editing ? "Save" : "Create"}</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete sport</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground">
+            Are you sure you want to delete this sport? This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteSport.isPending}
+              onClick={() => deleteConfirmId && deleteSport.mutate(deleteConfirmId)}
+              aria-busy={deleteSport.isPending}
+            >
+              {deleteSport.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {deleteSport.isPending ? "Deleting…" : "Delete"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

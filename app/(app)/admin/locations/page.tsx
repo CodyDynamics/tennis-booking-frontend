@@ -221,7 +221,7 @@ function LocationsDirectoryTab() {
           }
         }}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Create location</DialogTitle>
           </DialogHeader>
