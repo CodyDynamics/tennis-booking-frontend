@@ -60,7 +60,9 @@ export function CourtCard({ court, onBook, index = 0, showBooking = true, detail
             )}
           </Badge>
           <Badge variant="outline" className="bg-white/10 text-white border-white/20 backdrop-blur-md capitalize">
-            {court.type}
+            {court.courtTypes?.length
+              ? court.courtTypes.map((t) => t.charAt(0).toUpperCase() + t.slice(1)).join(" · ")
+              : court.type}
           </Badge>
         </div>
 

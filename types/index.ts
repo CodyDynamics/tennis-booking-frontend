@@ -35,6 +35,9 @@ export interface User {
 export interface Court {
   id: string;
   name: string;
+  /** Indoor and/or outdoor — court may list both. */
+  courtTypes: ("indoor" | "outdoor")[];
+  /** Primary environment for legacy single-value UIs (first of courtTypes). */
   type: "indoor" | "outdoor";
   /** Supported sports on this physical court (shared slot grid). */
   sports: string[];

@@ -109,7 +109,7 @@ function LocationsDirectoryTab() {
       return;
     }
     if (form.kind === "child" && form.parentLocationId === "__none__") {
-      setFormError("For a child (venue) location, select a parent root location.");
+      setFormError("For a sub-location, select a parent location.");
       return;
     }
     const err = await createLocation
@@ -144,7 +144,7 @@ function LocationsDirectoryTab() {
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Locations</h2>
           <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            Roots and venue (child) locations. For a venue, create a root first, then add a child under it.
+            Location directory. You can still use root + sub-location in data when needed; in the UI we refer to everything as a location.
           </p>
         </div>
         {canCreate && (
@@ -252,7 +252,7 @@ function LocationsDirectoryTab() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="root">Root</SelectItem>
-                  <SelectItem value="child">Child (venue)</SelectItem>
+                  <SelectItem value="child">Sub-location</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -278,7 +278,7 @@ function LocationsDirectoryTab() {
                 {form.kind === "child" && rootParentOptions.length === 0 && (
                   <p className="text-xs text-muted-foreground mt-1">
                     No root locations exist yet. Create a <strong>Root</strong> location first, then add
-                    a child venue under it.
+                    a sub-location under it.
                   </p>
                 )}
               </div>
@@ -664,7 +664,7 @@ export default function AdminLocationStaffPage() {
           <div>
             <h2 className="text-lg font-semibold tracking-tight mb-1">Venue memberships</h2>
             <p className="text-sm text-muted-foreground mb-4 max-w-2xl">
-              Every account with a membership at a child (venue) location — players, coaches, and staff.
+              Every account with a membership at a location — players, coaches, and staff.
               Remove clears that venue membership (the account remains).
             </p>
           </div>

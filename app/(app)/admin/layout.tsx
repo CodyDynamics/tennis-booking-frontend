@@ -101,7 +101,7 @@ export default function AdminLayout({
   const allNavItems = [
     { href: "/admin", label: "Overview", icon: LayoutDashboard },
     { href: "/admin/court-management", label: "Court Management", icon: MapPin },
-    { href: "/admin/courts", label: "Court Time Slot", icon: MapPin },
+    { href: "/admin/courts", label: "Court Time Assignments", icon: MapPin },
     { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/user-memberships", label: "Memberships", icon: Users },
     { href: "/admin/roles", label: "Roles & Permissions", icon: Shield },

@@ -24,6 +24,9 @@ export interface CourtApi {
   locationId: string | null;
   areaId?: string | null;
   name: string;
+  /** Indoor / outdoor tags (may be multiple). */
+  courtTypes?: string[];
+  /** Legacy: first environment */
   type: string;
   pricePerHour: string | number;
   description?: string | null;
@@ -52,6 +55,7 @@ export interface CreateCourtBody {
   locationId: string;
   areaId?: string;
   name: string;
+  courtTypes?: string[];
   type?: string;
   /** Preferred: multi-sport court */
   sports?: string[];
@@ -68,6 +72,7 @@ export interface UpdateCourtBody {
   locationId?: string;
   areaId?: string;
   name?: string;
+  courtTypes?: string[];
   type?: string;
   sports?: string[];
   /** When updating a Court Time Slot row, sport targets that window */

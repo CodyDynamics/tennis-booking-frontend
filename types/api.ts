@@ -146,6 +146,7 @@ export interface CourtWizardCourtSummaryApi {
   id: string;
   name: string;
   type: string;
+  courtTypes?: string[];
   sport: string;
   status: string;
   pricePerHourPublic: string;

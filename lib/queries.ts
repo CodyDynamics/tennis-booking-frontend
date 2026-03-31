@@ -53,10 +53,19 @@ function mapCourtApiToCourt(c: CourtApi): Court {
         ? [c.sport]
         : [];
   const primarySport = sportsArr[0] ?? (c.sport || "tennis");
+  const envRaw =
+    Array.isArray(c.courtTypes) && c.courtTypes.length > 0
+      ? c.courtTypes.filter((t) => t === "indoor" || t === "outdoor")
+      : c.type === "indoor" || c.type === "outdoor"
+        ? [c.type]
+        : ["outdoor"];
+  const courtTypes = (envRaw.length ? envRaw : ["outdoor"]) as Court["courtTypes"];
+  const primaryType: Court["type"] = courtTypes[0] === "indoor" ? "indoor" : "outdoor";
   const base: Court = {
     id: c.id,
     name: c.name,
-    type: c.type === "indoor" ? "indoor" : "outdoor",
+    courtTypes,
+    type: primaryType,
     sports: sportsArr.length ? sportsArr : [primarySport],
     sport: primarySport,
     areaId: c.areaId ?? null,
@@ -776,7 +785,7 @@ export function useOrganizations() {
   });
 }
 
-/** super_admin Locations page — all memberships at child venues */
+/** super_admin Locations page — all memberships at locations */
 export function useVenueMembershipAssignments(enabled: boolean) {
   return useQuery<VenueMembershipAssignmentRow[]>({
     queryKey: ["users", "venue-memberships"],

@@ -248,7 +248,11 @@ export function CourtBookingModal({
               <DialogDescription className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-primary-foreground/90">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-black/15 px-3 py-0.5 text-xs font-semibold backdrop-blur-sm">
                   <MapPin className="h-3.5 w-3.5" />
-                  {court.type === "indoor" ? "Indoor" : "Outdoor"}
+                  {court.courtTypes?.length
+                    ? court.courtTypes.map((t) => (t === "indoor" ? "Indoor" : "Outdoor")).join(" · ")
+                    : court.type === "indoor"
+                      ? "Indoor"
+                      : "Outdoor"}
                 </span>
                 <span className="font-semibold">{formatCurrency(Number(court.pricePerHour))}/hour</span>
               </DialogDescription>

@@ -40,7 +40,7 @@ export default function CourtsPage() {
     // As mock, if filter is tennis or pickleball, just mock filter by name if actual type doesn't exist
     let matchesType = true;
     if (filterType === "indoor" || filterType === "outdoor") {
-      matchesType = court.type === filterType;
+      matchesType = court.courtTypes.includes(filterType);
     } else if (filterType === "tennis") {
       matchesType =
         court.sports.includes("tennis") ||
