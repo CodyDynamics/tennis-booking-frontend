@@ -92,6 +92,7 @@ export default function AdminAreasPage() {
   const createArea = useCreateArea();
   const updateArea = useUpdateArea();
   const deleteArea = useDeleteArea();
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const { data: roles = [] } = useRolesList();
   const superUserRoleId = roles.find((r) => r.name === "super_user")?.id;
@@ -379,7 +380,7 @@ export default function AdminAreasPage() {
                       variant="ghost"
                       size="icon"
                       className="text-destructive"
-                      onClick={() => deleteArea.mutate(l.id)}
+                      onClick={() => setDeleteConfirmId(l.id)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -599,6 +600,31 @@ export default function AdminAreasPage() {
               <Button type="submit">{editingId ? "Save" : "Create"}</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete area</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground">
+            Are you sure you want to delete this area? This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteArea.isPending}
+              onClick={() => deleteConfirmId && deleteArea.mutate(deleteConfirmId)}
+              aria-busy={deleteArea.isPending}
+            >
+              {deleteArea.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {deleteArea.isPending ? "Deleting…" : "Delete"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
