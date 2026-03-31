@@ -122,47 +122,47 @@ export default function AdminBookingsPage() {
         searchValue={search}
         onSearchChange={setSearch}
       >
-        <div className="flex flex-wrap gap-3 items-end">
-          <div className="space-y-1">
-            <Label className="text-xs">From</Label>
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-[160px]" />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">To</Label>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-[160px]" />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Booking status</Label>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                {BOOKING_STATUS.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Payment</Label>
-            <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                {PAYMENT_STATUS.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="flex flex-wrap gap-3 items-center">
+          <Input
+            type="date"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+            className="w-[160px] h-10"
+            aria-label="From date"
+          />
+          <Input
+            type="date"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            className="w-[160px] h-10"
+            aria-label="To date"
+          />
+          <Select value={status} onValueChange={setStatus}>
+            <SelectTrigger className="w-[180px] h-10">
+              <SelectValue placeholder="Booking status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              {BOOKING_STATUS.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+            <SelectTrigger className="w-[160px] h-10">
+              <SelectValue placeholder="Payment" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All payments</SelectItem>
+              {PAYMENT_STATUS.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </AdminFilter>
 

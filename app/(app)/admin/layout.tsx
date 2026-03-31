@@ -6,16 +6,16 @@ import { cn } from "@/lib/utils";
 import type { User } from "@/types";
 import { motion } from "framer-motion";
 import {
-  Activity,
-  ArrowLeft,
-  Building2,
-  LayoutDashboard,
-  LogOut,
-  MapPin,
-  Network,
-  Shapes,
-  Shield,
-  Users
+    Activity,
+    ArrowLeft,
+    Building2,
+    CalendarClock,
+    Grid3X3,
+    LayoutDashboard,
+    LogOut,
+    Shapes,
+    Shield,
+    Users
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -66,7 +66,6 @@ function canAccessAdmin(user: User | null, pathname: string): boolean {
 
 import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 import { AdminProvider } from "./admin-context";
-import { SportSelector } from "./components/sport-selector";
 import { LocationScopeSelector } from "./components/location-scope-selector";
 
 export default function AdminLayout({
@@ -89,6 +88,13 @@ export default function AdminLayout({
     }
   }, [isLoading, isAuthenticated, user, allowed, router, pathname]);
 
+  // Admin navigation: always scroll content to top.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0 });
+    const el = document.querySelector("main");
+    if (el && "scrollTo" in el) (el as HTMLElement).scrollTo({ top: 0, left: 0 });
+  }, [pathname]);
+
   if (isLoading || !user) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -101,8 +107,8 @@ export default function AdminLayout({
 
   const allNavItems = [
     { href: "/admin", label: "Overview", icon: LayoutDashboard },
-    { href: "/admin/court-management", label: "Court Management", icon: MapPin },
-    { href: "/admin/courts", label: "Court Time Assignments", icon: MapPin },
+    { href: "/admin/court-management", label: "Court Management", icon: Grid3X3 },
+    { href: "/admin/courts", label: "Court Time Assignments", icon: CalendarClock },
     { href: "/admin/bookings", label: "Bookings", icon: Activity },
     { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/user-memberships", label: "Memberships", icon: Users },
@@ -155,7 +161,7 @@ export default function AdminLayout({
 
           <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 space-y-4">
             <LocationScopeSelector />
-            <SportSelector />
+            {/* <SportSelector /> */}
           </div>
 
           <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto">
@@ -176,7 +182,7 @@ export default function AdminLayout({
                   >
                     <Icon
                       className={cn(
-                        "mr-3 h-5 w-5",
+                        "mr-3 h-5 w-5 shrink-0",
                         isActive ? "text-primary-foreground/90" : "text-slate-400",
                       )}
                     />
@@ -203,7 +209,7 @@ export default function AdminLayout({
 
         <main className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-950 relative">
           <div className="absolute top-0 left-0 right-0 h-64 bg-gradient-to-b from-blue-100/50 to-transparent dark:from-blue-900/10 pointer-events-none z-0"></div>
-          <div className="container py-8 px-8 lg:px-12 relative z-10 max-w-7xl">
+          <div className="container py-6 px-8 lg:px-12 relative z-10 max-w-7xl">
             {children}
           </div>
         </main>

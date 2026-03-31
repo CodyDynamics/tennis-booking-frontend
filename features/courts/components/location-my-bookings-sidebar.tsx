@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { format, parse } from "date-fns";
-import { X } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -121,11 +121,12 @@ export function LocationMyBookingsSidebar({
                 >
                   <button
                     type="button"
-                    className="absolute top-2 right-2 h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-foreground transition-colors"
-                    aria-label="Cancel or reschedule"
+                    className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+                    aria-label="Edit booking"
                     onClick={() => setActive(b)}
                   >
-                    <X className="h-4 w-4" />
+                    <Pencil className="h-3.5 w-3.5" />
+                    Edit
                   </button>
                   <p className="font-semibold text-sm capitalize text-slate-900 dark:text-slate-100">
                     {b.sport ?? "Court"} · {b.courtType ?? "—"}

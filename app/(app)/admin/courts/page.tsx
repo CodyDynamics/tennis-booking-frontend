@@ -262,7 +262,7 @@ export default function AdminCourtsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-            Court Time Slot
+            Court Time Assignments
           </h1>
           <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
             Configure booking hours and pricing for courts that already exist in{" "}
@@ -276,7 +276,7 @@ export default function AdminCourtsPage() {
             className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
           >
             <Plus className="mr-2 h-4 w-4" />
-            Add Court Time Slot
+            Add
           </Button>
         )}
       </div>
