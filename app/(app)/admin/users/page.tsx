@@ -474,206 +474,228 @@ export default function AdminUsersPage() {
       </Card>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>{editingUser ? "Edit User" : "Create User"}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {submitError && (
-              <p className="text-sm text-destructive">
-                {Array.isArray(submitError.body?.message)
-                  ? submitError.body.message.join(", ")
-                  : submitError.body?.message ?? submitError.message}
-              </p>
-            )}
-            <div>
-              <Label>Email</Label>
-              <Input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                required
-                disabled={!!editingUser}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+          <form onSubmit={handleSubmit} className="min-h-0 flex flex-col gap-4">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+              {submitError && (
+                <p className="text-sm text-destructive">
+                  {Array.isArray(submitError.body?.message)
+                    ? submitError.body.message.join(", ")
+                    : submitError.body?.message ?? submitError.message}
+                </p>
+              )}
               <div>
-                <Label>First Name</Label>
+                <Label>Email</Label>
                 <Input
-                  value={form.firstName}
-                  onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
+                  type="email"
+                  value={form.email}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, email: e.target.value }))
+                  }
                   required
+                  disabled={!!editingUser}
                 />
               </div>
-              <div>
-                <Label>Last Name</Label>
-                <Input
-                  value={form.lastName}
-                  onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
-                  required
-                />
-              </div>
-            </div>
-            <div>
-              <Label>Phone</Label>
-              <p className="text-xs text-muted-foreground mb-1.5">
-                10-digit US number; stored as +1…
-              </p>
-              <UsPhoneField
-                variant="compact"
-                value={form.phone}
-                onChange={(value) => setForm((f) => ({ ...f, phone: value }))}
-              />
-            </div>
-            <div>
-              <Label>Address</Label>
-              <Input
-                value={form.homeAddress}
-                onChange={(e) => setForm((f) => ({ ...f, homeAddress: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label>Role</Label>
-              <Select
-                value={form.roleId}
-                onValueChange={(v) => setForm((f) => ({ ...f, roleId: v }))}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  {roles.map((r) => (
-                    <SelectItem key={r.id} value={r.id}>
-                      {r.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {editingUser &&
-              (editingUser.accountType === "normal" ||
-                editingUser.accountType === "membership") && (
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>Account type</Label>
-                  <p className="text-muted-foreground mb-2 text-xs">
-                    <strong>Normal</strong> = regular app user (stays on this list).{" "}
-                    <strong>Membership (pre-approved)</strong> = also appears under{" "}
-                    <strong>Memberships</strong>. Venue access is separate — use{" "}
-                    <strong>Venue membership</strong> below or Locations → Venue users.
-                  </p>
+                  <Label>First Name</Label>
+                  <Input
+                    value={form.firstName}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, firstName: e.target.value }))
+                    }
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Last Name</Label>
+                  <Input
+                    value={form.lastName}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, lastName: e.target.value }))
+                    }
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <Label>Phone</Label>
+                <p className="text-xs text-muted-foreground mb-1.5">
+                  10-digit US number; stored as +1…
+                </p>
+                <UsPhoneField
+                  variant="compact"
+                  value={form.phone}
+                  onChange={(value) => setForm((f) => ({ ...f, phone: value }))}
+                />
+              </div>
+              <div>
+                <Label>Address</Label>
+                <Input
+                  value={form.homeAddress}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, homeAddress: e.target.value }))
+                  }
+                />
+              </div>
+              <div>
+                <Label>Role</Label>
+                <Select
+                  value={form.roleId}
+                  onValueChange={(v) => setForm((f) => ({ ...f, roleId: v }))}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roles.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {editingUser &&
+                (editingUser.accountType === "normal" ||
+                  editingUser.accountType === "membership") && (
+                  <div>
+                    <Label>Account type</Label>
+                    <p className="text-muted-foreground mb-2 text-xs">
+                      <strong>Normal</strong> = regular app user (stays on this list).{" "}
+                      <strong>Membership (pre-approved)</strong> = also appears under{" "}
+                      <strong>Memberships</strong>. Venue access is separate — use{" "}
+                      <strong>Venue membership</strong> below or Locations → Venue users.
+                    </p>
+                    <Select
+                      value={form.accountType === "membership" ? "membership" : "normal"}
+                      onValueChange={(v) =>
+                        setForm((f) => ({
+                          ...f,
+                          accountType: v as "normal" | "membership",
+                        }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="normal">Normal (app user)</SelectItem>
+                        <SelectItem value="membership">
+                          Membership (pre-approved)
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              {editingUser && editingUser.accountType === "system" && (
+                <p className="text-xs text-muted-foreground rounded-md border bg-muted/40 px-3 py-2">
+                  Account type is <strong>System</strong> (staff). To manage venue access, use{" "}
+                  <strong>Venue membership</strong> below.
+                </p>
+              )}
+              <div>
+                <Label>Venue membership (optional)</Label>
+                <p className="text-muted-foreground mb-2 text-xs">
+                  Attach this user to a <strong>location</strong> for booking access (membership row).
+                  <strong> None</strong> removes all venue memberships (super_admin; venue staff have
+                  limits). This does not change account type — use <strong>Account type</strong> above
+                  for the Memberships list.
+                </p>
+                <Select
+                  value={form.membershipLocationId || "__none__"}
+                  onValueChange={(v) =>
+                    setForm((f) => ({
+                      ...f,
+                      membershipLocationId: v === "__none__" ? "__none__" : v,
+                    }))
+                  }
+                  disabled={!!editingUser && editUserDetailLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={editUserDetailLoading ? "Loading…" : "None"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">None</SelectItem>
+                    {locationsForMembershipPick.map((loc) => (
+                      <SelectItem key={loc.id} value={loc.id}>
+                        {loc.name}
+                        {loc.kind ? ` (${loc.kind})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {editingUser && (
+                <div>
+                  <Label>Status</Label>
                   <Select
-                    value={form.accountType === "membership" ? "membership" : "normal"}
+                    value={form.status}
                     onValueChange={(v) =>
-                      setForm((f) => ({
-                        ...f,
-                        accountType: v as "normal" | "membership",
-                      }))
+                      setForm((f) => ({ ...f, status: v as "active" | "inactive" }))
                     }
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="normal">Normal (app user)</SelectItem>
-                      <SelectItem value="membership">Membership (pre-approved)</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               )}
-            {editingUser && editingUser.accountType === "system" && (
-              <p className="text-xs text-muted-foreground rounded-md border bg-muted/40 px-3 py-2">
-                Account type is <strong>System</strong> (staff). To manage venue access, use{" "}
-                <strong>Venue membership</strong> below.
-              </p>
-            )}
-            <div>
-              <Label>Venue membership (optional)</Label>
-              <p className="text-muted-foreground mb-2 text-xs">
-                Attach this user to a <strong>location</strong> for booking access (membership row).
-                <strong> None</strong> removes all venue memberships (super_admin; venue staff have
-                limits). This does not change account type — use <strong>Account type</strong> above
-                for the Memberships list.
-              </p>
-              <Select
-                value={form.membershipLocationId || "__none__"}
-                onValueChange={(v) =>
-                  setForm((f) => ({
-                    ...f,
-                    membershipLocationId: v === "__none__" ? "__none__" : v,
-                  }))
-                }
-                disabled={!!editingUser && editUserDetailLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={editUserDetailLoading ? "Loading…" : "None"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {locationsForMembershipPick.map((loc) => (
-                    <SelectItem key={loc.id} value={loc.id}>
-                      {loc.name}
-                      {loc.kind ? ` (${loc.kind})` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {editingUser && (
-              <div>
-                <Label>Status</Label>
-                <Select
-                  value={form.status}
-                  onValueChange={(v) => setForm((f) => ({ ...f, status: v as "active" | "inactive" }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="mustChangePwd"
-                checked={form.mustChangePasswordOnFirstLogin}
-                onCheckedChange={(v) =>
-                  setForm((f) => ({ ...f, mustChangePasswordOnFirstLogin: Boolean(v) }))
-                }
-              />
-              <Label htmlFor="mustChangePwd">Require password change on first login</Label>
-            </div>
-            <div>
-              <Label>{editingUser ? "New password (optional)" : "Password"}</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="text"
-                  value={form.password}
-                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                  required={!editingUser}
-                  minLength={8}
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="mustChangePwd"
+                  checked={form.mustChangePasswordOnFirstLogin}
+                  onCheckedChange={(v) =>
+                    setForm((f) => ({
+                      ...f,
+                      mustChangePasswordOnFirstLogin: Boolean(v),
+                    }))
+                  }
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    const chars =
-                      "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
-                    let next = "";
-                    for (let i = 0; i < 12; i += 1) {
-                      next += chars[Math.floor(Math.random() * chars.length)];
+                <Label htmlFor="mustChangePwd">
+                  Require password change on first login
+                </Label>
+              </div>
+              <div>
+                <Label>{editingUser ? "New password (optional)" : "Password"}</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    value={form.password}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, password: e.target.value }))
                     }
-                    setForm((f) => ({ ...f, password: next }));
-                  }}
-                >
-                  Generate
-                </Button>
+                    required={!editingUser}
+                    minLength={8}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      const chars =
+                        "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+                      let next = "";
+                      for (let i = 0; i < 12; i += 1) {
+                        next += chars[Math.floor(Math.random() * chars.length)];
+                      }
+                      setForm((f) => ({ ...f, password: next }));
+                    }}
+                  >
+                    Generate
+                  </Button>
+                </div>
               </div>
             </div>
-            <DialogFooter>
+
+            <DialogFooter className="border-t pt-4">
               <Button
                 type="button"
                 variant="outline"
