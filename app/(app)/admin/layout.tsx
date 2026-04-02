@@ -6,16 +6,15 @@ import { cn } from "@/lib/utils";
 import type { User } from "@/types";
 import { motion } from "framer-motion";
 import {
-    Activity,
-    ArrowLeft,
-    Building2,
-    CalendarClock,
-    Grid3X3,
-    LayoutDashboard,
-    LogOut,
-    Shapes,
-    Shield,
-    Users
+  Activity,
+  ArrowLeft,
+  Building2,
+  Grid3X3,
+  LayoutDashboard,
+  LogOut,
+  Shapes,
+  Shield,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -108,7 +107,6 @@ export default function AdminLayout({
   const allNavItems = [
     { href: "/admin", label: "Overview", icon: LayoutDashboard },
     { href: "/admin/court-management", label: "Court Management", icon: Grid3X3 },
-    { href: "/admin/courts", label: "Court Time Assignments", icon: CalendarClock },
     { href: "/admin/bookings", label: "Bookings", icon: Activity },
     { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/user-memberships", label: "Memberships", icon: Users },
@@ -128,7 +126,6 @@ export default function AdminLayout({
           "/admin/users",
           "/admin/user-memberships",
           "/admin/court-management",
-          "/admin/courts",
           "/admin/areas",
         ].includes(i.href),
       )

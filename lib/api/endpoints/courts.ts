@@ -9,7 +9,10 @@ export interface CourtBookingWindowAdminApi {
   courtName: string;
   locationId: string;
   locationName: string;
+  /** Legacy DB field; prefer `courtSports` */
   sport: string;
+  /** From Court Management — activities that share this time window */
+  courtSports: string[];
   courtType: string;
   windowStartTime: string;
   windowEndTime: string;
@@ -75,7 +78,7 @@ export interface UpdateCourtBody {
   courtTypes?: string[];
   type?: string;
   sports?: string[];
-  /** When updating a Court Time Slot row, sport targets that window */
+  /** Legacy court single-sport; does not select a window sport (slots are shared per court + environment). */
   sport?: string;
   windowStartTime?: string;
   windowEndTime?: string;
