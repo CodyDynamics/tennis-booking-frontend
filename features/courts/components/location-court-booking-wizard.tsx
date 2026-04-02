@@ -525,25 +525,35 @@ export function LocationCourtBookingWizard({
                 }
                 transition={{ duration: 0.5, ease: "easeOut" }}
               >
-                <Label>Select Activity</Label>
-                <Select
-                  value={sport ?? ""}
-                  onValueChange={(v) => {
-                    setSport(v as Sport);
-                    setActivityAttentionKey(0);
-                  }}
-                >
-                  <SelectTrigger className="w-[160px]">
-                    <SelectValue placeholder="Select sport" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sportOptions.map((s) => (
-                      <SelectItem key={s.code} value={s.code}>
-                        {s.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+                  <span className="text-sm font-medium leading-none">Select Activity:</span>
+                  <Select
+                    value={sport ?? undefined}
+                    onValueChange={(v) => {
+                      setSport(v as Sport);
+                      setActivityAttentionKey(0);
+                    }}
+                  >
+                    <SelectTrigger
+                      aria-label="Select activity"
+                      className={cn(
+                        "h-9 shrink-0 transition-[width,min-width]",
+                        sport
+                          ? "min-w-[10.5rem] max-w-[14rem] justify-between px-3"
+                          : "w-9 justify-center px-0 [&>span]:sr-only",
+                      )}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sportOptions.map((s) => (
+                        <SelectItem key={s.code} value={s.code}>
+                          {s.code === "ball-machine" ? "Ball Machine" : s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </motion.div>
 
               {sport && (

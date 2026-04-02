@@ -876,7 +876,10 @@ export function useCreateCourt() {
   return useMutation({
     mutationFn: (body: Parameters<typeof api.courts.createCourt>[0]) =>
       api.courts.createCourt(body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["courts"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["courts"] });
+      queryClient.invalidateQueries({ queryKey: ["court-booking-windows"] });
+    },
   });
 }
 

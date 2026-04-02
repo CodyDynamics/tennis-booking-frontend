@@ -104,4 +104,33 @@
   .scrollbar-booking::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--primary) / 0.75);
   }
+
+  /* Admin / dialogs — slim neutral scrollbar (avoids heavy browser default) */
+  .scrollbar-dialog {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(215 16% 55% / 0.35) transparent;
+  }
+  .scrollbar-dialog::-webkit-scrollbar {
+    width: 6px;
+  }
+  .scrollbar-dialog::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 8px 0;
+  }
+  .scrollbar-dialog::-webkit-scrollbar-thumb {
+    background: hsl(215 16% 50% / 0.28);
+    border-radius: 9999px;
+  }
+  .scrollbar-dialog::-webkit-scrollbar-thumb:hover {
+    background: hsl(215 16% 40% / 0.45);
+  }
+  .dark .scrollbar-dialog {
+    scrollbar-color: hsl(215 20% 55% / 0.35) transparent;
+  }
+  .dark .scrollbar-dialog::-webkit-scrollbar-thumb {
+    background: hsl(215 20% 50% / 0.32);
+  }
+  .dark .scrollbar-dialog::-webkit-scrollbar-thumb:hover {
+    background: hsl(215 20% 60% / 0.5);
+  }
 }
