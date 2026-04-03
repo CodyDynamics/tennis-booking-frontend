@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Area,
@@ -18,7 +19,12 @@ import { useAdminDashboardMetrics, useAdminSportBookingBreakdown } from "@/lib/q
 import {
   MOCK_ADMIN_DASHBOARD_METRICS,
   MOCK_SPORT_BREAKDOWNS,
+  mockDayBookingsPage,
+  mockKpiDrilldownPage,
+  mockSportDrilldownPage,
 } from "@/lib/admin-dashboard-mock";
+import { api } from "@/lib/api";
+import { DashboardDrilldownDialog } from "@/components/admin/dashboard-drilldown-dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { DashboardMetricsApi, SportBookingBreakdownApi } from "@/types/api";
@@ -39,6 +45,18 @@ import { AdminDataSourceToggle, type AdminDataMode } from "@/components/admin/ad
 const PIE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#a855f7", "#ec4899", "#64748b"];
 
 type SportBarRow = { sportKey: string; name: string; value: number };
+
+type DashboardDrillSpec =
+  | {
+      kind: "sport";
+      sport: string;
+      dimension: "role" | "bookingType" | "accountType";
+      value: string;
+      segmentCount: number;
+      heading: string;
+    }
+  | { kind: "kpi"; metric: string; heading: string; totalHint: number }
+  | { kind: "day"; date: string; heading: string; countHint: number };
 
 function formatBookingTypeLabel(t: string): string {
   if (t === "COURT_ONLY") return "Court only";
@@ -85,21 +103,19 @@ function KpiCard({
   icon: Icon,
   delay,
   accent,
+  onActivate,
+  ariaLabel,
 }: {
   label: string;
   value: number | string;
   icon: typeof Users;
   delay: number;
   accent: string;
+  onActivate?: () => void;
+  ariaLabel?: string;
 }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-      whileHover={{ y: -4, transition: { duration: 0.2 } }}
-      className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
-    >
+  const body = (
+    <>
       <div
         className={cn(
           "absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-[0.12] blur-2xl",
@@ -113,6 +129,43 @@ function KpiCard({
       <p className="mt-1 text-3xl font-black tracking-tight text-slate-900 dark:text-white">
         {value}
       </p>
+      {onActivate ? (
+        <p className="mt-2 text-xs font-medium text-blue-600 dark:text-blue-400">
+          Click for details
+        </p>
+      ) : null}
+    </>
+  );
+  const className = cn(
+    "relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900",
+    onActivate &&
+      "cursor-pointer text-left transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-950",
+  );
+  if (onActivate) {
+    return (
+      <motion.button
+        type="button"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        whileHover={{ y: -4, transition: { duration: 0.2 } }}
+        className={className}
+        onClick={onActivate}
+        aria-label={ariaLabel ?? `${label} — view details`}
+      >
+        {body}
+      </motion.button>
+    );
+  }
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+      className={className}
+    >
+      {body}
     </motion.div>
   );
 }
@@ -167,6 +220,299 @@ export default function AdminOverviewPage() {
       value: r.count,
     }));
   }, [metrics]);
+
+  const [drillOpen, setDrillOpen] = useState(false);
+  const [drillPage, setDrillPage] = useState(0);
+  const [drillSpec, setDrillSpec] = useState<DashboardDrillSpec | null>(null);
+
+  const sportDrillQ = useQuery({
+    queryKey: ["admin", "dashboard", "sport-drill", drillSpec, drillPage],
+    queryFn: async () => {
+      if (!drillSpec || drillSpec.kind !== "sport") throw new Error("invalid");
+      return api.admin.getSportBreakdownDrilldown({
+        sport: drillSpec.sport,
+        dimension: drillSpec.dimension,
+        value: drillSpec.value,
+        page: drillPage,
+        pageSize: 40,
+      });
+    },
+    enabled: Boolean(mode === "real" && drillOpen && drillSpec?.kind === "sport"),
+    staleTime: 30_000,
+  });
+
+  const kpiDrillQ = useQuery({
+    queryKey: ["admin", "dashboard", "kpi-drill", drillSpec, drillPage],
+    queryFn: async () => {
+      if (!drillSpec || drillSpec.kind !== "kpi") throw new Error("invalid");
+      return api.admin.getKpiDrilldown({
+        metric: drillSpec.metric,
+        page: drillPage,
+        pageSize: 40,
+      });
+    },
+    enabled: Boolean(mode === "real" && drillOpen && drillSpec?.kind === "kpi"),
+    staleTime: 30_000,
+  });
+
+  const dayDrillQ = useQuery({
+    queryKey: ["admin", "dashboard", "day-drill", drillSpec, drillPage],
+    queryFn: async () => {
+      if (!drillSpec || drillSpec.kind !== "day") throw new Error("invalid");
+      return api.admin.getDayCourtBookings({
+        date: drillSpec.date,
+        page: drillPage,
+        pageSize: 40,
+      });
+    },
+    enabled: Boolean(mode === "real" && drillOpen && drillSpec?.kind === "day"),
+    staleTime: 30_000,
+  });
+
+  const openDashboardDrill = (spec: DashboardDrillSpec) => {
+    setDrillSpec(spec);
+    setDrillPage(0);
+    setDrillOpen(true);
+  };
+
+  useEffect(() => {
+    setDrillPage(0);
+  }, [drillSpec]);
+
+  const drillDialogData = useMemo(() => {
+    if (!drillOpen || !drillSpec) return null;
+    const pageSize = 40;
+    if (mode === "mock") {
+      if (drillSpec.kind === "sport") {
+        const d = mockSportDrilldownPage(
+          drillSpec.sport,
+          drillSpec.dimension,
+          drillSpec.value,
+          drillSpec.segmentCount,
+          drillPage,
+          pageSize,
+        );
+        return {
+          title: drillSpec.heading,
+          description: "Sample bookers (mock data)",
+          loading: false,
+          error: null as string | null,
+          rows: d.items.map((u) => ({
+            id: u.userId,
+            primary: u.fullName || u.email,
+            secondary: u.fullName ? u.email : undefined,
+            right: `${u.bookingCount} bookings`,
+          })),
+          total: d.total,
+        };
+      }
+      if (drillSpec.kind === "kpi") {
+        const d = mockKpiDrilldownPage(
+          drillSpec.metric,
+          drillSpec.totalHint,
+          drillPage,
+          pageSize,
+        );
+        return {
+          title: drillSpec.heading,
+          description: "Sample rows (mock data)",
+          loading: false,
+          error: null as string | null,
+          rows: d.rows.map((r) => ({
+            id: r.id,
+            primary: r.title,
+            secondary: r.subtitle,
+            tertiary: r.meta,
+          })),
+          total: d.total,
+        };
+      }
+      const d = mockDayBookingsPage(
+        drillSpec.date,
+        drillSpec.countHint,
+        drillPage,
+        pageSize,
+      );
+      return {
+        title: drillSpec.heading,
+        description: `Non-cancelled court bookings on ${drillSpec.date}`,
+        loading: false,
+        error: null as string | null,
+        rows: d.rows.map((r) => ({
+          id: r.id,
+          primary: `${r.startTime.slice(0, 5)} – ${r.endTime.slice(0, 5)}`,
+          secondary: r.userName,
+          tertiary: `${r.sport ?? "—"} · ${r.courtName ?? "Court"}`,
+          right: `$${Number(r.totalPrice).toFixed(2)}`,
+        })),
+        total: d.total,
+      };
+    }
+
+    if (drillSpec.kind === "sport") {
+      if (sportDrillQ.isPending) {
+        return {
+          title: drillSpec.heading,
+          description: undefined,
+          loading: true,
+          error: null as string | null,
+          rows: [],
+          total: 0,
+        };
+      }
+      if (sportDrillQ.isError) {
+        return {
+          title: drillSpec.heading,
+          description: undefined,
+          loading: false,
+          error: String(
+            sportDrillQ.error instanceof Error
+              ? sportDrillQ.error.message
+              : "Could not load list",
+          ),
+          rows: [],
+          total: 0,
+        };
+      }
+      const d = sportDrillQ.data;
+      if (!d) return null;
+      return {
+        title: drillSpec.heading,
+        description: `${d.total.toLocaleString()} distinct bookers in this segment (14-day window)`,
+        loading: false,
+        error: null as string | null,
+        rows: d.items.map((u) => ({
+          id: u.userId,
+          primary: u.fullName || u.email,
+          secondary: u.fullName ? u.email : undefined,
+          right: `${u.bookingCount} bookings`,
+        })),
+        total: d.total,
+      };
+    }
+
+    if (drillSpec.kind === "kpi") {
+      if (kpiDrillQ.isPending) {
+        return {
+          title: drillSpec.heading,
+          description: undefined,
+          loading: true,
+          error: null as string | null,
+          rows: [],
+          total: 0,
+        };
+      }
+      if (kpiDrillQ.isError) {
+        return {
+          title: drillSpec.heading,
+          description: undefined,
+          loading: false,
+          error: String(
+            kpiDrillQ.error instanceof Error
+              ? kpiDrillQ.error.message
+              : "Could not load list",
+          ),
+          rows: [],
+          total: 0,
+        };
+      }
+      const d = kpiDrillQ.data;
+      if (!d) return null;
+      return {
+        title: drillSpec.heading,
+        description: `${d.total.toLocaleString()} total rows`,
+        loading: false,
+        error: null as string | null,
+        rows: d.rows.map((r) => ({
+          id: r.id,
+          primary: r.title,
+          secondary: r.subtitle,
+          tertiary: r.meta,
+        })),
+        total: d.total,
+      };
+    }
+
+    if (dayDrillQ.isPending) {
+      return {
+        title: drillSpec.heading,
+        description: undefined,
+        loading: true,
+        error: null as string | null,
+        rows: [],
+        total: 0,
+      };
+    }
+    if (dayDrillQ.isError) {
+      return {
+        title: drillSpec.heading,
+        description: undefined,
+        loading: false,
+        error: String(
+          dayDrillQ.error instanceof Error
+            ? dayDrillQ.error.message
+            : "Could not load list",
+        ),
+        rows: [],
+        total: 0,
+      };
+    }
+    const d = dayDrillQ.data;
+    if (!d) return null;
+    return {
+      title: drillSpec.heading,
+      description: `${d.total.toLocaleString()} bookings on ${d.date}`,
+      loading: false,
+      error: null as string | null,
+      rows: d.rows.map((r) => ({
+        id: r.id,
+        primary: `${r.startTime.slice(0, 5)} – ${r.endTime.slice(0, 5)}`,
+        secondary: r.userName,
+        tertiary: `${r.sport ?? "—"} · ${r.courtName ?? "Court"}`,
+        right: `$${Number(r.totalPrice).toFixed(2)}`,
+      })),
+      total: d.total,
+    };
+  }, [
+    drillOpen,
+    drillSpec,
+    drillPage,
+    mode,
+    sportDrillQ.data,
+    sportDrillQ.isPending,
+    sportDrillQ.isError,
+    sportDrillQ.error,
+    kpiDrillQ.data,
+    kpiDrillQ.isPending,
+    kpiDrillQ.isError,
+    kpiDrillQ.error,
+    dayDrillQ.data,
+    dayDrillQ.isPending,
+    dayDrillQ.isError,
+    dayDrillQ.error,
+  ]);
+
+  const handleBookingsDayDrill = (date: string) => {
+    if (!metrics) return;
+    const day = metrics.dailyCourtBookings.find((d) => d.date === date);
+    openDashboardDrill({
+      kind: "day",
+      date,
+      heading: `Court bookings · ${date}`,
+      countHint: day?.count ?? 0,
+    });
+  };
+
+  const handleRevenueDayDrill = (date: string) => {
+    if (!metrics) return;
+    const day = metrics.dailyRevenue.find((d) => d.date === date);
+    openDashboardDrill({
+      kind: "day",
+      date,
+      heading: `Bookings (revenue day) · ${date}`,
+      countHint: day ? Math.max(1, Math.round(day.revenue / 40)) : 0,
+    });
+  };
 
   return (
     <div className="space-y-10 pb-16 font-sans">
@@ -242,6 +588,14 @@ export default function AdminOverviewPage() {
           icon={Users}
           delay={0.05}
           accent="bg-gradient-to-br from-sky-500 to-blue-600"
+          onActivate={() =>
+            openDashboardDrill({
+              kind: "kpi",
+              metric: "usersActive",
+              heading: "Active users",
+              totalHint: metrics.totals.usersActive,
+            })
+          }
         />
         <KpiCard
           label="Courts"
@@ -249,6 +603,14 @@ export default function AdminOverviewPage() {
           icon={Activity}
           delay={0.1}
           accent="bg-gradient-to-br from-emerald-500 to-teal-600"
+          onActivate={() =>
+            openDashboardDrill({
+              kind: "kpi",
+              metric: "courts",
+              heading: "Courts",
+              totalHint: metrics.totals.courts,
+            })
+          }
         />
         <KpiCard
           label="Locations"
@@ -256,6 +618,14 @@ export default function AdminOverviewPage() {
           icon={MapPin}
           delay={0.15}
           accent="bg-gradient-to-br from-violet-500 to-purple-600"
+          onActivate={() =>
+            openDashboardDrill({
+              kind: "kpi",
+              metric: "locations",
+              heading: "Locations",
+              totalHint: metrics.totals.locations,
+            })
+          }
         />
         <KpiCard
           label="Open court bookings"
@@ -263,6 +633,14 @@ export default function AdminOverviewPage() {
           icon={CalendarCheck}
           delay={0.2}
           accent="bg-gradient-to-br from-sky-500 to-blue-600"
+          onActivate={() =>
+            openDashboardDrill({
+              kind: "kpi",
+              metric: "courtBookingsOpen",
+              heading: "Open court bookings",
+              totalHint: metrics.totals.courtBookingsOpen,
+            })
+          }
         />
         <KpiCard
           label="Coach sessions (scheduled)"
@@ -270,6 +648,14 @@ export default function AdminOverviewPage() {
           icon={BarChart3}
           delay={0.25}
           accent="bg-gradient-to-br from-cyan-500 to-blue-500"
+          onActivate={() =>
+            openDashboardDrill({
+              kind: "kpi",
+              metric: "coachSessionsScheduled",
+              heading: "Coach sessions (scheduled)",
+              totalHint: metrics.totals.coachSessionsScheduled,
+            })
+          }
         />
         <KpiCard
           label="Coaches"
@@ -277,6 +663,14 @@ export default function AdminOverviewPage() {
           icon={Users}
           delay={0.3}
           accent="bg-gradient-to-br from-fuchsia-500 to-pink-600"
+          onActivate={() =>
+            openDashboardDrill({
+              kind: "kpi",
+              metric: "coaches",
+              heading: "Coaches",
+              totalHint: metrics.totals.coaches,
+            })
+          }
         />
         <KpiCard
           label="Revenue (14 days)"
@@ -287,6 +681,14 @@ export default function AdminOverviewPage() {
           icon={DollarSign}
           delay={0.35}
           accent="bg-gradient-to-br from-lime-500 to-emerald-600"
+          onActivate={() =>
+            openDashboardDrill({
+              kind: "kpi",
+              metric: "revenue14d",
+              heading: "Revenue (14 days) — bookings",
+              totalHint: Math.max(1, Math.floor(metrics.totals.revenue14d / 40)),
+            })
+          }
         />
       </div>
 
@@ -301,7 +703,7 @@ export default function AdminOverviewPage() {
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">Court bookings / day</h2>
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                Last 14 days (non-cancelled)
+                Last 14 days (non-cancelled) — click a point to list that day&apos;s bookings
               </p>
             </div>
           </div>
@@ -336,6 +738,28 @@ export default function AdminOverviewPage() {
                   stroke="#2563eb"
                   strokeWidth={2}
                   fill="url(#fillBookings)"
+                  dot={(dotProps: {
+                    cx?: number;
+                    cy?: number;
+                    payload?: { date?: string };
+                  }) => {
+                    const { cx, cy, payload } = dotProps;
+                    if (cx == null || cy == null) return <g />;
+                    return (
+                      <circle
+                        cx={cx}
+                        cy={cy}
+                        r={4}
+                        fill="#2563eb"
+                        stroke="#fff"
+                        strokeWidth={1}
+                        className="cursor-pointer"
+                        onClick={() =>
+                          payload?.date && handleBookingsDayDrill(payload.date)
+                        }
+                      />
+                    );
+                  }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -397,7 +821,8 @@ export default function AdminOverviewPage() {
         <div className="mb-4">
           <h2 className="text-lg font-bold text-slate-900 dark:text-white">Court revenue / day</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Sum of booking totals (last 14 days, non-cancelled)
+            Sum of booking totals (last 14 days, non-cancelled) — click a point for that day&apos;s
+            bookings
           </p>
         </div>
         <div className="h-[280px] w-full">
@@ -439,6 +864,28 @@ export default function AdminOverviewPage() {
                 stroke="#059669"
                 strokeWidth={2}
                 fill="url(#fillRevenue)"
+                dot={(dotProps: {
+                  cx?: number;
+                  cy?: number;
+                  payload?: { date?: string };
+                }) => {
+                  const { cx, cy, payload } = dotProps;
+                  if (cx == null || cy == null) return <g />;
+                  return (
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r={4}
+                      fill="#059669"
+                      stroke="#fff"
+                      strokeWidth={1}
+                      className="cursor-pointer"
+                      onClick={() =>
+                        payload?.date && handleRevenueDayDrill(payload.date)
+                      }
+                    />
+                  );
+                }}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -518,12 +965,25 @@ export default function AdminOverviewPage() {
                       </h3>
                       <ul className="mt-2 space-y-2">
                         {breakdown.byRole.map((r) => (
-                          <li
-                            key={r.role}
-                            className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/90 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-900/60"
-                          >
-                            <span>{r.role}</span>
-                            <span className="font-semibold tabular-nums">{r.count}</span>
+                          <li key={r.role}>
+                            <button
+                              type="button"
+                              className="flex w-full items-center justify-between rounded-lg border border-slate-100 bg-slate-50/90 px-3 py-2 text-left text-sm transition-colors hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900/60 dark:hover:bg-slate-800/80"
+                              onClick={() => {
+                                if (!sportSelection) return;
+                                openDashboardDrill({
+                                  kind: "sport",
+                                  sport: sportSelection.key,
+                                  dimension: "role",
+                                  value: r.role,
+                                  segmentCount: r.count,
+                                  heading: `${sportSelection.label} · ${r.role}`,
+                                });
+                              }}
+                            >
+                              <span>{r.role}</span>
+                              <span className="font-semibold tabular-nums">{r.count}</span>
+                            </button>
                           </li>
                         ))}
                       </ul>
@@ -534,12 +994,25 @@ export default function AdminOverviewPage() {
                       </h3>
                       <ul className="mt-2 space-y-2">
                         {breakdown.byBookingType.map((r) => (
-                          <li
-                            key={r.bookingType}
-                            className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/90 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-900/60"
-                          >
-                            <span>{formatBookingTypeLabel(r.bookingType)}</span>
-                            <span className="font-semibold tabular-nums">{r.count}</span>
+                          <li key={r.bookingType}>
+                            <button
+                              type="button"
+                              className="flex w-full items-center justify-between rounded-lg border border-slate-100 bg-slate-50/90 px-3 py-2 text-left text-sm transition-colors hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900/60 dark:hover:bg-slate-800/80"
+                              onClick={() => {
+                                if (!sportSelection) return;
+                                openDashboardDrill({
+                                  kind: "sport",
+                                  sport: sportSelection.key,
+                                  dimension: "bookingType",
+                                  value: r.bookingType,
+                                  segmentCount: r.count,
+                                  heading: `${sportSelection.label} · ${formatBookingTypeLabel(r.bookingType)}`,
+                                });
+                              }}
+                            >
+                              <span>{formatBookingTypeLabel(r.bookingType)}</span>
+                              <span className="font-semibold tabular-nums">{r.count}</span>
+                            </button>
                           </li>
                         ))}
                       </ul>
@@ -550,12 +1023,25 @@ export default function AdminOverviewPage() {
                       </h3>
                       <ul className="mt-2 space-y-2">
                         {breakdown.byAccountType.map((r) => (
-                          <li
-                            key={r.accountType}
-                            className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/90 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-900/60"
-                          >
-                            <span>{formatAccountTypeLabel(r.accountType)}</span>
-                            <span className="font-semibold tabular-nums">{r.count}</span>
+                          <li key={r.accountType}>
+                            <button
+                              type="button"
+                              className="flex w-full items-center justify-between rounded-lg border border-slate-100 bg-slate-50/90 px-3 py-2 text-left text-sm transition-colors hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900/60 dark:hover:bg-slate-800/80"
+                              onClick={() => {
+                                if (!sportSelection) return;
+                                openDashboardDrill({
+                                  kind: "sport",
+                                  sport: sportSelection.key,
+                                  dimension: "accountType",
+                                  value: r.accountType,
+                                  segmentCount: r.count,
+                                  heading: `${sportSelection.label} · ${formatAccountTypeLabel(r.accountType)}`,
+                                });
+                              }}
+                            >
+                              <span>{formatAccountTypeLabel(r.accountType)}</span>
+                              <span className="font-semibold tabular-nums">{r.count}</span>
+                            </button>
                           </li>
                         ))}
                       </ul>
@@ -567,6 +1053,23 @@ export default function AdminOverviewPage() {
           </>
         )}
       </AnimatePresence>
+
+      <DashboardDrilldownDialog
+        open={drillOpen}
+        onOpenChange={(v) => {
+          setDrillOpen(v);
+          if (!v) setDrillSpec(null);
+        }}
+        title={drillDialogData?.title ?? "Details"}
+        description={drillDialogData?.description}
+        loading={Boolean(drillOpen && (!drillDialogData || drillDialogData.loading))}
+        error={drillDialogData?.error ?? null}
+        rows={drillDialogData?.rows ?? []}
+        total={drillDialogData?.total ?? 0}
+        page={drillPage}
+        pageSize={40}
+        onPageChange={setDrillPage}
+      />
     </div>
   );
 }

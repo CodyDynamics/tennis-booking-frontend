@@ -54,6 +54,12 @@ export interface CourtApi {
   coaches?: CoachApi[];
 }
 
+export interface PerSportWindowBody {
+  sport: string;
+  windowStartTime: string;
+  windowEndTime: string;
+}
+
 export interface CreateCourtBody {
   locationId: string;
   areaId?: string;
@@ -66,6 +72,9 @@ export interface CreateCourtBody {
   sport?: string;
   windowStartTime?: string;
   windowEndTime?: string;
+  /** shared = one window for all sports; per_sport = perSportWindows */
+  courtScheduleMode?: "shared" | "per_sport";
+  perSportWindows?: PerSportWindowBody[];
   pricePerHour?: number;
   description?: string;
   status?: string;
@@ -82,6 +91,8 @@ export interface UpdateCourtBody {
   sport?: string;
   windowStartTime?: string;
   windowEndTime?: string;
+  courtScheduleMode?: "shared" | "per_sport";
+  perSportWindows?: PerSportWindowBody[];
   pricePerHour?: number;
   description?: string;
   status?: string;

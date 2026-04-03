@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/lib/auth-store";
 import {
   useUsers,
@@ -38,6 +38,8 @@ import { hasAdminPermission } from "@/lib/admin-rbac";
 import { useAdmin } from "../admin-context";
 import { UsPhoneField } from "@/components/ui/us-phone-field";
 import { formatPhoneDisplay } from "@/lib/us-phone";
+import { titleCaseFilterLabel } from "@/lib/format";
+import { useDebouncedSearchValue } from "@/lib/hooks/use-debounced-search-value";
 
 const PAGE_SIZE = 10;
 
@@ -45,6 +47,7 @@ export default function AdminUserMembershipPage() {
   const { user } = useAuth();
   const { locationId: adminLocationId } = useAdmin();
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedSearchValue(search);
   const [roleId, setRoleId] = useState<string>("all");
   const [filterAreaId, setFilterAreaId] = useState<string>("all");
   const [page, setPage] = useState(1);
@@ -120,12 +123,17 @@ export default function AdminUserMembershipPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, roleId, adminLocationId, filterAreaId]);
+  }, [debouncedSearch, roleId, adminLocationId, filterAreaId]);
+
+  const [sortState, setSortState] = useState<{ key: string; dir: "asc" | "desc" } | null>(null);
+  useEffect(() => {
+    setPage(1);
+  }, [sortState]);
 
   const { data: users = [], isLoading } = useUsers({
     accountType: "membership",
     roleId: roleId && roleId !== "all" ? roleId : undefined,
-    search: search || undefined,
+    search: debouncedSearch.trim() ? debouncedSearch.trim() : undefined,
     membershipAtLocationId:
       showScopeFilters && filterAreaId === "all" && adminLocationId !== "all"
         ? adminLocationId
@@ -134,10 +142,68 @@ export default function AdminUserMembershipPage() {
     includeMemberships: true,
   });
 
-  const paginatedUsers = useMemo(
-    () => users.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [users, page],
+  const locationSortLabel = useCallback(
+    (u: UserApi) => {
+      const ids = Array.from(new Set((u.memberships ?? []).map((m) => m.locationId)));
+      if (ids.length > 0) {
+        return ids.map((id) => locationNameById.get(id) ?? id).join(", ");
+      }
+      if (listScopedLocationId) {
+        return locationNameById.get(listScopedLocationId) ?? listScopedLocationId;
+      }
+      return "";
+    },
+    [locationNameById, listScopedLocationId],
   );
+
+  function cmpLocale(a: string, b: string, dir: "asc" | "desc"): number {
+    const x = a.localeCompare(b, undefined, { sensitivity: "base" });
+    return dir === "asc" ? x : -x;
+  }
+
+  const sortedUsers = useMemo(() => {
+    if (!sortState) return users;
+    const { key, dir } = sortState;
+    return [...users].sort((u1, u2) => {
+      switch (key) {
+        case "lastName":
+          return cmpLocale(u1.lastName ?? "", u2.lastName ?? "", dir);
+        case "email":
+          return cmpLocale(u1.email, u2.email, dir);
+        case "location":
+          return cmpLocale(locationSortLabel(u1), locationSortLabel(u2), dir);
+        case "joinDate":
+          return cmpLocale(
+            u1.memberships?.[0]?.joinDate ?? "",
+            u2.memberships?.[0]?.joinDate ?? "",
+            dir,
+          );
+        case "endDate":
+          return cmpLocale(
+            u1.memberships?.[0]?.endDate ?? "",
+            u2.memberships?.[0]?.endDate ?? "",
+            dir,
+          );
+        case "status":
+          return cmpLocale(u1.status, u2.status, dir);
+        default:
+          return 0;
+      }
+    });
+  }, [users, sortState, locationSortLabel]);
+
+  const paginatedUsers = useMemo(
+    () => sortedUsers.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [sortedUsers, page],
+  );
+
+  const toggleColumnSort = (key: string) => {
+    setSortState((prev) => {
+      if (!prev || prev.key !== key) return { key, dir: "asc" };
+      if (prev.dir === "asc") return { key, dir: "desc" };
+      return null;
+    });
+  };
 
   const createMembership = useCreateMembershipPlaceholder();
   const updateUser = useUpdateUser();
@@ -160,6 +226,8 @@ export default function AdminUserMembershipPage() {
     homeAddress: "",
     membershipLocationId: "__none__" as string,
     accountType: "membership" as "membership" | "normal",
+    membershipJoinDate: "",
+    membershipEndDate: "",
   });
 
   useEffect(() => {
@@ -170,7 +238,8 @@ export default function AdminUserMembershipPage() {
 
   useEffect(() => {
     if (!editingUser || !editModalOpen || !editUserDetail) return;
-    const locId = editUserDetail.memberships?.[0]?.locationId;
+    const m0 = editUserDetail.memberships?.[0];
+    const locId = m0?.locationId;
     const syncKey = `${editingUser.id}-${locId ?? "none"}`;
     if (membershipSyncedRef.current === syncKey) return;
     membershipSyncedRef.current = syncKey;
@@ -181,6 +250,8 @@ export default function AdminUserMembershipPage() {
         locId && allowed.has(locId) ? locId : "__none__",
       accountType:
         editingUser.accountType === "membership" ? "membership" : "normal",
+      membershipJoinDate: m0?.joinDate ?? "",
+      membershipEndDate: m0?.endDate ?? "",
     }));
   }, [editingUser, editModalOpen, editUserDetail, locationOptionsForCreate]);
 
@@ -195,6 +266,8 @@ export default function AdminUserMembershipPage() {
       homeAddress: u.homeAddress ?? "",
       membershipLocationId: "__none__",
       accountType: u.accountType === "membership" ? "membership" : "normal",
+      membershipJoinDate: u.memberships?.[0]?.joinDate ?? "",
+      membershipEndDate: u.memberships?.[0]?.endDate ?? "",
     });
     setEditModalOpen(true);
   };
@@ -220,6 +293,12 @@ export default function AdminUserMembershipPage() {
         editForm.membershipLocationId === "__none__"
           ? null
           : editForm.membershipLocationId,
+      membershipJoinDate: editForm.membershipJoinDate.trim()
+        ? editForm.membershipJoinDate.trim()
+        : null,
+      membershipEndDate: editForm.membershipEndDate.trim()
+        ? editForm.membershipEndDate.trim()
+        : null,
     };
 
     if (
@@ -258,6 +337,8 @@ export default function AdminUserMembershipPage() {
     phone: "",
     homeAddress: "",
     locationId: "__none__",
+    membershipJoinDate: "",
+    membershipEndDate: "",
   });
 
   const resetCreateForm = () => {
@@ -269,6 +350,8 @@ export default function AdminUserMembershipPage() {
       phone: "",
       homeAddress: "",
       locationId: "__none__",
+      membershipJoinDate: "",
+      membershipEndDate: "",
     });
   };
 
@@ -298,6 +381,8 @@ export default function AdminUserMembershipPage() {
         homeAddress: form.homeAddress.trim() || undefined,
         membershipLocationId:
           form.locationId !== "__none__" ? form.locationId : undefined,
+        membershipJoinDate: form.membershipJoinDate.trim() || undefined,
+        membershipEndDate: form.membershipEndDate.trim() || undefined,
       })
       .then(() => null)
       .catch((e) => e);
@@ -349,7 +434,7 @@ export default function AdminUserMembershipPage() {
             <SelectItem value="all">All roles</SelectItem>
             {roles.map((r) => (
               <SelectItem key={r.id} value={r.id}>
-                {r.name}
+                {titleCaseFilterLabel(r.name)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -384,18 +469,27 @@ export default function AdminUserMembershipPage() {
                 : "No membership placeholders match your filters."
             }
             isLoading={isLoading}
+            sortKey={sortState?.key ?? null}
+            sortDir={sortState?.dir ?? "asc"}
+            onColumnSort={toggleColumnSort}
             loadingNode={
               <div className="flex justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             }
             columns={[
-              { key: "lastName", label: "Last Name", render: (u) => u.lastName ?? "—" },
-              { key: "firstName", label: "First Name", render: (u) => u.firstName ?? "—" },
-              { key: "email", label: "Email" },
+              {
+                key: "lastName",
+                label: "Last name",
+                sortable: true,
+                render: (u) => u.lastName ?? "—",
+              },
+              { key: "firstName", label: "First name", render: (u) => u.firstName ?? "—" },
+              { key: "email", label: "Email", sortable: true },
               {
                 key: "location",
                 label: "Location",
+                sortable: true,
                 render: (u) => {
                   const ids = Array.from(
                     new Set((u.memberships ?? []).map((m) => m.locationId)),
@@ -413,6 +507,18 @@ export default function AdminUserMembershipPage() {
                   }
                   return "—";
                 },
+              },
+              {
+                key: "joinDate",
+                label: "Join date",
+                sortable: true,
+                render: (u) => u.memberships?.[0]?.joinDate ?? "—",
+              },
+              {
+                key: "endDate",
+                label: "End date",
+                sortable: true,
+                render: (u) => u.memberships?.[0]?.endDate ?? "—",
               },
               {
                 key: "phone",
@@ -433,9 +539,11 @@ export default function AdminUserMembershipPage() {
                 key: "role",
                 label: "Role",
                 render: (u) =>
-                  typeof u.role === "object" && u.role?.name ? u.role.name : u.roleId,
+                  typeof u.role === "object" && u.role?.name
+                    ? titleCaseFilterLabel(u.role.name)
+                    : titleCaseFilterLabel(u.roleId),
               },
-              { key: "status", label: "Status" },
+              { key: "status", label: "Status", sortable: true },
               ...(canUpdate
                 ? [
                     {
@@ -459,11 +567,11 @@ export default function AdminUserMembershipPage() {
                 : []),
             ]}
           />
-          {!isLoading && users.length > 0 && (
+          {!isLoading && sortedUsers.length > 0 && (
             <AdminPagination
               page={page}
               pageSize={PAGE_SIZE}
-              total={users.length}
+              total={sortedUsers.length}
               onPageChange={setPage}
               className="mt-4 border-t pt-4"
             />
@@ -583,6 +691,30 @@ export default function AdminUserMembershipPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Join date (optional)</Label>
+                <Input
+                  type="date"
+                  value={form.membershipJoinDate}
+                  onChange={(e) => {
+                    setFormError(null);
+                    setForm((f) => ({ ...f, membershipJoinDate: e.target.value }));
+                  }}
+                />
+              </div>
+              <div>
+                <Label>End date (optional)</Label>
+                <Input
+                  type="date"
+                  value={form.membershipEndDate}
+                  onChange={(e) => {
+                    setFormError(null);
+                    setForm((f) => ({ ...f, membershipEndDate: e.target.value }));
+                  }}
+                />
+              </div>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>
@@ -735,6 +867,32 @@ export default function AdminUserMembershipPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Join date (optional)</Label>
+                  <Input
+                    type="date"
+                    value={editForm.membershipJoinDate}
+                    onChange={(e) => {
+                      setEditError(null);
+                      setEditForm((f) => ({ ...f, membershipJoinDate: e.target.value }));
+                    }}
+                    disabled={!editFormReady}
+                  />
+                </div>
+                <div>
+                  <Label>End date (optional)</Label>
+                  <Input
+                    type="date"
+                    value={editForm.membershipEndDate}
+                    onChange={(e) => {
+                      setEditError(null);
+                      setEditForm((f) => ({ ...f, membershipEndDate: e.target.value }));
+                    }}
+                    disabled={!editFormReady}
+                  />
+                </div>
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setEditModalOpen(false)}>

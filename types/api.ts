@@ -15,9 +15,20 @@ export interface AuthUser {
   id: string;
   email: string;
   fullName: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  phone?: string | null;
   role?: string;
   mustChangePasswordOnFirstLogin?: boolean;
   memberships?: AuthUserMembership[];
+}
+
+/** PATCH /users/profile */
+export interface UpdateOwnProfileBody {
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
 }
 
 /** Response from POST /auth/login, /auth/register/verify-otp, /auth/refresh */
@@ -73,6 +84,12 @@ export interface VerifyLoginOtpInput {
 /** Body for POST /auth/change-password */
 export interface ChangePasswordInput {
   currentPassword: string;
+  newPassword: string;
+}
+
+/** Body for POST /auth/reset-password */
+export interface ResetPasswordInput {
+  token: string;
   newPassword: string;
 }
 
@@ -246,6 +263,61 @@ export interface SportBookingBreakdownApi {
   byRole: { role: string; count: number }[];
   byBookingType: { bookingType: string; count: number }[];
   byAccountType: { accountType: string; count: number }[];
+}
+
+/** GET /admin/dashboard/metrics/by-sport/drilldown */
+export interface AdminSportDrilldownItemApi {
+  userId: string;
+  email: string;
+  fullName: string | null;
+  bookingCount: number;
+}
+
+export interface AdminSportDrilldownPageApi {
+  sport: string;
+  dimension: "role" | "bookingType" | "accountType";
+  filterValue: string;
+  total: number;
+  page: number;
+  pageSize: number;
+  items: AdminSportDrilldownItemApi[];
+}
+
+/** GET /admin/dashboard/metrics/kpi-drilldown */
+export interface AdminKpiDrilldownRowApi {
+  id: string;
+  title: string;
+  subtitle?: string;
+  meta?: string;
+}
+
+export interface AdminKpiDrilldownPageApi {
+  metric: string;
+  total: number;
+  page: number;
+  pageSize: number;
+  rows: AdminKpiDrilldownRowApi[];
+}
+
+/** GET /admin/dashboard/metrics/day-bookings */
+export interface AdminDayBookingRowApi {
+  id: string;
+  bookingDate: string;
+  startTime: string;
+  endTime: string;
+  sport: string | null;
+  userName: string;
+  userEmail: string;
+  courtName: string | null;
+  totalPrice: string;
+}
+
+export interface AdminDayBookingsPageApi {
+  date: string;
+  total: number;
+  page: number;
+  pageSize: number;
+  rows: AdminDayBookingRowApi[];
 }
 
 /** Coach session as returned by API */

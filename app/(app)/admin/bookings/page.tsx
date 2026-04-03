@@ -25,6 +25,8 @@ import {
 import { Loader2, Pencil } from "lucide-react";
 import type { AdminCourtBookingRowApi } from "@/lib/api/endpoints/bookings";
 import { ApiError } from "@/lib/api";
+import { formatTime, titleCaseFilterLabel } from "@/lib/format";
+import { useDebouncedSearchValue } from "@/lib/hooks/use-debounced-search-value";
 
 const PAGE_SIZE = 20;
 
@@ -40,6 +42,7 @@ export default function AdminBookingsPage() {
   const { data: locations = [] } = useLocations();
 
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedSearchValue(search);
   const [status, setStatus] = useState<string>("all");
   const [paymentStatus, setPaymentStatus] = useState<string>("all");
   const [from, setFrom] = useState<string>(() => {
@@ -58,7 +61,7 @@ export default function AdminBookingsPage() {
 
   const { data: rowsRaw = [], isLoading } = useAdminCourtBookings({
     locationId: scopedLocationId,
-    search: search || undefined,
+    search: debouncedSearch.trim() ? debouncedSearch.trim() : undefined,
     from: from || undefined,
     to: to || undefined,
     status: status !== "all" ? status : undefined,
@@ -71,18 +74,73 @@ export default function AdminBookingsPage() {
     return rowsRaw.filter((r) => r.locationId === scopedLocationId);
   }, [rowsRaw, scopedLocationId]);
 
-  useEffect(() => setPage(1), [search, status, paymentStatus, from, to, adminLocationId]);
-
-  const paginated = useMemo(
-    () => rowsForUi.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [rowsForUi, page],
-  );
-
   const locationNameById = useMemo(() => {
     const m = new Map<string, string>();
     for (const l of locations) m.set(l.id, l.name);
     return m;
   }, [locations]);
+
+  useEffect(() => setPage(1), [debouncedSearch, status, paymentStatus, from, to, adminLocationId]);
+
+  const [sortState, setSortState] = useState<{ key: string; dir: "asc" | "desc" } | null>(null);
+  useEffect(() => setPage(1), [sortState]);
+
+  function cmpLocale(a: string, b: string, dir: "asc" | "desc"): number {
+    const x = a.localeCompare(b, undefined, { sensitivity: "base" });
+    return dir === "asc" ? x : -x;
+  }
+
+  const sortedRows = useMemo(() => {
+    if (!sortState) return rowsForUi;
+    const { key, dir } = sortState;
+    return [...rowsForUi].sort((r1, r2) => {
+      switch (key) {
+        case "date":
+          return cmpLocale(
+            String(r1.bookingDate).slice(0, 10),
+            String(r2.bookingDate).slice(0, 10),
+            dir,
+          );
+        case "court":
+          return cmpLocale(r1.court?.name ?? r1.courtId, r2.court?.name ?? r2.courtId, dir);
+        case "user":
+          return cmpLocale(
+            r1.user?.fullName ?? r1.user?.email ?? r1.userId,
+            r2.user?.fullName ?? r2.user?.email ?? r2.userId,
+            dir,
+          );
+        case "location":
+          return cmpLocale(
+            r1.location?.name ??
+              (r1.locationId ? (locationNameById.get(r1.locationId) ?? r1.locationId) : ""),
+            r2.location?.name ??
+              (r2.locationId ? (locationNameById.get(r2.locationId) ?? r2.locationId) : ""),
+            dir,
+          );
+        case "sport":
+          return cmpLocale(r1.sport ?? "", r2.sport ?? "", dir);
+        case "payment":
+          return cmpLocale(r1.paymentStatus ?? "", r2.paymentStatus ?? "", dir);
+        case "status":
+          return cmpLocale(r1.bookingStatus ?? "", r2.bookingStatus ?? "", dir);
+        default:
+          return 0;
+      }
+    });
+  }, [rowsForUi, sortState, locationNameById]);
+
+  const paginated = useMemo(
+    () => sortedRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [sortedRows, page],
+  );
+
+  const toggleColumnSort = (key: string) => {
+    setSortState((prev) => {
+      if (!prev || prev.key !== key) return { key, dir: "asc" };
+      if (prev.dir === "asc") return { key, dir: "desc" };
+      return null;
+    });
+  };
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<AdminCourtBookingRowApi | null>(null);
@@ -145,7 +203,7 @@ export default function AdminBookingsPage() {
               <SelectItem value="all">All statuses</SelectItem>
               {BOOKING_STATUS.map((s) => (
                 <SelectItem key={s} value={s}>
-                  {s}
+                  {titleCaseFilterLabel(s)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -158,7 +216,7 @@ export default function AdminBookingsPage() {
               <SelectItem value="all">All payments</SelectItem>
               {PAYMENT_STATUS.map((s) => (
                 <SelectItem key={s} value={s}>
-                  {s}
+                  {titleCaseFilterLabel(s)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -173,18 +231,37 @@ export default function AdminBookingsPage() {
             keyExtractor={(r) => r.id}
             emptyMessage="No bookings match your filters."
             isLoading={isLoading}
+            sortKey={sortState?.key ?? null}
+            sortDir={sortState?.dir ?? "asc"}
+            onColumnSort={toggleColumnSort}
             loadingNode={
               <div className="flex justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             }
             columns={[
-              { key: "date", label: "Date", render: (r) => String(r.bookingDate).slice(0, 10) },
-              { key: "time", label: "Time", render: (r) => `${r.startTime}–${r.endTime}` },
-              { key: "court", label: "Court", render: (r) => r.court?.name ?? r.courtId },
+              {
+                key: "date",
+                label: "Date",
+                sortable: true,
+                render: (r) => String(r.bookingDate).slice(0, 10),
+              },
+              {
+                key: "time",
+                label: "Time",
+                render: (r) =>
+                  `${formatTime(String(r.startTime))}–${formatTime(String(r.endTime))}`,
+              },
+              {
+                key: "court",
+                label: "Court",
+                sortable: true,
+                render: (r) => r.court?.name ?? r.courtId,
+              },
               {
                 key: "user",
                 label: "User",
+                sortable: true,
                 render: (r) => (
                   <div className="text-sm">
                     <div className="font-medium">{r.user?.fullName ?? "—"}</div>
@@ -195,14 +272,34 @@ export default function AdminBookingsPage() {
               {
                 key: "location",
                 label: "Location",
+                sortable: true,
                 render: (r) =>
                   r.location?.name ??
                   (r.locationId ? locationNameById.get(r.locationId) ?? r.locationId : "—"),
               },
-              { key: "sport", label: "Sport", render: (r) => r.sport ?? "—" },
-              { key: "courtType", label: "Env", render: (r) => r.courtType ?? "—" },
-              { key: "payment", label: "Payment", render: (r) => r.paymentStatus },
-              { key: "status", label: "Status", render: (r) => r.bookingStatus },
+              {
+                key: "sport",
+                label: "Sport",
+                sortable: true,
+                render: (r) => titleCaseFilterLabel(r.sport ?? "—"),
+              },
+              {
+                key: "courtType",
+                label: "Env",
+                render: (r) => titleCaseFilterLabel(r.courtType ?? "—"),
+              },
+              {
+                key: "payment",
+                label: "Payment",
+                sortable: true,
+                render: (r) => titleCaseFilterLabel(r.paymentStatus ?? "—"),
+              },
+              {
+                key: "status",
+                label: "Status",
+                sortable: true,
+                render: (r) => titleCaseFilterLabel(r.bookingStatus ?? "—"),
+              },
               {
                 key: "actions",
                 label: "Actions",
@@ -217,11 +314,11 @@ export default function AdminBookingsPage() {
             ]}
           />
 
-          {!isLoading && rowsForUi.length > 0 && (
+          {!isLoading && sortedRows.length > 0 && (
             <AdminPagination
               page={page}
               pageSize={PAGE_SIZE}
-              total={rowsForUi.length}
+              total={sortedRows.length}
               onPageChange={setPage}
               className="mt-4 border-t pt-4"
             />
@@ -254,7 +351,9 @@ export default function AdminBookingsPage() {
               )}
               <div className="text-sm rounded-md border bg-muted/40 px-3 py-2">
                 <div className="font-medium">
-                  {String(editing.bookingDate).slice(0, 10)} {editing.startTime}–{editing.endTime}
+                  {String(editing.bookingDate).slice(0, 10)}{" "}
+                  {formatTime(String(editing.startTime))}–
+                  {formatTime(String(editing.endTime))}
                 </div>
                 <div className="text-muted-foreground">
                   {editing.court?.name ?? editing.courtId} · {editing.user?.email ?? editing.userId}

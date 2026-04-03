@@ -35,6 +35,7 @@ import { AdminFilter, AdminTable, AdminPagination } from "../components";
 import type { VenueMembershipAssignmentRow } from "@/lib/api/endpoints/users";
 import type { LocationApi } from "@/lib/api/endpoints/locations";
 import { hasAdminPermission } from "@/lib/admin-rbac";
+import { useDebouncedSearchValue } from "@/lib/hooks/use-debounced-search-value";
 
 const SEARCH_MIN = 2;
 const MEMBERSHIP_PAGE_SIZE = 10;
@@ -411,11 +412,7 @@ export default function AdminLocationStaffPage() {
   }, [locationsForAssign, locationById]);
 
   const [userSearch, setUserSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(userSearch), 300);
-    return () => clearTimeout(t);
-  }, [userSearch]);
+  const debouncedSearch = useDebouncedSearchValue(userSearch, 300);
 
   const [onlyNoVenueMembership, setOnlyNoVenueMembership] = useState(true);
 

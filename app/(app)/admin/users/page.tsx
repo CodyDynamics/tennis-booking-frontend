@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/lib/auth-store";
 import {
   useUsers,
@@ -40,6 +40,8 @@ import { hasAdminPermission } from "@/lib/admin-rbac";
 import { useAdmin } from "../admin-context";
 import { UsPhoneField } from "@/components/ui/us-phone-field";
 import { formatPhoneDisplay } from "@/lib/us-phone";
+import { titleCaseFilterLabel } from "@/lib/format";
+import { useDebouncedSearchValue } from "@/lib/hooks/use-debounced-search-value";
 
 const PAGE_SIZE = 10;
 
@@ -47,6 +49,7 @@ export default function AdminUsersPage() {
   const { user } = useAuth();
   const { locationId: adminLocationId } = useAdmin();
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedSearchValue(search);
   const [roleId, setRoleId] = useState<string>("all");
   /** This page never lists `membership` placeholders — those are on Memberships. */
   const [accountTypeScope, setAccountTypeScope] = useState<"all" | "system" | "normal">("all");
@@ -67,7 +70,7 @@ export default function AdminUsersPage() {
 
   const { data: users = [], isLoading } = useUsers({
     roleId: roleId && roleId !== "all" ? roleId : undefined,
-    search: search || undefined,
+    search: debouncedSearch.trim() ? debouncedSearch.trim() : undefined,
     accountType:
       accountTypeScope === "system" || accountTypeScope === "normal"
         ? accountTypeScope
@@ -141,12 +144,71 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, roleId, accountTypeScope, adminLocationId, filterAreaId]);
+  }, [debouncedSearch, roleId, accountTypeScope, adminLocationId, filterAreaId]);
+
+  const [sortState, setSortState] = useState<{ key: string; dir: "asc" | "desc" } | null>(null);
+  useEffect(() => {
+    setPage(1);
+  }, [sortState]);
+
+  function cmpLocale(a: string, b: string, dir: "asc" | "desc"): number {
+    const x = a.localeCompare(b, undefined, { sensitivity: "base" });
+    return dir === "asc" ? x : -x;
+  }
+
+  const locationSortLabel = useCallback(
+    (u: UserApi) => {
+      const ids = Array.from(new Set((u.memberships ?? []).map((m) => m.locationId)));
+      if (ids.length > 0) {
+        return ids.map((id) => locationNameById.get(id) ?? id).join(", ");
+      }
+      if (listScopedLocationId) {
+        return locationNameById.get(listScopedLocationId) ?? listScopedLocationId;
+      }
+      return "";
+    },
+    [locationNameById, listScopedLocationId],
+  );
+
+  const sortedUsers = useMemo(() => {
+    if (!sortState) return users;
+    const { key, dir } = sortState;
+    return [...users].sort((u1, u2) => {
+      switch (key) {
+        case "lastName":
+          return cmpLocale(u1.lastName ?? "", u2.lastName ?? "", dir);
+        case "firstName":
+          return cmpLocale(u1.firstName ?? "", u2.firstName ?? "", dir);
+        case "email":
+          return cmpLocale(u1.email, u2.email, dir);
+        case "location":
+          return cmpLocale(locationSortLabel(u1), locationSortLabel(u2), dir);
+        case "status":
+          return cmpLocale(u1.status, u2.status, dir);
+        case "role":
+          return cmpLocale(
+            typeof u1.role === "object" && u1.role?.name ? u1.role.name : u1.roleId,
+            typeof u2.role === "object" && u2.role?.name ? u2.role.name : u2.roleId,
+            dir,
+          );
+        default:
+          return 0;
+      }
+    });
+  }, [users, sortState, locationSortLabel]);
 
   const paginatedUsers = useMemo(
-    () => users.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [users, page],
+    () => sortedUsers.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [sortedUsers, page],
   );
+
+  const toggleColumnSort = (key: string) => {
+    setSortState((prev) => {
+      if (!prev || prev.key !== key) return { key, dir: "asc" };
+      if (prev.dir === "asc") return { key, dir: "desc" };
+      return null;
+    });
+  };
 
   const [form, setForm] = useState({
     email: "",
@@ -340,7 +402,7 @@ export default function AdminUsersPage() {
             <SelectItem value="all">All roles</SelectItem>
             {roles.map((r) => (
               <SelectItem key={r.id} value={r.id}>
-                {r.name}
+                {titleCaseFilterLabel(r.name)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -381,6 +443,9 @@ export default function AdminUsersPage() {
             keyExtractor={(u) => u.id}
             emptyMessage="No users found."
             isLoading={isLoading}
+            sortKey={sortState?.key ?? null}
+            sortDir={sortState?.dir ?? "asc"}
+            onColumnSort={toggleColumnSort}
             loadingNode={
               <div className="flex justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -389,18 +454,21 @@ export default function AdminUsersPage() {
             columns={[
               {
                 key: "lastName",
-                label: "Last Name",
+                label: "Last name",
+                sortable: true,
                 render: (u) => <span className="font-medium">{u.lastName ?? "—"}</span>,
               },
               {
                 key: "firstName",
-                label: "First Name",
+                label: "First name",
+                sortable: true,
                 render: (u) => <span className="font-medium">{u.firstName ?? "—"}</span>,
               },
-              { key: "email", label: "Email" },
+              { key: "email", label: "Email", sortable: true },
               {
                 key: "location",
                 label: "Location",
+                sortable: true,
                 render: (u) => {
                   const ids = Array.from(
                     new Set((u.memberships ?? []).map((m) => m.locationId)),
@@ -439,15 +507,19 @@ export default function AdminUsersPage() {
               {
                 key: "role",
                 label: "Role",
+                sortable: true,
                 render: (u) =>
-                  typeof u.role === "object" && u.role?.name ? u.role.name : u.roleId,
+                  typeof u.role === "object" && u.role?.name
+                    ? titleCaseFilterLabel(u.role.name)
+                    : titleCaseFilterLabel(u.roleId),
               },
               {
                 key: "status",
                 label: "Status",
+                sortable: true,
                 render: (u) => (
                   <span className={u.status === "active" ? "text-green-600" : "text-amber-600"}>
-                    {u.status}
+                    {titleCaseFilterLabel(u.status)}
                   </span>
                 ),
               },
@@ -488,11 +560,11 @@ export default function AdminUsersPage() {
                 : []),
             ]}
           />
-          {!isLoading && users.length > 0 && (
+          {!isLoading && sortedUsers.length > 0 && (
             <AdminPagination
               page={page}
               pageSize={PAGE_SIZE}
-              total={users.length}
+              total={sortedUsers.length}
               onPageChange={setPage}
               className="mt-4 border-t pt-4"
             />

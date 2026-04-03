@@ -34,6 +34,8 @@ function mapAuthUserToUser(a: AuthUser): User {
     id: a.id,
     email: a.email,
     fullName: a.fullName,
+    firstName: a.firstName ?? undefined,
+    lastName: a.lastName ?? undefined,
     role: (roleValue as User["role"]) ?? "player",
     phone: (a as { phone?: string }).phone ?? undefined,
     mustChangePasswordOnFirstLogin: a.mustChangePasswordOnFirstLogin ?? false,

@@ -4,6 +4,8 @@ export interface UserMembershipSummary {
   id: string;
   locationId: string;
   status: string;
+  joinDate?: string | null;
+  endDate?: string | null;
 }
 
 export interface UserApi {
@@ -66,6 +68,8 @@ export interface UpdateUserBody {
   membershipLocationId?: string | null;
   /** system | normal | membership */
   accountType?: "system" | "normal" | "membership";
+  membershipJoinDate?: string | null;
+  membershipEndDate?: string | null;
 }
 
 export interface CreateMembershipPlaceholderBody {
@@ -76,6 +80,8 @@ export interface CreateMembershipPlaceholderBody {
   lastName?: string;
   homeAddress?: string;
   membershipLocationId?: string;
+  membershipJoinDate?: string;
+  membershipEndDate?: string;
 }
 
 export function createUsersEndpoints(client: ApiClient) {

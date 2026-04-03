@@ -64,7 +64,7 @@ const DEFAULT_PARTNER_IMAGE =
 type Partner = { name: string; logo: string; href: string; featured?: boolean };
 const PARTNERS: Partner[] = [
   {
-    name: "CodyPlay",
+    name: "CodyActive",
     logo: "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=400&h=300&fit=crop&q=80",
     // logo: "/images/home/logo.jpeg",
     href: "#",
@@ -255,7 +255,7 @@ export default function Home() {
               variants={itemVariants}
               className="mb-6 inline-flex items-center rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-sm font-semibold text-primary backdrop-blur-sm"
             >
-              <Activity className="w-4 h-4 mr-2" /> CodyPlay — Your Court,
+              <Activity className="w-4 h-4 mr-2" /> CodyActive — Your Court,
               Your Game
             </motion.div>
 
@@ -265,7 +265,7 @@ export default function Home() {
             >
               Welcome to <br />
               <span className="bg-gradient-to-r from-primary via-[hsl(38,92%,50%)] to-[hsl(25,95%,47%)] bg-clip-text text-transparent">
-                CodyPlay
+                CodyActive
               </span>
             </motion.h1>
 
@@ -340,7 +340,7 @@ export default function Home() {
                 loop
                 playsInline
                 className="absolute inset-0 w-full h-full object-cover"
-                title="CodyPlay intro"
+                title="CodyActive intro"
               />
             </motion.div>
             <motion.div
@@ -350,12 +350,12 @@ export default function Home() {
               className="space-y-6"
             >
               <h2 className="text-3xl lg:text-4xl font-bold tracking-tight uppercase text-primary">
-                CodyPlay
+                CodyActive
               </h2>
               <p className="text-slate-600 dark:text-slate-300 text-lg leading-relaxed">
                 We manage and develop tennis and pickleball facilities with
                 lessons, programs, tournaments, ball machines, and events.
-                Choose your local CodyPlay facility to view schedules,
+                Choose your local CodyActive facility to view schedules,
                 reservations, and programs.
               </p>
               <Link href="/#locations">
@@ -455,7 +455,7 @@ export default function Home() {
             viewport={{ once: true }}
             className="text-2xl md:text-3xl font-bold text-center uppercase tracking-wide mb-4 text-primary"
           >
-            CodyPlay — Quality Courts Across Our Communities
+            CodyActive — Quality Courts Across Our Communities
           </motion.h2>
           <motion.p
             initial={{ opacity: 0 }}

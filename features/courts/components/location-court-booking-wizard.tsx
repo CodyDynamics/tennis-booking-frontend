@@ -11,13 +11,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Calendar as CalendarGrid } from "@/components/ui/calendar";
 import {
   useCourts,
@@ -41,6 +34,19 @@ type CourtType = "indoor" | "outdoor";
 
 const DURATIONS = [30, 60, 90] as const;
 
+/** Public booking activity order (Tennis → Pickleball → Ball Machine). */
+const ACTIVITY_ORDER = ["tennis", "pickleball", "ball-machine"] as const;
+
+function activitySortIndex(code: string): number {
+  const i = (ACTIVITY_ORDER as readonly string[]).indexOf(code);
+  return i === -1 ? ACTIVITY_ORDER.length + 1 : i;
+}
+
+function sportButtonLabel(code: string, name: string): string {
+  if (code === "ball-machine") return "Ball Machine";
+  return name;
+}
+
 /** Bump `requestId` each time user chooses “Change time” so the wizard applies prefill once. */
 export type LocationBookingPrefill = {
   requestId: number;
@@ -57,6 +63,16 @@ export type LocationBookingPrefill = {
 function wallShort(t: string) {
   const [h, m] = t.split(":");
   return `${h?.padStart(2, "0")}:${m?.padStart(2, "0")}`;
+}
+
+/** US 12-hour clock for display (e.g. 8:00 AM, 1:30 PM). */
+function formatTimeAmPm(hhmm: string): string {
+  const t = wallShort(hhmm);
+  const [hStr, mi] = t.split(":");
+  const h = Number(hStr);
+  const suffix = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${mi} ${suffix}`;
 }
 
 function toMinutes(t: string) {
@@ -165,7 +181,9 @@ export function LocationCourtBookingWizard({
       } else if (c.sport) allowed.add(String(c.sport));
     }
     allowed.add("ball-machine");
-    return sportsData.filter((s) => allowed.has(s.code));
+    return sportsData
+      .filter((s) => allowed.has(s.code))
+      .sort((a, b) => activitySortIndex(a.code) - activitySortIndex(b.code));
   }, [sportsData, locationCourts, areaId]);
 
   const courtTypeOptions = useMemo<CourtType[]>(() => {
@@ -466,8 +484,8 @@ export function LocationCourtBookingWizard({
 
   return (
     <Card className="w-full border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl">
-      <CardHeader>
-        <CardTitle className="text-xl flex items-center gap-2">
+      <CardHeader className="space-y-1 pb-2 pt-4 px-4 sm:px-6">
+        <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
           Book a court · {locationName}
           <span
             title={wsConnected ? "Live availability connected" : "Connecting…"}
@@ -477,7 +495,7 @@ export function LocationCourtBookingWizard({
             )}
           />
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-xs sm:text-sm leading-snug">
           Choose sport, indoor/outdoor, date, and duration. The system will
           automatically assign a court for your selected time slot.
         </CardDescription>
@@ -501,96 +519,97 @@ export function LocationCourtBookingWizard({
         )}
       </CardHeader>
 
-      <CardContent>
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-6">
+      <CardContent className="px-4 pb-4 pt-2 sm:px-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4 lg:gap-5">
           {/* ── Left column: filters + slot grid ── */}
-          <div className="space-y-5">
-            {/* Sport + Court Type */}
-            <div className="flex flex-wrap gap-4">
-              <motion.div
-                key={activityAttentionKey}
-                className="space-y-2 rounded-lg p-1 -m-1"
-                initial={false}
-                animate={
-                  activityAttentionKey > 0 && !sport
-                    ? {
+          <div className="space-y-3">
+            {/* Activity + indoor/outdoor — single row */}
+            <motion.div
+              key={activityAttentionKey}
+              className="rounded-lg p-1 -m-1"
+              initial={false}
+              animate={
+                activityAttentionKey > 0 && !sport
+                  ? {
                       boxShadow: [
                         "0 0 0 0px rgba(234,88,12,0)",
                         "0 0 0 3px rgba(234,88,12,0.45)",
                         "0 0 0 0px rgba(234,88,12,0)",
                       ],
-                      scale: [1, 1.02, 1],
+                      scale: [1, 1.01, 1],
                     }
-                    : false
-                }
-                transition={{ duration: 0.5, ease: "easeOut" }}
-              >
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-                  <span className="text-sm font-medium leading-none">Select Activity:</span>
-                  <Select
-                    value={sport ?? undefined}
-                    onValueChange={(v) => {
-                      setSport(v as Sport);
-                      setActivityAttentionKey(0);
-                    }}
-                  >
-                    <SelectTrigger
-                      aria-label="Select activity"
-                      className={cn(
-                        "h-9 shrink-0 transition-[width,min-width]",
-                        sport
-                          ? "min-w-[10.5rem] max-w-[14rem] justify-between px-3"
-                          : "w-9 justify-center px-0 [&>span]:sr-only",
-                      )}
+                  : false
+              }
+              transition={{ duration: 0.5, ease: "easeOut" }}
+            >
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+                <span className="text-xs font-semibold text-muted-foreground shrink-0">
+                  Activity
+                </span>
+                <div className="flex flex-wrap items-center gap-1">
+                  {sportOptions.length === 0 ? (
+                    <span className="text-xs text-muted-foreground">No activities at this venue.</span>
+                  ) : (
+                    sportOptions.map((s) => (
+                      <Button
+                        key={s.code}
+                        type="button"
+                        size="sm"
+                        variant={sport === s.code ? "default" : "outline"}
+                        className="h-8 rounded-full px-3 text-xs font-semibold"
+                        onClick={() => {
+                          setSport(s.code as Sport);
+                          setActivityAttentionKey(0);
+                        }}
+                      >
+                        {sportButtonLabel(s.code, s.name)}
+                      </Button>
+                    ))
+                  )}
+                </div>
+                {sport && courtTypeOptions.length > 0 && (
+                  <>
+                    <span
+                      className="hidden sm:inline text-muted-foreground/40 px-0.5"
+                      aria-hidden
                     >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sportOptions.map((s) => (
-                        <SelectItem key={s.code} value={s.code}>
-                          {s.code === "ball-machine" ? "Ball Machine" : s.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </motion.div>
-
-              {sport && (
-                <div className="space-y-2">
-                  <Label>Indoor / Outdoor</Label>
-                  <Select
-                    value={courtType ?? ""}
-                    onValueChange={(v) => setCourtType(v as CourtType)}
-                  >
-                    <SelectTrigger className="w-[160px]">
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
+                      |
+                    </span>
+                    <span className="text-xs font-semibold text-muted-foreground shrink-0">
+                      Indoor / outdoor
+                    </span>
+                    <div className="flex flex-wrap items-center gap-1">
                       {courtTypeOptions.map((t) => (
-                        <SelectItem key={t} value={t}>
+                        <Button
+                          key={t}
+                          type="button"
+                          size="sm"
+                          variant={courtType === t ? "default" : "outline"}
+                          className="h-8 rounded-full px-3 text-xs font-semibold capitalize"
+                          onClick={() => setCourtType(t)}
+                        >
                           {t === "indoor" ? "Indoor" : "Outdoor"}
-                        </SelectItem>
+                        </Button>
                       ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </motion.div>
 
             {/* Duration pills */}
-            <div className="space-y-2">
-              <Label>Duration</Label>
-              <div className="flex gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Duration</Label>
+              <div className="flex flex-wrap gap-1.5">
                 {DURATIONS.map((d) => (
                   <button
                     key={d}
                     type="button"
                     onClick={() => setDurationMinutes(d)}
                     className={cn(
-                      "rounded-full px-5 py-2 text-sm font-semibold border transition-all",
+                      "rounded-full px-3.5 py-1.5 text-xs font-semibold border transition-all",
                       durationMinutes === d
-                        ? "bg-primary text-primary-foreground border-primary shadow"
+                        ? "bg-primary text-primary-foreground border-primary shadow-sm"
                         : "bg-background text-foreground border-slate-200 dark:border-slate-700 hover:border-primary hover:text-primary",
                     )}
                   >
@@ -620,9 +639,9 @@ export function LocationCourtBookingWizard({
             )}
 
             {!loadingSlots && slotsData && slotsData.slots.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs text-muted-foreground leading-snug">
                     Select a time slot. A court will be automatically assigned.
                   </p>
                   <Button
@@ -631,13 +650,13 @@ export function LocationCourtBookingWizard({
                     size="sm"
                     onClick={() => refetch()}
                     disabled={isFetching}
-                    className="text-xs"
+                    className="h-7 shrink-0 px-2 text-[11px]"
                   >
                     {isFetching ? "Refreshing…" : "↺ Refresh"}
                   </Button>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
                   {slotsData.slots.map((slot) => {
                     const key = slotHoldKey(
                       sport!,
@@ -690,16 +709,16 @@ export function LocationCourtBookingWizard({
                         disabled={isFull}
                         onClick={() => !isFull && handleSelectSlot(slot)}
                         className={cn(
-                          "relative rounded-xl border p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                          "relative rounded-lg border p-2 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                           isSelected
-                            ? "bg-primary text-primary-foreground border-primary shadow-md scale-[1.02]"
+                            ? "bg-primary text-primary-foreground border-primary shadow-sm scale-[1.02]"
                             : isFull
                               ? "bg-slate-100 dark:bg-slate-800 text-muted-foreground border-slate-200 dark:border-slate-700 opacity-60 cursor-not-allowed"
                               : "bg-background border-slate-200 dark:border-slate-700 hover:border-primary hover:shadow-sm cursor-pointer",
                         )}
                       >
-                        <div className="font-semibold text-sm">
-                          {wallShort(slot.startTime)}
+                        <div className="font-semibold text-xs leading-tight">
+                          {formatTimeAmPm(slot.startTime)}
                         </div>
                         {/* <div className={cn("text-xs mt-0.5", isSelected ? "text-primary-foreground/80" : "text-muted-foreground")}>
                           – {wallShort(slot.endTime)}
@@ -719,7 +738,7 @@ export function LocationCourtBookingWizard({
                         {holdCount > 0 && !isFull && (
                           <div
                             className={cn(
-                              "absolute top-2 right-2 h-2 w-2 rounded-full",
+                              "absolute top-1 right-1 h-1.5 w-1.5 rounded-full",
                               isSelected
                                 ? "bg-primary-foreground/70"
                                 : "bg-amber-400",
@@ -742,26 +761,34 @@ export function LocationCourtBookingWizard({
           </div>
 
           {/* ── Right column: calendar ── */}
-          <div className="space-y-3 lg:border-l lg:pl-6 dark:border-slate-800">
-            <Label>Date</Label>
+          <div className="space-y-2 lg:border-l lg:pl-4 dark:border-slate-800">
+            <Label className="text-xs">Date</Label>
             <CalendarGrid
               selectedDate={selectedCalendarDate}
               onSelectDate={handleCalendarSelect}
               isDateDisabled={(d) => format(d, "yyyy-MM-dd") < todayVenueYmd}
-              className="border rounded-xl p-0 shadow-none"
+              className="border rounded-lg p-0 shadow-none text-sm"
             />
           </div>
         </div>
 
         {/* ── Booking summary: only after activity + type + slot are chosen ── */}
         {readyToConfirm && selectedSlot && (
-          <div className="mt-6 rounded-xl border border-primary/30 bg-primary/5 dark:bg-primary/10 p-4 space-y-3">
-            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+          <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 dark:bg-primary/10 p-3 space-y-2">
+            <h3 className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wide">
               Your selection
             </h3>
-            <ul className="text-sm space-y-1">
+            <ul className="text-xs space-y-0.5">
               <li>
-                <span className="font-medium capitalize">{sport ?? "-"}</span>{" "}
+                <span className="font-medium">
+                  {sport
+                    ? sportButtonLabel(
+                        sport,
+                        sportOptions.find((s) => s.code === sport)?.name ??
+                          sport,
+                      )
+                    : "-"}
+                </span>{" "}
                 <span className="text-muted-foreground capitalize">
                   · {courtType ?? "-"}
                 </span>
@@ -771,26 +798,26 @@ export function LocationCourtBookingWizard({
               </li>
               <li>
                 <span className="font-semibold">
-                  {wallShort(selectedSlot.startTime)} –{" "}
-                  {wallShort(selectedSlot.endTime)}
+                  {formatTimeAmPm(selectedSlot.startTime)} –{" "}
+                  {formatTimeAmPm(selectedSlot.endTime)}
                 </span>{" "}
                 <span className="text-muted-foreground">
                   ({selectedSlot.durationMinutes} min)
                 </span>
               </li>
-              <li className="text-muted-foreground text-xs">
+              <li className="text-muted-foreground text-[11px] leading-snug">
                 {editingBookingId
                   ? "Confirm to update your booking to this slot (court may change)."
                   : "A court will be assigned automatically at booking time."}
               </li>
             </ul>
 
-            <div className="flex flex-wrap gap-3 mt-1">
+            <div className="flex flex-wrap gap-2 pt-0.5">
               <Button
                 type="button"
-                size="lg"
+                size="sm"
                 variant="outline"
-                className="rounded-full px-8"
+                className="rounded-full px-5 h-9 text-xs"
                 disabled={slotMutationPending}
                 onClick={handleCancelSelections}
               >
@@ -798,8 +825,8 @@ export function LocationCourtBookingWizard({
               </Button>
               <Button
                 type="button"
-                size="lg"
-                className="rounded-full px-10"
+                size="sm"
+                className="rounded-full px-6 h-9 text-xs font-semibold"
                 disabled={!canBook || slotMutationPending}
                 onClick={handleConfirmBooking}
               >

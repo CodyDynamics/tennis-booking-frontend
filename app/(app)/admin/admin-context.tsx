@@ -5,7 +5,8 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 type Sport = string;
 
 const STORAGE_SPORT = "admin_sport_preference";
-const STORAGE_LOCATION = "admin_location_scope";
+/** Persisted admin sidebar location scope ("all" or location id). Exported for one-off defaults (e.g. Springpark). */
+export const ADMIN_LOCATION_SCOPE_STORAGE_KEY = "admin_location_scope";
 
 interface AdminContextType {
   sport: Sport;
@@ -28,13 +29,13 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   const setLocationId = (id: string) => {
     setLocationIdState(id);
-    localStorage.setItem(STORAGE_LOCATION, id);
+    localStorage.setItem(ADMIN_LOCATION_SCOPE_STORAGE_KEY, id);
   };
 
   useEffect(() => {
     const savedSport = localStorage.getItem(STORAGE_SPORT);
     if (savedSport) setSportState(savedSport);
-    const savedLoc = localStorage.getItem(STORAGE_LOCATION);
+    const savedLoc = localStorage.getItem(ADMIN_LOCATION_SCOPE_STORAGE_KEY);
     if (savedLoc) setLocationIdState(savedLoc);
   }, []);
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useAdmin } from "../admin-context";
+import { useEffect, useRef } from "react";
+import { useAdmin, ADMIN_LOCATION_SCOPE_STORAGE_KEY } from "../admin-context";
 import { useAuth } from "@/lib/auth-store";
 import { useLocations, useBookableLocations } from "@/lib/queries";
 import {
@@ -20,6 +21,19 @@ export function LocationScopeSelector() {
 
   const options =
     user?.role === "super_user" && bookableLocs.length > 0 ? bookableLocs : allLocations;
+
+  const springparkDefaultApplied = useRef(false);
+  useEffect(() => {
+    if (springparkDefaultApplied.current || options.length === 0) return;
+    const saved = localStorage.getItem(ADMIN_LOCATION_SCOPE_STORAGE_KEY);
+    if (saved != null) {
+      springparkDefaultApplied.current = true;
+      return;
+    }
+    const sp = options.find((l) => /springpark/i.test(l.name.trim()));
+    springparkDefaultApplied.current = true;
+    if (sp) setLocationId(sp.id);
+  }, [options, setLocationId]);
 
   const value =
     locationId === "all" || options.some((l) => l.id === locationId)

@@ -165,22 +165,19 @@ export default function LocationCourtsPage() {
         transition={{ duration: 0.3 }}
         className="max-w-[1600px] mx-auto"
       >
-        <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <Link href="/">
-              <Button
-                variant="ghost"
-                className="mb-4 hover:bg-slate-100 dark:hover:bg-slate-800 -ml-2 sm:-ml-4"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" /> Back
-              </Button>
-            </Link>
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div className="min-w-0 flex-1">
             <h1 className="text-3xl sm:text-4xl font-bold text-foreground">{location.name}</h1>
             <p className="text-muted-foreground text-base sm:text-lg mt-2 max-w-2xl">
               Pick sport, court type, date, and slot — a court is assigned automatically. Your bookings
               stay on the right.
             </p>
           </div>
+          <Link href="/" className="shrink-0 self-end sm:self-start sm:pt-1">
+            <Button variant="ghost" size="sm" className="hover:bg-slate-100 dark:hover:bg-slate-800">
+              <ArrowLeft className="w-4 h-4 mr-2" /> Back
+            </Button>
+          </Link>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8 lg:gap-10 items-start">
