@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 
 export interface AdminTableColumn<T> {
   key: string;
@@ -16,6 +17,8 @@ export interface AdminTableColumn<T> {
   render?: (row: T) => React.ReactNode;
   className?: string;
   headClassName?: string;
+  /** When set with `onColumnSort`, header becomes a sort control. */
+  sortable?: boolean;
 }
 
 interface AdminTableProps<T> {
@@ -26,6 +29,11 @@ interface AdminTableProps<T> {
   isLoading?: boolean;
   loadingNode?: React.ReactNode;
   className?: string;
+  /** Active sort column key (must match a sortable column). */
+  sortKey?: string | null;
+  sortDir?: "asc" | "desc";
+  /** Called when a sortable column header is clicked (parent toggles asc/desc/off). */
+  onColumnSort?: (columnKey: string) => void;
 }
 
 export function AdminTable<T>({
@@ -36,6 +44,9 @@ export function AdminTable<T>({
   isLoading,
   loadingNode,
   className,
+  sortKey = null,
+  sortDir = "asc",
+  onColumnSort,
 }: AdminTableProps<T>) {
   if (isLoading && loadingNode) {
     return <>{loadingNode}</>;
@@ -51,7 +62,29 @@ export function AdminTable<T>({
                 key={col.key}
                 className={cn("font-bold text-slate-700 dark:text-slate-200", col.headClassName)}
               >
-                {col.label}
+                {col.sortable && onColumnSort ? (
+                  <button
+                    type="button"
+                    className={cn(
+                      "-ml-1 inline-flex items-center gap-1 rounded-md px-1 py-0.5 text-left hover:bg-muted/80",
+                      sortKey === col.key && "text-primary",
+                    )}
+                    onClick={() => onColumnSort(col.key)}
+                  >
+                    <span>{col.label}</span>
+                    {sortKey === col.key ? (
+                      sortDir === "asc" ? (
+                        <ArrowUp className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      )
+                    ) : (
+                      <ArrowUpDown className="h-3.5 w-3.5 shrink-0 opacity-40" aria-hidden />
+                    )}
+                  </button>
+                ) : (
+                  col.label
+                )}
               </TableHead>
             ))}
           </TableRow>

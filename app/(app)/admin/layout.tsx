@@ -6,15 +6,14 @@ import { cn } from "@/lib/utils";
 import type { User } from "@/types";
 import { motion } from "framer-motion";
 import {
-  Activity,
-  ArrowLeft,
-  Building2,
-  Grid3X3,
-  LayoutDashboard,
-  LogOut,
-  Shapes,
-  Shield,
-  Users,
+    Activity,
+    ArrowLeft,
+    Building2,
+    Grid3X3,
+    LayoutDashboard,
+    Shapes,
+    Shield,
+    Users
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -150,7 +149,7 @@ export default function AdminLayout({
                 <Activity className="h-6 w-6" />
               </motion.div>
               <span className="text-2xl flex flex-col font-black tracking-tight text-slate-900 dark:text-white">
-                CodyPlay
+                CodyActive
                 <span className="text-primary text-sm font-semibold">Admin</span>
               </span>
             </Link>
@@ -198,7 +197,6 @@ export default function AdminLayout({
               </Button>
             </Link>
             <Button variant="ghost" onClick={handleLogout} className="w-full justify-start h-12 text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30 rounded-xl">
-              <LogOut className="mr-3 h-5 w-5 text-red-400" />
               Logout
             </Button>
           </div>
@@ -206,7 +204,7 @@ export default function AdminLayout({
 
         <main className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-950 relative">
           <div className="absolute top-0 left-0 right-0 h-64 bg-gradient-to-b from-blue-100/50 to-transparent dark:from-blue-900/10 pointer-events-none z-0"></div>
-          <div className="container py-6 px-8 lg:px-12 relative z-10 max-w-7xl">
+          <div className="container py-6 px-8 lg:px-12 relative z-10 max-w-[100%]">
             {children}
           </div>
         </main>

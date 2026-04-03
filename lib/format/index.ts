@@ -103,3 +103,16 @@ export function formatNumberDisplay(
 }
 
 export { formatNumber };
+
+/**
+ * Title-case filter / enum labels (e.g. "super_user" → "Super User", "pending" → "Pending").
+ */
+export function titleCaseFilterLabel(raw: string): string {
+  if (!raw?.trim()) return raw;
+  return raw
+    .trim()
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}

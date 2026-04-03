@@ -5,10 +5,16 @@ import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
 import type { User as AppUser } from "@/types";
 import { motion } from "framer-motion";
-import { Activity, LogIn, LogOut, Shield, User, Users } from "lucide-react";
-import Image from "next/image";
+import { Activity, ChevronDown, LogIn, LogOut, Shield, User, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 /** Admin area: full admins, super_admin, or staff with any admin-nav permission. */
 function canShowAdminNav(user: AppUser | null | undefined): boolean {
@@ -22,12 +28,25 @@ function canShowAdminNav(user: AppUser | null | undefined): boolean {
   );
 }
 
+function navDisplayFirstName(user: AppUser): string {
+  const f = user.firstName?.trim();
+  if (f) return f;
+  const t = user.fullName?.trim() ?? "";
+  if (!t) return "there";
+  return t.split(/\s+/)[0] ?? "there";
+}
+
 export function Navbar() {
   const pathname = usePathname();
   const { user, logout, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   // Hide navbar on auth pages
-  if (pathname === "/login" || pathname === "/register" || pathname === "/forgot-password") {
+  if (
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password"
+  ) {
     return null;
   }
 
@@ -71,14 +90,14 @@ export function Navbar() {
               {/* <div className="w-10 h-10 justify-center items-center flex">
                 <Image
                   src="/images/home/logo.jpeg"
-                  alt="CodyPlay Logo"
+                  alt="CodyActive Logo"
                   width={50}
                   height={50}
                 />
               </div> */}
             </motion.div>
             <span className="text-2xl font-black tracking-tight text-foreground">
-              CodyPlay
+              CodyActive
             </span>
           </Link>
 
@@ -155,12 +174,6 @@ export function Navbar() {
 
             <div className="w-px h-8 bg-slate-200 dark:bg-slate-800 mx-2"></div>
 
-            {showAuthButtons && isAuthenticated && user && (
-              <div className="hidden lg:block text-sm text-muted-foreground mr-1">
-                Hi, <span className="font-semibold text-foreground">{user.fullName}</span>
-              </div>
-            )}
-
             {showAuthButtons && canShowAdminNav(user) && (
               <Link href="/admin">
                 <Button variant="outline" className={cn("rounded-full border-border", pathname.startsWith("/admin") && "bg-primary/10 text-primary border-primary/30")}>
@@ -172,16 +185,43 @@ export function Navbar() {
             {showAuthButtons && (
               <>
                 {isAuthenticated && user && (
-                  <div className="flex items-center space-x-2 ml-2">
-                    <Link href="/profile">
-                      <Button variant="ghost" size="icon" className="rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
-                        <User className="h-5 w-5" />
-                      </Button>
-                    </Link>
-                    <Button variant="ghost" onClick={handleLogout} className="rounded-full flex items-center gap-x-1 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30">
-                      <p>Log Out</p>
-                      <LogOut className="h-4 w-4" />
-                    </Button>
+                  <div className="hidden md:flex items-center ml-2">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="h-11 gap-2 rounded-full pl-2 pr-3 hover:bg-muted"
+                        >
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                            <User className="h-5 w-5" />
+                          </span>
+                          <span className="hidden sm:inline text-sm text-muted-foreground">
+                            Hi,{" "}
+                            <span className="font-semibold text-foreground">
+                              {navDisplayFirstName(user)}
+                            </span>
+                          </span>
+                          <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem asChild>
+                          <Link href="/profile" className="cursor-pointer">
+                            Profile
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-red-600 focus:text-red-600"
+                          onSelect={(e) => {
+                            e.preventDefault();
+                            void handleLogout();
+                          }}
+                        >
+                          Logout
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 )}
                 {!isAuthenticated && (
@@ -224,15 +264,39 @@ export function Navbar() {
                       </Button>
                     </Link>
                   )}
-                  <Link href="/profile">
-                    <Button variant="ghost" size="icon" className="rounded-full bg-slate-100 dark:bg-slate-800">
-                      <User className="h-5 w-5" />
-                    </Button>
-                  </Link>
-                  <Button variant="ghost" size="sm" onClick={handleLogout} className="rounded-full text-red-500">
-                    <p>Log Out</p>
-                    <LogOut className="h-4 w-4" />
-                  </Button>
+                  <div className="md:hidden">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-10 gap-1 rounded-full px-2"
+                        >
+                          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                            <User className="h-4 w-4" />
+                          </span>
+                          <ChevronDown className="h-4 w-4 opacity-60" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem asChild>
+                          <Link href="/profile" className="cursor-pointer">
+                            Link Profile
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-red-600 focus:text-red-600"
+                          onSelect={(e) => {
+                            e.preventDefault();
+                            void handleLogout();
+                          }}
+                        >
+                          Logout
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </>
               ) : (
                 <>

@@ -78,14 +78,42 @@ export default function AdminSportsPage() {
     setSportsPage(1);
   }, [search]);
 
+  const [sortState, setSortState] = useState<{ key: string; dir: "asc" | "desc" } | null>(null);
+  useEffect(() => setSportsPage(1), [sortState]);
+
+  function cmpLocale(a: string, b: string, dir: "asc" | "desc"): number {
+    const x = a.localeCompare(b, undefined, { sensitivity: "base" });
+    return dir === "asc" ? x : -x;
+  }
+
+  const sortedSports = useMemo(() => {
+    if (!sortState) return filteredSports;
+    const { key, dir } = sortState;
+    return [...filteredSports].sort((a, b) => {
+      if (key === "code") return cmpLocale(a.code, b.code, dir);
+      if (key === "name") return cmpLocale(a.name, b.name, dir);
+      if (key === "description")
+        return cmpLocale(a.description ?? "", b.description ?? "", dir);
+      return 0;
+    });
+  }, [filteredSports, sortState]);
+
   const paginatedSports = useMemo(
     () =>
-      filteredSports.slice(
+      sortedSports.slice(
         (sportsPage - 1) * SPORTS_PAGE_SIZE,
         sportsPage * SPORTS_PAGE_SIZE,
       ),
-    [filteredSports, sportsPage],
+    [sortedSports, sportsPage],
   );
+
+  const toggleColumnSort = (key: string) => {
+    setSortState((prev) => {
+      if (!prev || prev.key !== key) return { key, dir: "asc" };
+      if (prev.dir === "asc") return { key, dir: "desc" };
+      return null;
+    });
+  };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,15 +156,28 @@ export default function AdminSportsPage() {
             keyExtractor={(s) => s.id}
             emptyMessage="No sports match your filters."
             isLoading={isLoading}
+            sortKey={sortState?.key ?? null}
+            sortDir={sortState?.dir ?? "asc"}
+            onColumnSort={toggleColumnSort}
             loadingNode={
               <div className="flex justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             }
             columns={[
-              { key: "code", label: "Code", render: (s) => s.code },
-              { key: "name", label: "Name", render: (s) => <span className="font-medium">{s.name}</span> },
-              { key: "description", label: "Description", render: (s) => s.description ?? "—" },
+              { key: "code", label: "Code", sortable: true, render: (s) => s.code },
+              {
+                key: "name",
+                label: "Name",
+                sortable: true,
+                render: (s) => <span className="font-medium">{s.name}</span>,
+              },
+              {
+                key: "description",
+                label: "Description",
+                sortable: true,
+                render: (s) => s.description ?? "—",
+              },
               {
                 key: "actions",
                 label: "Actions",
@@ -160,11 +201,11 @@ export default function AdminSportsPage() {
               },
             ]}
           />
-          {!isLoading && filteredSports.length > 0 && (
+          {!isLoading && sortedSports.length > 0 && (
             <AdminPagination
               page={sportsPage}
               pageSize={SPORTS_PAGE_SIZE}
-              total={filteredSports.length}
+              total={sortedSports.length}
               onPageChange={setSportsPage}
               className="mt-4 border-t pt-4"
             />

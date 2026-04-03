@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    /* CodyPlay: soft blue primary (replaces orange) */
+    /* CodyAactive: soft blue primary (replaces orange) */
     --background: 40 20% 98%;
     --foreground: 222 47% 11%;
     --card: 0 0% 100%;

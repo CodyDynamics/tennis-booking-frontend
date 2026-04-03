@@ -8,6 +8,8 @@ import type {
   ForgotPasswordResponse,
   RequestLoginOtpInput,
   VerifyLoginOtpInput,
+  UpdateOwnProfileBody,
+  ResetPasswordInput,
 } from "@/types/api";
 import type { ApiClient } from "../client";
 
@@ -36,8 +38,12 @@ export function createAuthEndpoints(client: ApiClient) {
     refresh: () => client.post<AuthResponse>(PATHS.refresh, {}),
     logout: () => client.post<{ message: string }>(PATHS.logout, {}),
     getProfile: () => client.get<AuthResponse["user"]>(PATHS.profile),
+    updateProfile: (body: UpdateOwnProfileBody) =>
+      client.patch<AuthResponse["user"]>(PATHS.profile, body),
     forgotPassword: (body: ForgotPasswordInput) =>
       client.post<ForgotPasswordResponse>(PATHS.forgotPassword, body),
+    resetPassword: (body: ResetPasswordInput) =>
+      client.post<{ message: string }>("/auth/reset-password", body),
     requestLoginOtp: (body: RequestLoginOtpInput) =>
       client.post<{ message: string }>(PATHS.requestLoginOtp, body),
     verifyLoginOtp: (body: VerifyLoginOtpInput) =>

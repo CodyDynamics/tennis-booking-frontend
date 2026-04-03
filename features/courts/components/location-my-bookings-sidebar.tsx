@@ -16,6 +16,7 @@ import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeho
 import { useCancelBooking } from "@/lib/queries";
 import type { CourtBooking } from "@/types";
 import { cn } from "@/lib/utils";
+import { formatTime } from "@/lib/format";
 import toast from "react-hot-toast";
 import { ApiError } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,6 +24,10 @@ import { motion, AnimatePresence } from "framer-motion";
 function wallShort(t: string) {
   const [h, m] = t.split(":");
   return `${h?.padStart(2, "0")}:${m?.padStart(2, "0")}`;
+}
+
+function timeAmPm(t: string) {
+  return formatTime(wallShort(t));
 }
 
 export function LocationMyBookingsSidebar({
@@ -47,7 +52,7 @@ export function LocationMyBookingsSidebar({
       .sort((a, b) => {
         const da = a.bookingDate.localeCompare(b.bookingDate);
         if (da !== 0) return da;
-        return wallShort(a.startTime).localeCompare(wallShort(b.startTime));
+        return wallShort(a.startTime).localeCompare(wallShort(b.startTime)); // sort key 24h
       });
   }, [bookings, locationId]);
 
@@ -89,17 +94,17 @@ export function LocationMyBookingsSidebar({
       <aside
         className={cn(
           "flex flex-col border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 shadow-sm",
-          "w-full lg:w-[380px] lg:min-w-[320px] shrink-0 lg:max-h-[calc(100vh-8rem)] lg:sticky lg:top-24",
+          "w-full lg:w-[360px] lg:min-w-[300px] shrink-0 lg:max-h-[calc(100vh-7rem)] lg:sticky lg:top-20",
         )}
       >
-        <div className="p-5 border-b border-slate-100 dark:border-slate-800">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white leading-tight">
+        <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+          <h2 className="text-base font-bold text-slate-900 dark:text-white leading-tight">
             Hi {displayName},
           </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">Your bookings</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Your bookings</p>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
           {isLoading && (
             <GlobalLoadingPlaceholder minHeight="min-h-[200px]" className="rounded-xl" />
           )}
@@ -117,7 +122,7 @@ export function LocationMyBookingsSidebar({
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.98 }}
-                  className="relative rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-950/40 p-4 pr-10"
+                  className="relative rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-950/40 p-3 pr-9"
                 >
                   <button
                     type="button"
@@ -134,8 +139,8 @@ export function LocationMyBookingsSidebar({
                   <p className="text-xs text-muted-foreground mt-1">
                     {format(parse(b.bookingDate.slice(0, 10), "yyyy-MM-dd", new Date()), "EEE, MMM d, yyyy")}
                   </p>
-                  <p className="text-sm font-medium mt-2">
-                    {wallShort(b.startTime)} – {wallShort(b.endTime)}{" "}
+                  <p className="text-xs font-medium mt-1.5">
+                    {timeAmPm(b.startTime)} – {timeAmPm(b.endTime)}{" "}
                     <span className="text-muted-foreground font-normal">({b.durationMinutes} min)</span>
                   </p>
                 </motion.div>

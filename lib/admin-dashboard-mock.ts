@@ -1,4 +1,10 @@
-import type { DashboardMetricsApi, SportBookingBreakdownApi } from "@/types/api";
+import type {
+  AdminDayBookingsPageApi,
+  AdminKpiDrilldownPageApi,
+  AdminSportDrilldownPageApi,
+  DashboardMetricsApi,
+  SportBookingBreakdownApi,
+} from "@/types/api";
 
 /** Demo drill-down when clicking a bar in mock mode */
 export const MOCK_SPORT_BREAKDOWNS: Record<string, SportBookingBreakdownApi> = {
@@ -116,3 +122,86 @@ export const MOCK_ADMIN_DASHBOARD_METRICS: DashboardMetricsApi = {
     { date: "2026-03-27", revenue: 3040 },
   ],
 };
+
+/** Mock distinct bookers for sport breakdown drill-down (not 1:1 with booking count). */
+export function mockSportDrilldownPage(
+  sport: string,
+  dimension: "role" | "bookingType" | "accountType",
+  value: string,
+  bookingSegmentCount: number,
+  page: number,
+  pageSize: number,
+): AdminSportDrilldownPageApi {
+  const total = Math.max(
+    1,
+    Math.min(200, Math.ceil(bookingSegmentCount * 0.42)),
+  );
+  const start = page * pageSize;
+  const len = Math.max(0, Math.min(pageSize, total - start));
+  const items = Array.from({ length: len }, (_, i) => {
+    const n = start + i + 1;
+    return {
+      userId: `mock-${sport}-${dimension}-${n}`,
+      email: `player.${sport}.${n}@demo.test`,
+      fullName: `Demo Player ${n}`,
+      bookingCount: 1 + (n % 5),
+    };
+  });
+  return {
+    sport,
+    dimension,
+    filterValue: value,
+    total,
+    page,
+    pageSize,
+    items,
+  };
+}
+
+export function mockKpiDrilldownPage(
+  metric: string,
+  total: number,
+  page: number,
+  pageSize: number,
+): AdminKpiDrilldownPageApi {
+  const start = page * pageSize;
+  const len = Math.max(0, Math.min(pageSize, total - start));
+  const rows = Array.from({ length: len }, (_, i) => {
+    const n = start + i + 1;
+    return {
+      id: `kpi-${metric}-${n}`,
+      title: `${metric} row ${n}`,
+      subtitle: `demo-${n}@example.com`,
+      meta: `ID #${1000 + n}`,
+    };
+  });
+  return { metric, total, page, pageSize, rows };
+}
+
+export function mockDayBookingsPage(
+  date: string,
+  bookingsThatDay: number,
+  page: number,
+  pageSize: number,
+): AdminDayBookingsPageApi {
+  const total = bookingsThatDay;
+  const start = page * pageSize;
+  const len = Math.max(0, Math.min(pageSize, total - start));
+  const rows = Array.from({ length: len }, (_, i) => {
+    const n = start + i;
+    const h = 8 + (n % 8);
+    const m = n % 2 === 0 ? "00" : "30";
+    return {
+      id: `day-${date}-${n}`,
+      bookingDate: date,
+      startTime: `${String(h).padStart(2, "0")}:${m}:00`,
+      endTime: `${String(h + 1).padStart(2, "0")}:${m}:00`,
+      sport: n % 3 === 0 ? "pickleball" : "tennis",
+      userName: `Guest ${n + 1}`,
+      userEmail: `guest.${n + 1}@demo.test`,
+      courtName: `Court ${(n % 12) + 1}`,
+      totalPrice: String(24 + (n % 5) * 8),
+    };
+  });
+  return { date, total, page, pageSize, rows };
+}
