@@ -648,8 +648,8 @@ export function LocationCourtBookingWizard({
 
   return (
     <Card className="w-full border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl">
-      <CardHeader className="space-y-1 pb-2 pt-4 px-4 sm:px-6">
-        <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
+      <CardHeader className="space-y-1 pb-0 pt-4 px-4 sm:px-6">
+        <CardTitle className="text-lg sm:text-xl flex items-center gap-2 pb-0">
           Book a court · {locationName}
           <span
             title={wsConnected ? "Live availability connected" : "Connecting…"}

@@ -170,7 +170,7 @@ export default function LocationCourtsPage() {
   const venueTz = location.timezone?.trim() || "America/Chicago";
 
   return (
-    <div className="w-full min-h-[calc(100vh-4rem)] py-8 px-4 sm:px-6 lg:px-10">
+    <div className="w-full min-h-[calc(100vh-4rem)] py-8 pt-2 px-4 sm:px-4 lg:px-10">
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
