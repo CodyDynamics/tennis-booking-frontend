@@ -36,12 +36,16 @@ export function LocationMyBookingsSidebar({
   bookings,
   isLoading,
   onReschedule,
+  id,
+  className,
 }: {
   locationId: string;
   displayName: string;
   bookings: CourtBooking[];
   isLoading: boolean;
   onReschedule: (b: CourtBooking) => void;
+  id?: string;
+  className?: string;
 }) {
   const [active, setActive] = useState<CourtBooking | null>(null);
   const cancelBooking = useCancelBooking();
@@ -92,9 +96,10 @@ export function LocationMyBookingsSidebar({
   return (
     <>
       <aside
+        id={id}
         className={cn(
-          "flex flex-col border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 shadow-sm",
-          "w-full lg:w-[360px] lg:min-w-[300px] shrink-0 lg:max-h-[calc(100vh-7rem)] lg:sticky lg:top-20",
+          "flex h-full min-h-0 w-full flex-col border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm",
+          className,
         )}
       >
         <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">

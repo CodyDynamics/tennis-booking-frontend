@@ -15,6 +15,8 @@ interface CalendarProps {
   /** Extra rule (e.g. disable past dates in venue timezone). Checked after min/max. */
   isDateDisabled?: (date: Date) => boolean;
   className?: string;
+  /** ~2/3 visual scale of default (tighter padding & type) for dense layouts. */
+  size?: "default" | "compact";
 }
 
 export function Calendar({
@@ -25,7 +27,9 @@ export function Calendar({
   maxDate,
   isDateDisabled,
   className,
+  size = "default",
 }: CalendarProps) {
+  const compact = size === "compact";
   const [currentMonth, setCurrentMonth] = React.useState(new Date());
 
   React.useEffect(() => {
@@ -55,36 +59,65 @@ export function Calendar({
   };
 
   return (
-    <div className={cn("rounded-lg border bg-card p-4 shadow-soft", className)}>
-      <div className="flex items-center justify-between mb-4">
+    <div
+      className={cn(
+        "rounded-lg border bg-card shadow-soft",
+        compact ? "p-2" : "p-4",
+        className,
+      )}
+    >
+      <div
+        className={cn(
+          "flex items-center justify-between",
+          compact ? "mb-1.5" : "mb-4",
+        )}
+      >
         <Button
           variant="ghost"
           size="icon"
+          className={cn(compact && "h-7 w-7")}
           onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className={cn(compact ? "h-3.5 w-3.5" : "h-4 w-4")} />
         </Button>
-        <h3 className="font-semibold text-lg">
+        <h3
+          className={cn(
+            "font-semibold",
+            compact ? "text-sm" : "text-lg",
+          )}
+        >
           {format(currentMonth, "MMMM yyyy")}
         </h3>
         <Button
           variant="ghost"
           size="icon"
+          className={cn(compact && "h-7 w-7")}
           onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
         >
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className={cn(compact ? "h-3.5 w-3.5" : "h-4 w-4")} />
         </Button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 mb-2">
+      <div
+        className={cn(
+          "grid grid-cols-7",
+          compact ? "gap-0.5 mb-1" : "gap-1 mb-2",
+        )}
+      >
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-          <div key={day} className="text-center text-sm font-medium text-muted-foreground p-2">
+          <div
+            key={day}
+            className={cn(
+              "text-center font-medium text-muted-foreground",
+              compact ? "text-[10px] p-0.5 sm:text-xs" : "text-sm p-2",
+            )}
+          >
             {day}
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-1">
+      <div className={cn("grid grid-cols-7", compact ? "gap-0.5" : "gap-1")}>
         {daysBeforeMonth.map((_, index) => (
           <div key={`empty-${index}`} className="aspect-square" />
         ))}
@@ -99,7 +132,8 @@ export function Calendar({
               onClick={() => handleDateClick(day)}
               disabled={disabled}
               className={cn(
-                "aspect-square rounded-md text-sm transition-colors",
+                "aspect-square rounded-md transition-colors",
+                compact ? "text-xs" : "text-sm",
                 "hover:bg-accent hover:text-accent-foreground",
                 "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
                 disabled && "opacity-50 cursor-not-allowed",

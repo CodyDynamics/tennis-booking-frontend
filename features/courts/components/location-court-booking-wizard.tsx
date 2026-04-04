@@ -104,6 +104,32 @@ function toMinutes(t: string) {
   return h * 60 + m;
 }
 
+/** Compact time dropdown; width follows label text (e.g. 8:00 AM). */
+function WizardTimeSelect({
+  value,
+  options,
+  onChange,
+}: {
+  value: string | null | undefined;
+  options: string[];
+  onChange: (v: string) => void;
+}) {
+  return (
+    <Select value={value ?? undefined} onValueChange={onChange}>
+      <SelectTrigger className="h-9 w-fit max-w-[9rem] shrink-0 px-2.5 text-xs rounded-lg [&>span]:whitespace-nowrap">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((t) => (
+          <SelectItem key={t} value={t} className="text-xs">
+            {formatTimeAmPm(t)}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 /** Active (non-cancelled) court booking on this calendar day, excluding the row being rescheduled. */
 function hasOtherCourtBookingOnDate(
   bookings: CourtBooking[] | undefined,
@@ -658,15 +684,16 @@ export function LocationCourtBookingWizard({
       </CardHeader>
 
       <CardContent className="px-4 pb-4 pt-2 sm:px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[auto_minmax(0,1fr)] gap-6 lg:gap-6 lg:items-start">
+        <div className="grid grid-cols-1 sm:grid-cols-[auto_minmax(0,1fr)] gap-6 sm:gap-6 sm:items-start">
           {/* ── Left: date picker (column only as wide as calendar) ── */}
-          <div className="space-y-2 w-full max-w-sm mx-auto lg:mx-0 lg:w-max lg:max-w-sm shrink-0">
+          <div className="space-y-2 w-full max-w-[15rem] mx-auto sm:mx-0 sm:w-max shrink-0">
             <Label className="text-sm font-semibold">Select a date</Label>
             <CalendarGrid
+              size="compact"
               selectedDate={selectedCalendarDate}
               onSelectDate={handleCalendarSelect}
               isDateDisabled={(d) => format(d, "yyyy-MM-dd") < todayVenueYmd}
-              className="border rounded-lg p-0 shadow-none text-sm w-full max-w-sm"
+              className="border rounded-lg p-0 shadow-none w-full max-w-[15rem]"
             />
             {searchAttempted && !bookingDate && (
               <p className="text-sm text-destructive" role="alert">
@@ -676,7 +703,7 @@ export function LocationCourtBookingWizard({
           </div>
 
           {/* ── Right: fills remaining width next to calendar ── */}
-          <div className="flex flex-col min-w-0 w-full space-y-4 lg:border-l lg:pl-6 dark:border-slate-800">
+          <div className="flex flex-col min-w-0 w-full space-y-4 sm:border-l sm:pl-6 dark:border-slate-800">
             <motion.div
               key={activityAttentionKey}
               className="rounded-lg p-1 -m-1"
@@ -799,50 +826,52 @@ export function LocationCourtBookingWizard({
             </div>
 
             <div className="space-y-1.5 w-full">
-              <div className="flex w-full flex-wrap items-center gap-x-2 gap-y-2 min-[1600px]:flex-nowrap">
-                <span className="text-sm font-bold text-foreground shrink-0 basis-full min-[1600px]:basis-auto">
+              {/* &lt;1180px: title, then From+To on one row */}
+              <div className="min-[1180px]:hidden space-y-2">
+                <span className="text-sm font-bold text-foreground">
+                  Search for available times:
+                </span>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 min-w-0">
+                  <span className="text-xs font-semibold text-muted-foreground shrink-0">
+                    From
+                  </span>
+                  <WizardTimeSelect
+                    value={timeFrom}
+                    options={TIME_OPTIONS}
+                    onChange={setTimeFrom}
+                  />
+                  <span className="text-xs font-semibold text-muted-foreground shrink-0">
+                    To
+                  </span>
+                  <WizardTimeSelect
+                    value={timeTo}
+                    options={timeToOptions}
+                    onChange={setTimeTo}
+                  />
+                </div>
+              </div>
+
+              {/* ≥1180px: one line */}
+              <div className="hidden min-[1180px]:flex flex-nowrap items-center gap-x-2 gap-y-2">
+                <span className="text-sm font-bold text-foreground shrink-0">
                   Search for available times:
                 </span>
                 <span className="text-xs font-semibold text-muted-foreground shrink-0">
                   From
                 </span>
-                <div className="min-w-[9rem] w-36 shrink-0 sm:w-40">
-                  <Select
-                    value={timeFrom ?? undefined}
-                    onValueChange={(v) => setTimeFrom(v)}
-                  >
-                    <SelectTrigger className="h-9 w-full text-xs rounded-lg">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TIME_OPTIONS.map((t) => (
-                        <SelectItem key={t} value={t} className="text-xs">
-                          {formatTimeAmPm(t)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <WizardTimeSelect
+                  value={timeFrom}
+                  options={TIME_OPTIONS}
+                  onChange={setTimeFrom}
+                />
                 <span className="text-xs font-semibold text-muted-foreground shrink-0">
                   To
                 </span>
-                <div className="min-w-[9rem] w-36 shrink-0 sm:w-40">
-                  <Select
-                    value={timeTo ?? undefined}
-                    onValueChange={(v) => setTimeTo(v)}
-                  >
-                    <SelectTrigger className="h-9 w-full text-xs rounded-lg">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {timeToOptions.map((t) => (
-                        <SelectItem key={t} value={t} className="text-xs">
-                          {formatTimeAmPm(t)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <WizardTimeSelect
+                  value={timeTo}
+                  options={timeToOptions}
+                  onChange={setTimeTo}
+                />
               </div>
               {searchAttempted && (!timeFrom || !timeTo) && (
                 <p className="text-sm text-destructive" role="alert">
