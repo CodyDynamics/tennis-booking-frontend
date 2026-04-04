@@ -13,6 +13,13 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Calendar as CalendarGrid } from "@/components/ui/calendar";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   useCourts,
   useCourtSlots,
   useCreateSlotBooking,
@@ -33,6 +40,18 @@ type Sport = string;
 type CourtType = "indoor" | "outdoor";
 
 const DURATIONS = [30, 60, 90] as const;
+
+/** 30-minute steps for “search available time” range (venue-friendly window). */
+const TIME_OPTIONS: string[] = (() => {
+  const out: string[] = [];
+  for (let h = 5; h <= 23; h++) {
+    for (const m of [0, 30]) {
+      if (h === 23 && m === 30) break;
+      out.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+    }
+  }
+  return out;
+})();
 
 /** Public booking activity order (Tennis → Pickleball → Ball Machine). */
 const ACTIVITY_ORDER = ["tennis", "pickleball", "ball-machine"] as const;
@@ -106,17 +125,26 @@ export function LocationCourtBookingWizard({
     [tz],
   );
 
-  const [bookingDate, setBookingDate] = useState(() =>
-    formatInTimeZone(new Date(), tz, "yyyy-MM-dd"),
-  );
+  const [bookingDate, setBookingDate] = useState<string | null>(null);
 
   useEffect(() => {
-    setBookingDate((d) => (d < todayVenueYmd ? todayVenueYmd : d));
+    setBookingDate((d) =>
+      d != null && d < todayVenueYmd ? todayVenueYmd : d,
+    );
   }, [todayVenueYmd]);
 
   const [sport, setSport] = useState<Sport | null>(null);
   const [courtType, setCourtType] = useState<CourtType | null>(null);
-  const [durationMinutes, setDurationMinutes] = useState<number>(90);
+  const [durationMinutes, setDurationMinutes] = useState<number | null>(null);
+  const [timeFrom, setTimeFrom] = useState<string | null>(null);
+  const [timeTo, setTimeTo] = useState<string | null>(null);
+  /** User clicked Search — show inline validation for empty fields. */
+  const [searchAttempted, setSearchAttempted] = useState(false);
+  /** Last successful Search — fetch slots and show grid until filters change. */
+  const [searchCommitted, setSearchCommitted] = useState(false);
+  /** Time window applied on last successful Search (filters displayed slots). */
+  const [appliedTimeFrom, setAppliedTimeFrom] = useState<string | null>(null);
+  const [appliedTimeTo, setAppliedTimeTo] = useState<string | null>(null);
 
   const [selectedSlot, setSelectedSlot] = useState<CourtSlotApi | null>(null);
   const [bookError, setBookError] = useState<string | null>(null);
@@ -130,9 +158,23 @@ export function LocationCourtBookingWizard({
   const [activityAttentionKey, setActivityAttentionKey] = useState(0);
 
   const selectedCalendarDate = useMemo(
-    () => parse(bookingDate, "yyyy-MM-dd", new Date()),
+    () =>
+      bookingDate
+        ? parse(bookingDate, "yyyy-MM-dd", new Date())
+        : undefined,
     [bookingDate],
   );
+
+  const timeToOptions = useMemo(() => {
+    if (!timeFrom) return TIME_OPTIONS;
+    const f = toMinutes(timeFrom);
+    return TIME_OPTIONS.filter((t) => toMinutes(t) > f);
+  }, [timeFrom]);
+
+  useEffect(() => {
+    if (!timeFrom || !timeTo) return;
+    if (toMinutes(timeTo) <= toMinutes(timeFrom)) setTimeTo(null);
+  }, [timeFrom, timeTo]);
 
   // Clear selection when filters change (skip once after prefill applies — same render updates all filters)
   useEffect(() => {
@@ -143,7 +185,10 @@ export function LocationCourtBookingWizard({
     setSelectedSlot(null);
     setBookError(null);
     setSlotAutoTarget(null);
-  }, [sport, courtType, bookingDate, durationMinutes]);
+    setSearchCommitted(false);
+    setAppliedTimeFrom(null);
+    setAppliedTimeTo(null);
+  }, [sport, courtType, bookingDate, durationMinutes, timeFrom, timeTo]);
 
   useEffect(() => {
     if (!prefill || prefill.requestId === lastPrefillIdRef.current) return;
@@ -153,11 +198,19 @@ export function LocationCourtBookingWizard({
     setCourtType(prefill.courtType);
     setBookingDate(prefill.bookingDate);
     setDurationMinutes(prefill.durationMinutes);
+    const t0 = wallShort(prefill.startTime);
+    const t1 = wallShort(prefill.endTime);
+    setTimeFrom(t0);
+    setTimeTo(t1);
+    setAppliedTimeFrom(t0);
+    setAppliedTimeTo(t1);
+    setSearchCommitted(true);
+    setSearchAttempted(false);
     setSelectedSlot(null);
     setBookError(null);
     setSlotAutoTarget({
-      start: wallShort(prefill.startTime),
-      end: wallShort(prefill.endTime),
+      start: t0,
+      end: t1,
     });
     setEditingBookingId(prefill.editingBookingId ?? null);
     onPrefillConsumed?.();
@@ -217,18 +270,23 @@ export function LocationCourtBookingWizard({
 
   const slotsParams = useMemo(
     () =>
-      sport && courtType
+      searchCommitted &&
+      sport &&
+      courtType &&
+      bookingDate &&
+      durationMinutes != null
         ? {
-          locationId,
-          ...(areaId ? { areaId } : {}),
-          sport,
-          courtType,
-          bookingDate,
-          durationMinutes,
-          ...(editingBookingId ? { excludeBookingId: editingBookingId } : {}),
-        }
+            locationId,
+            ...(areaId ? { areaId } : {}),
+            sport,
+            courtType,
+            bookingDate,
+            durationMinutes,
+            ...(editingBookingId ? { excludeBookingId: editingBookingId } : {}),
+          }
         : null,
     [
+      searchCommitted,
       locationId,
       areaId,
       sport,
@@ -245,7 +303,20 @@ export function LocationCourtBookingWizard({
     isError: slotsError,
     error: slotsErr,
     refetch,
-  } = useCourtSlots(slotsParams, true);
+  } = useCourtSlots(slotsParams, Boolean(slotsParams));
+
+  const filteredSlots = useMemo(() => {
+    const slots = slotsData?.slots;
+    if (!slots?.length || !appliedTimeFrom || !appliedTimeTo) return slots ?? [];
+    const fromM = toMinutes(appliedTimeFrom);
+    const toM = toMinutes(appliedTimeTo);
+    if (toM <= fromM) return [];
+    return slots.filter((s) => {
+      const ss = toMinutes(s.startTime);
+      const se = toMinutes(s.endTime);
+      return ss < toM && se > fromM;
+    });
+  }, [slotsData, appliedTimeFrom, appliedTimeTo]);
 
   // ── Slot hold (soft-lock via WebSocket) ──────────────────────────────────
   const {
@@ -259,7 +330,7 @@ export function LocationCourtBookingWizard({
     locationId,
     sport,
     courtType,
-    date: bookingDate,
+    date: bookingDate ?? null,
     displayName: user?.fullName ?? "A guest",
     onAvailabilityChanged: () => {
       setSelectedSlot(null);
@@ -298,7 +369,7 @@ export function LocationCourtBookingWizard({
   const prevSelectedSlotRef = useRef<CourtSlotApi | null>(null);
   useEffect(() => {
     const prev = prevSelectedSlotRef.current;
-    if (prev && !selectedSlot && sport && courtType) {
+    if (prev && !selectedSlot && sport && courtType && bookingDate) {
       releaseSlotHold({
         sport,
         courtType,
@@ -312,7 +383,7 @@ export function LocationCourtBookingWizard({
 
   const handleSelectSlot = useCallback(
     (slot: CourtSlotApi) => {
-      if (!sport || !courtType) return;
+      if (!sport || !courtType || !bookingDate) return;
       const key = slotHoldKey(
         sport,
         courtType,
@@ -352,15 +423,31 @@ export function LocationCourtBookingWizard({
         endTime: slot.endTime,
       });
     },
-    [
-      sport,
-      courtType,
-      bookingDate,
-      selectedSlot,
-      releaseSlotHold,
-      requestSlotHold,
-    ],
+    [sport, courtType, bookingDate, selectedSlot, releaseSlotHold, requestSlotHold],
   );
+
+  const handleSearch = useCallback(() => {
+    setSearchAttempted(true);
+    if (!bookingDate) return;
+    if (sportOptions.length > 0 && !sport) return;
+    if (sport && courtTypeOptions.length === 0) return;
+    if (sport && courtTypeOptions.length > 0 && !courtType) return;
+    if (durationMinutes == null) return;
+    if (!timeFrom || !timeTo) return;
+    if (toMinutes(timeTo) <= toMinutes(timeFrom)) return;
+    setSearchCommitted(true);
+    setAppliedTimeFrom(timeFrom);
+    setAppliedTimeTo(timeTo);
+  }, [
+    bookingDate,
+    sport,
+    sportOptions.length,
+    courtType,
+    courtTypeOptions.length,
+    durationMinutes,
+    timeFrom,
+    timeTo,
+  ]);
 
   useEffect(() => {
     if (!slotAutoTarget || !slotsData?.slots?.length || !sport || !courtType)
@@ -384,10 +471,14 @@ export function LocationCourtBookingWizard({
   const slotMutationPending =
     createSlotBooking.isPending || updateSlotBooking.isPending;
   const canBook =
-    !!selectedSlot && !!sport && !!courtType && !slotMutationPending;
+    !!selectedSlot &&
+    !!sport &&
+    !!courtType &&
+    !!bookingDate &&
+    !slotMutationPending;
 
   const handleConfirmBooking = async () => {
-    if (!selectedSlot || !canBook) return;
+    if (!selectedSlot || !canBook || !bookingDate) return;
     setBookError(null);
     const payload = {
       locationId,
@@ -439,7 +530,7 @@ export function LocationCourtBookingWizard({
   };
 
   const handleCancelSelections = useCallback(() => {
-    if (selectedSlot && sport && courtType) {
+    if (selectedSlot && sport && courtType && bookingDate) {
       releaseSlotHold({
         sport,
         courtType,
@@ -451,22 +542,20 @@ export function LocationCourtBookingWizard({
     setSelectedSlot(null);
     setSport(null);
     setCourtType(null);
-    setDurationMinutes(90);
-    setBookingDate(todayVenueYmd);
+    setDurationMinutes(null);
+    setBookingDate(null);
+    setTimeFrom(null);
+    setTimeTo(null);
+    setSearchAttempted(false);
+    setSearchCommitted(false);
+    setAppliedTimeFrom(null);
+    setAppliedTimeTo(null);
     setBookError(null);
     setEditingBookingId(null);
     setSlotAutoTarget(null);
     setActivityAttentionKey(0);
     void refetch();
-  }, [
-    selectedSlot,
-    sport,
-    courtType,
-    bookingDate,
-    releaseSlotHold,
-    todayVenueYmd,
-    refetch,
-  ]);
+  }, [selectedSlot, sport, courtType, bookingDate, releaseSlotHold, refetch]);
 
   const handleCalendarSelect = useCallback(
     (d: Date) => {
@@ -479,7 +568,12 @@ export function LocationCourtBookingWizard({
     [sport],
   );
 
-  const readyToConfirm = !!(sport && courtType && selectedSlot);
+  const readyToConfirm = !!(
+    sport &&
+    courtType &&
+    selectedSlot &&
+    bookingDate
+  );
 
   return (
     <Card className="w-full border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl">
@@ -495,8 +589,8 @@ export function LocationCourtBookingWizard({
           />
         </CardTitle>
         <CardDescription className="text-xs sm:text-sm leading-snug">
-          Choose sport, indoor/outdoor, date, and duration. The system will
-          automatically assign a court for your selected time slot.
+          Pick a date, activity, duration, and the time window you want. Tap
+          Search to see open slots; the system assigns a court when you confirm.
         </CardDescription>
         {editingBookingId && (
           <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
@@ -519,10 +613,25 @@ export function LocationCourtBookingWizard({
       </CardHeader>
 
       <CardContent className="px-4 pb-4 pt-2 sm:px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4 lg:gap-5">
-          {/* ── Left column: filters + slot grid ── */}
-          <div className="space-y-3">
-            {/* Activity + indoor/outdoor — single row */}
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-6 lg:gap-8">
+          {/* ── Left: date picker ── */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold">Select a date</Label>
+            <CalendarGrid
+              selectedDate={selectedCalendarDate}
+              onSelectDate={handleCalendarSelect}
+              isDateDisabled={(d) => format(d, "yyyy-MM-dd") < todayVenueYmd}
+              className="border rounded-lg p-0 shadow-none text-sm w-full max-w-sm mx-auto lg:mx-0"
+            />
+            {searchAttempted && !bookingDate && (
+              <p className="text-sm text-destructive" role="alert">
+                Please select a date.
+              </p>
+            )}
+          </div>
+
+          {/* ── Right: activity, duration, time window, search ── */}
+          <div className="space-y-4 lg:border-l lg:pl-6 dark:border-slate-800">
             <motion.div
               key={activityAttentionKey}
               className="rounded-lg p-1 -m-1"
@@ -541,40 +650,38 @@ export function LocationCourtBookingWizard({
               }
               transition={{ duration: 0.5, ease: "easeOut" }}
             >
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-                <span className="text-xs font-semibold text-muted-foreground shrink-0">
-                  Activity
-                </span>
-                <div className="flex flex-wrap items-center gap-1">
-                  {sportOptions.length === 0 ? (
-                    <span className="text-xs text-muted-foreground">No activities at this venue.</span>
-                  ) : (
-                    sportOptions.map((s) => (
-                      <Button
-                        key={s.code}
-                        type="button"
-                        size="sm"
-                        variant={sport === s.code ? "default" : "outline"}
-                        className="h-8 rounded-full px-3 text-xs font-semibold"
-                        onClick={() => {
-                          setSport(s.code as Sport);
-                          setActivityAttentionKey(0);
-                        }}
-                      >
-                        {sportButtonLabel(s.code, s.name)}
-                      </Button>
-                    ))
-                  )}
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+                  <span className="text-sm font-bold shrink-0">
+                    Activity
+                  </span>
+                  <div className="flex flex-wrap items-center gap-1">
+                    {sportOptions.length === 0 ? (
+                      <span className="text-xs text-muted-foreground">
+                        No activities at this venue.
+                      </span>
+                    ) : (
+                      sportOptions.map((s) => (
+                        <Button
+                          key={s.code}
+                          type="button"
+                          size="sm"
+                          variant={sport === s.code ? "default" : "outline"}
+                          className="h-8 rounded-full px-3 text-xs font-semibold"
+                          onClick={() => {
+                            setSport(s.code as Sport);
+                            setActivityAttentionKey(0);
+                          }}
+                        >
+                          {sportButtonLabel(s.code, s.name)}
+                        </Button>
+                      ))
+                    )}
+                  </div>
                 </div>
                 {sport && courtTypeOptions.length > 0 && (
-                  <>
-                    <span
-                      className="hidden sm:inline text-muted-foreground/40 px-0.5"
-                      aria-hidden
-                    >
-                      |
-                    </span>
-                    <span className="text-xs font-semibold text-muted-foreground shrink-0">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pl-0 sm:pl-0">
+                    <span className="text-sm font-bold shrink-0">
                       Indoor / outdoor
                     </span>
                     <div className="flex flex-wrap items-center gap-1">
@@ -591,19 +698,33 @@ export function LocationCourtBookingWizard({
                         </Button>
                       ))}
                     </div>
-                  </>
+                  </div>
                 )}
               </div>
             </motion.div>
-            {!sport && sportOptions.length > 0 && (
-              <p className="text-sm text-destructive" role="alert">
-                Please select an activity first, then choose indoor/outdoor, date, and time.
+            {searchAttempted && sportOptions.length > 0 && !sport && (
+              <p className="text-sm text-destructive -mt-2" role="alert">
+                Please select an activity.
               </p>
             )}
+            {searchAttempted &&
+              !!sport &&
+              courtTypeOptions.length > 1 &&
+              !courtType && (
+                <p className="text-sm text-destructive -mt-2" role="alert">
+                  Please select indoor or outdoor.
+                </p>
+              )}
+            {searchAttempted &&
+              !!sport &&
+              courtTypeOptions.length === 0 && (
+                <p className="text-sm text-destructive -mt-2" role="alert">
+                  No court environment for this activity at this venue.
+                </p>
+              )}
 
-            {/* Duration pills */}
             <div className="space-y-1">
-              <Label className="text-xs">Duration</Label>
+              <Label className="text-sm font-semibold">Duration</Label>
               <div className="flex flex-wrap gap-1.5">
                 {DURATIONS.map((d) => (
                   <button
@@ -621,9 +742,77 @@ export function LocationCourtBookingWizard({
                   </button>
                 ))}
               </div>
+              {searchAttempted && durationMinutes == null && (
+                <p className="text-sm text-destructive pt-0.5" role="alert">
+                  Please select a duration.
+                </p>
+              )}
             </div>
 
-            {/* Slot grid */}
+            <div className="space-y-1.5">
+              <Label className="text-sm font-semibold">
+                Search for available time
+              </Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <Select
+                  value={timeFrom ?? undefined}
+                  onValueChange={(v) => setTimeFrom(v)}
+                >
+                  <SelectTrigger className="h-9 text-xs rounded-lg">
+                    <SelectValue placeholder="Time from" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIME_OPTIONS.map((t) => (
+                      <SelectItem key={t} value={t} className="text-xs">
+                        {formatTimeAmPm(t)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={timeTo ?? undefined}
+                  onValueChange={(v) => setTimeTo(v)}
+                >
+                  <SelectTrigger className="h-9 text-xs rounded-lg">
+                    <SelectValue placeholder="Time to" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {timeToOptions.map((t) => (
+                      <SelectItem key={t} value={t} className="text-xs">
+                        {formatTimeAmPm(t)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {searchAttempted && (!timeFrom || !timeTo) && (
+                <p className="text-sm text-destructive" role="alert">
+                  Please select an available time range.
+                </p>
+              )}
+              {searchAttempted &&
+                timeFrom &&
+                timeTo &&
+                toMinutes(timeTo) <= toMinutes(timeFrom) && (
+                  <p className="text-sm text-destructive" role="alert">
+                    End time must be after start time.
+                  </p>
+                )}
+            </div>
+
+            <Button
+              type="button"
+              className="w-full sm:w-auto rounded-full px-8 h-10 text-sm font-semibold"
+              onClick={handleSearch}
+            >
+              Search
+            </Button>
+          </div>
+        </div>
+
+        {/* ── Time slots (only after a successful Search) ── */}
+        {searchCommitted && (
+          <div className="mt-6 space-y-3 border-t border-slate-200 dark:border-slate-800 pt-5">
             {loadingSlots && (
               <GlobalLoadingPlaceholder minHeight="min-h-[160px]" />
             )}
@@ -635,37 +824,37 @@ export function LocationCourtBookingWizard({
               </p>
             )}
 
-            {!loadingSlots && slotsData && slotsData.slots.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                No slots available for this combination. Try a different date or
-                duration.
-              </p>
-            )}
+            {!loadingSlots &&
+              slotsData &&
+              slotsData.slots.length === 0 &&
+              bookingDate && (
+                <p className="text-sm text-muted-foreground">
+                  No slots available for this combination. Try a different date
+                  or duration.
+                </p>
+              )}
 
-            {!loadingSlots && slotsData && slotsData.slots.length > 0 && (
+            {!loadingSlots &&
+              slotsData &&
+              slotsData.slots.length > 0 &&
+              filteredSlots.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  No slots overlap your selected time window. Widen the range or
+                  tap Search again.
+                </p>
+              )}
+
+            {!loadingSlots && filteredSlots.length > 0 && sport && courtType && bookingDate && (
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs text-muted-foreground leading-snug">
-                    Select a time slot. A court will be automatically assigned.
-                  </p>
-                  {/* Temporarily hidden — re-enable if users need manual refresh */}
-                  {/* <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => refetch()}
-                    disabled={isFetching}
-                    className="h-7 shrink-0 px-2 text-[11px]"
-                  >
-                    {isFetching ? "Refreshing…" : "↺ Refresh"}
-                  </Button> */}
-                </div>
+                <p className="text-xs text-muted-foreground leading-snug">
+                  Select a time slot. A court will be automatically assigned.
+                </p>
 
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
-                  {slotsData.slots.map((slot) => {
+                  {filteredSlots.map((slot) => {
                     const key = slotHoldKey(
-                      sport!,
-                      courtType!,
+                      sport,
+                      courtType,
                       bookingDate,
                       slot.startTime,
                       slot.endTime,
@@ -676,9 +865,6 @@ export function LocationCourtBookingWizard({
                         selectedSlot?.endTime === slot.endTime);
                     const holdCount = holdCounts[key] ?? 0;
 
-                    // Cross-duration overlap-aware hold load:
-                    // For a slot [S,E), we reduce capacity by the MAX concurrent holds within [S,E),
-                    // not just exact-key holds. This fixes 30m holds affecting 60m/90m slots correctly.
                     const slotStart = toMinutes(slot.startTime);
                     const slotEnd = toMinutes(slot.endTime);
                     const events: Array<{ t: number; delta: number }> = [];
@@ -725,21 +911,6 @@ export function LocationCourtBookingWizard({
                         <div className="font-semibold text-xs leading-tight">
                           {formatTimeAmPm(slot.startTime)}
                         </div>
-                        {/* <div className={cn("text-xs mt-0.5", isSelected ? "text-primary-foreground/80" : "text-muted-foreground")}>
-                          – {wallShort(slot.endTime)}
-                        </div>
-                        <div className={cn(
-                          "text-xs mt-1.5 font-medium",
-                          isFull
-                            ? "text-muted-foreground"
-                            : isSelected
-                              ? "text-primary-foreground/90"
-                              : realAvailable <= 1
-                                ? "text-amber-600 dark:text-amber-400"
-                                : "text-emerald-600 dark:text-emerald-400",
-                        )}>
-                          {isFull ? "Full" : `${realAvailable} left`}
-                        </div> */}
                         {holdCount > 0 && !isFull && (
                           <div
                             className={cn(
@@ -757,25 +928,14 @@ export function LocationCourtBookingWizard({
                 </div>
               </div>
             )}
-
-            {bookError && (
-              <p className="text-sm text-destructive font-medium">
-                {bookError}
-              </p>
-            )}
           </div>
+        )}
 
-          {/* ── Right column: calendar ── */}
-          <div className="space-y-2 lg:border-l lg:pl-4 dark:border-slate-800">
-            <Label className="text-xs">Date</Label>
-            <CalendarGrid
-              selectedDate={selectedCalendarDate}
-              onSelectDate={handleCalendarSelect}
-              isDateDisabled={(d) => format(d, "yyyy-MM-dd") < todayVenueYmd}
-              className="border rounded-lg p-0 shadow-none text-sm"
-            />
-          </div>
-        </div>
+        {bookError && (
+          <p className="text-sm text-destructive font-medium mt-3">
+            {bookError}
+          </p>
+        )}
 
         {/* ── Booking summary: only after activity + type + slot are chosen ── */}
         {readyToConfirm && selectedSlot && (
@@ -799,7 +959,9 @@ export function LocationCourtBookingWizard({
                 </span>
               </li>
               <li className="font-medium">
-                {format(selectedCalendarDate, "EEEE, MMMM d, yyyy")}
+                {selectedCalendarDate
+                  ? format(selectedCalendarDate, "EEEE, MMMM d, yyyy")
+                  : "—"}
               </li>
               <li>
                 <span className="font-semibold">

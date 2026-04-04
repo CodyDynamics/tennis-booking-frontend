@@ -122,13 +122,25 @@ export function LocationMyBookingsSidebar({
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.98 }}
-                  className="relative rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-950/40 p-3 pr-9"
+                  role="button"
+                  tabIndex={0}
+                  className="relative rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-950/40 p-3 pr-9 cursor-pointer text-left transition-colors hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-900/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  onClick={() => onReschedule(b)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onReschedule(b);
+                    }
+                  }}
                 >
                   <button
                     type="button"
-                    className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+                    className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors"
                     aria-label="Edit booking"
-                    onClick={() => setActive(b)}
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      setActive(b);
+                    }}
                   >
                     <Pencil className="h-3.5 w-3.5" />
                     Edit

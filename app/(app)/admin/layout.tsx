@@ -104,7 +104,7 @@ export default function AdminLayout({
   if (!allowed) return null;
 
   const allNavItems = [
-    { href: "/admin", label: "Overview", icon: LayoutDashboard },
+    { href: "/admin", label: "Analytics", icon: LayoutDashboard },
     { href: "/admin/court-management", label: "Court Management", icon: Grid3X3 },
     { href: "/admin/bookings", label: "Bookings", icon: Activity },
     { href: "/admin/users", label: "Users", icon: Users },
