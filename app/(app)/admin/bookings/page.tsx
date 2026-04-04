@@ -30,6 +30,9 @@ import { useDebouncedSearchValue } from "@/lib/hooks/use-debounced-search-value"
 
 const PAGE_SIZE = 20;
 
+/** Temporarily hide row Actions (edit); set to `true` to restore. */
+const SHOW_BOOKING_ACTIONS_COLUMN = false;
+
 const BOOKING_STATUS = ["pending", "confirmed", "cancelled", "completed"] as const;
 const PAYMENT_STATUS = ["unpaid", "paid", "refunded"] as const;
 
@@ -300,17 +303,21 @@ export default function AdminBookingsPage() {
                 sortable: true,
                 render: (r) => titleCaseFilterLabel(r.bookingStatus ?? "—"),
               },
-              {
-                key: "actions",
-                label: "Actions",
-                headClassName: "text-right",
-                className: "text-right",
-                render: (r: AdminCourtBookingRowApi) => (
-                  <Button variant="ghost" size="icon" onClick={() => openEdit(r)} title="Edit">
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                ),
-              } as any,
+              ...(SHOW_BOOKING_ACTIONS_COLUMN
+                ? [
+                    {
+                      key: "actions",
+                      label: "Actions",
+                      headClassName: "text-right",
+                      className: "text-right",
+                      render: (r: AdminCourtBookingRowApi) => (
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(r)} title="Edit">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      ),
+                    },
+                  ]
+                : []),
             ]}
           />
 
