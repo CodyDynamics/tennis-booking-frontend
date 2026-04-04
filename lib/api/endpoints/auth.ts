@@ -3,6 +3,7 @@ import type {
   AuthResponse,
   LoginInput,
   RegisterInput,
+  RegisterRequestOtpResponse,
   VerifyRegisterOtpInput,
   ForgotPasswordInput,
   ForgotPasswordResponse,
@@ -32,7 +33,7 @@ export function createAuthEndpoints(client: ApiClient) {
     getConfig: () => client.get<AuthConfig>(PATHS.config),
     login: (body: LoginInput) => client.post<AuthResponse>(PATHS.login, body),
     requestRegisterOtp: (body: RegisterInput) =>
-      client.post<{ message: string }>(PATHS.registerRequestOtp, body),
+      client.post<RegisterRequestOtpResponse>(PATHS.registerRequestOtp, body),
     verifyRegisterOtp: (body: VerifyRegisterOtpInput) =>
       client.post<AuthResponse>(PATHS.registerVerifyOtp, body),
     refresh: () => client.post<AuthResponse>(PATHS.refresh, {}),

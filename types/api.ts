@@ -96,7 +96,12 @@ export interface ResetPasswordInput {
 /** Response from GET /auth/config */
 export interface AuthConfig {
   loginOtpEnabled: boolean;
+  /** When false, POST /auth/register/request-otp completes signup (no email OTP step). */
+  registrationEmailEnabled?: boolean;
 }
+
+/** POST /auth/register/request-otp — either OTP prompt or immediate AuthResponse */
+export type RegisterRequestOtpResponse = AuthResponse | { message: string };
 
 /** Body for POST /auth/forgot-password */
 export interface ForgotPasswordInput {
