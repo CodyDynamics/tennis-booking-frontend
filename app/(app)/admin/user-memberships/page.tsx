@@ -480,11 +480,11 @@ export default function AdminUserMembershipPage() {
             columns={[
               {
                 key: "lastName",
-                label: "Last name",
+                label: "Last Name",
                 sortable: true,
                 render: (u) => u.lastName ?? "—",
               },
-              { key: "firstName", label: "First name", render: (u) => u.firstName ?? "—" },
+              { key: "firstName", label: "First Name", render: (u) => u.firstName ?? "—" },
               { key: "email", label: "Email", sortable: true },
               {
                 key: "location",
@@ -510,13 +510,13 @@ export default function AdminUserMembershipPage() {
               },
               {
                 key: "joinDate",
-                label: "Join date",
+                label: "Join Date",
                 sortable: true,
                 render: (u) => u.memberships?.[0]?.joinDate ?? "—",
               },
               {
                 key: "endDate",
-                label: "End date",
+                label: "End Date",
                 sortable: true,
                 render: (u) => u.memberships?.[0]?.endDate ?? "—",
               },
@@ -543,7 +543,16 @@ export default function AdminUserMembershipPage() {
                     ? titleCaseFilterLabel(u.role.name)
                     : titleCaseFilterLabel(u.roleId),
               },
-              { key: "status", label: "Status", sortable: true },
+              {
+                key: "status",
+                label: "Status",
+                sortable: true,
+                render: (u) => (
+                  <span className={u.status === "active" ? "text-green-600" : "text-amber-600"}>
+                    {titleCaseFilterLabel(u.status)}
+                  </span>
+                ),
+              },
               ...(canUpdate
                 ? [
                     {
@@ -589,7 +598,7 @@ export default function AdminUserMembershipPage() {
           }
         }}
       >
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add membership</DialogTitle>
           </DialogHeader>
@@ -604,7 +613,7 @@ export default function AdminUserMembershipPage() {
                     : createMembership.error.body?.message ?? createMembership.error.message}
                 </p>
               )}
-            <div>
+            <div className="space-y-2">
               <Label>Email</Label>
               <Input
                 type="email"
@@ -617,7 +626,7 @@ export default function AdminUserMembershipPage() {
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
+              <div className="min-w-0 space-y-2">
                 <Label>First name</Label>
                 <Input
                   value={form.firstName}
@@ -628,7 +637,7 @@ export default function AdminUserMembershipPage() {
                   required
                 />
               </div>
-              <div>
+              <div className="min-w-0 space-y-2">
                 <Label>Last name</Label>
                 <Input
                   value={form.lastName}
@@ -640,9 +649,9 @@ export default function AdminUserMembershipPage() {
                 />
               </div>
             </div>
-            <div>
+            <div className="space-y-2">
               <Label>Phone</Label>
-              <p className="text-xs text-muted-foreground mb-1.5">
+              <p className="text-xs text-muted-foreground">
                 10-digit US number; stored as +1…
               </p>
               <UsPhoneField
@@ -654,7 +663,7 @@ export default function AdminUserMembershipPage() {
                 }}
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label>Address (optional)</Label>
               <Input
                 value={form.homeAddress}
@@ -664,9 +673,9 @@ export default function AdminUserMembershipPage() {
                 }}
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label>Location (optional)</Label>
-              <p className="text-muted-foreground text-xs mb-2">
+              <p className="text-muted-foreground text-xs">
                 If you pick a location, a <strong>venue membership</strong> row is created for that
                 spot—after the person registers with the same email and phone, they already have access
                 tied to that location. Leave <strong>None</strong> to only pre-approve the person
@@ -693,7 +702,7 @@ export default function AdminUserMembershipPage() {
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
+              <div className="min-w-0 space-y-2">
                 <Label>Join date (optional)</Label>
                 <Input
                   type="date"
@@ -704,7 +713,7 @@ export default function AdminUserMembershipPage() {
                   }}
                 />
               </div>
-              <div>
+              <div className="min-w-0 space-y-2">
                 <Label>End date (optional)</Label>
                 <Input
                   type="date"
@@ -743,7 +752,7 @@ export default function AdminUserMembershipPage() {
           }
         }}
       >
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit user / membership</DialogTitle>
           </DialogHeader>
@@ -763,7 +772,7 @@ export default function AdminUserMembershipPage() {
                 Email: <span className="font-medium text-foreground">{editingUser.email}</span>
               </p>
               <div className="grid grid-cols-2 gap-3">
-                <div>
+                <div className="min-w-0 space-y-2">
                   <Label>First name</Label>
                   <Input
                     value={editForm.firstName}
@@ -774,7 +783,7 @@ export default function AdminUserMembershipPage() {
                     required
                   />
                 </div>
-                <div>
+                <div className="min-w-0 space-y-2">
                   <Label>Last name</Label>
                   <Input
                     value={editForm.lastName}
@@ -786,7 +795,7 @@ export default function AdminUserMembershipPage() {
                   />
                 </div>
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label>Phone</Label>
                 <UsPhoneField
                   variant="compact"
@@ -797,7 +806,7 @@ export default function AdminUserMembershipPage() {
                   }}
                 />
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label>Address (optional)</Label>
                 <Input
                   value={editForm.homeAddress}
@@ -809,9 +818,9 @@ export default function AdminUserMembershipPage() {
               </div>
               {(editingUser.accountType === "membership" ||
                 editingUser.accountType === "normal") && (
-                <div>
+                <div className="space-y-2">
                   <Label>Account type</Label>
-                  <p className="text-xs text-muted-foreground mb-2">
+                  <p className="text-xs text-muted-foreground">
                     Set to <strong>Normal</strong> after they register as an app user, or keep{" "}
                     <strong>Pre-approved</strong> for placeholders only.
                   </p>
@@ -835,9 +844,9 @@ export default function AdminUserMembershipPage() {
                   </Select>
                 </div>
               )}
-              <div>
+              <div className="space-y-2">
                 <Label>Venue membership</Label>
-                <p className="text-xs text-muted-foreground mb-2">
+                <p className="text-xs text-muted-foreground">
                   Choose <strong>None</strong> to remove all venue memberships for this user.
                   {user?.role === "super_user" && (
                     <span className="block mt-1">
@@ -869,7 +878,7 @@ export default function AdminUserMembershipPage() {
                 </Select>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div>
+                <div className="min-w-0 space-y-2">
                   <Label>Join date (optional)</Label>
                   <Input
                     type="date"
@@ -881,7 +890,7 @@ export default function AdminUserMembershipPage() {
                     disabled={!editFormReady}
                   />
                 </div>
-                <div>
+                <div className="min-w-0 space-y-2">
                   <Label>End date (optional)</Label>
                   <Input
                     type="date"

@@ -6,14 +6,14 @@ import { cn } from "@/lib/utils";
 import type { User } from "@/types";
 import { motion } from "framer-motion";
 import {
-    Activity,
-    ArrowLeft,
-    Building2,
-    Grid3X3,
-    LayoutDashboard,
-    Shapes,
-    Shield,
-    Users
+  Activity,
+  ArrowLeft,
+  Building2,
+  Grid3X3,
+  LayoutDashboard,
+  Shapes,
+  Shield,
+  Users
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -95,8 +95,8 @@ export default function AdminLayout({
 
   if (isLoading || !user) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-        <GlobalLoadingPlaceholder minHeight="min-h-screen" />
+      <div className="fixed inset-x-0 top-20 bottom-0 z-30 bg-slate-50 dark:bg-slate-950">
+        <GlobalLoadingPlaceholder minHeight="min-h-full" />
       </div>
     );
   }
@@ -111,7 +111,7 @@ export default function AdminLayout({
     { href: "/admin/user-memberships", label: "Memberships", icon: Users },
     { href: "/admin/roles", label: "Roles & Permissions", icon: Shield },
     { href: "/admin/locations", label: "Locations", icon: Building2 },
-    { href: "/admin/sports", label: "Sports", icon: Shapes },
+    // { href: "/admin/sports", label: "Sports", icon: Shapes },
     // { href: "/admin/areas", label: "Areas", icon: MapPin },
     // { href: "/admin/branches", label: "Branches", icon: Building2 },
     // { href: "/admin/organizations", label: "Organizations", icon: Network },
@@ -137,8 +137,9 @@ export default function AdminLayout({
 
   return (
     <AdminProvider>
-      <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans">
-        <aside className="w-72 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col shadow-xl z-20">
+      {/* Fixed below global Navbar (h-20) so the document body does not scroll; only sidebar nav + main pane scroll. */}
+      <div className="fixed inset-x-0 top-20 bottom-0 z-30 flex min-h-0 overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans">
+        <aside className="flex h-full min-h-0 w-72 shrink-0 flex-col border-r border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900 z-20">
           <div className="p-6 border-b border-slate-100 dark:border-slate-800">
             <Link href="/admin" className="flex items-center space-x-3 group">
               <motion.div
@@ -160,7 +161,7 @@ export default function AdminLayout({
             {/* <SportSelector /> */}
           </div>
 
-          <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto">
+          <nav className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-4 py-8">
             <p className="px-4 text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Administration</p>
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -202,7 +203,7 @@ export default function AdminLayout({
           </div>
         </aside>
 
-        <main className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-950 relative">
+        <main className="relative min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain bg-slate-50 dark:bg-slate-950">
           <div className="absolute top-0 left-0 right-0 h-64 bg-gradient-to-b from-blue-100/50 to-transparent dark:from-blue-900/10 pointer-events-none z-0"></div>
           <div className="container py-6 px-8 lg:px-12 relative z-10 max-w-[100%]">
             {children}

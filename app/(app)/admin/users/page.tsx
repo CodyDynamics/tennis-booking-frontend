@@ -573,12 +573,12 @@ export default function AdminUsersPage() {
       </Card>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>{editingUser ? "Edit User" : "Create User"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="min-h-0 flex flex-col gap-4">
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-2 py-2 pr-3">
               {submitError && (
                 <p className="text-sm text-destructive">
                   {Array.isArray(submitError.body?.message)
@@ -586,7 +586,7 @@ export default function AdminUsersPage() {
                     : submitError.body?.message ?? submitError.message}
                 </p>
               )}
-              <div>
+              <div className="space-y-2">
                 <Label>Email</Label>
                 <Input
                   type="email"
@@ -599,7 +599,7 @@ export default function AdminUsersPage() {
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div>
+                <div className="min-w-0 space-y-2">
                   <Label>First Name</Label>
                   <Input
                     value={form.firstName}
@@ -609,7 +609,7 @@ export default function AdminUsersPage() {
                     required
                   />
                 </div>
-                <div>
+                <div className="min-w-0 space-y-2">
                   <Label>Last Name</Label>
                   <Input
                     value={form.lastName}
@@ -620,9 +620,9 @@ export default function AdminUsersPage() {
                   />
                 </div>
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label>Phone</Label>
-                <p className="text-xs text-muted-foreground mb-1.5">
+                <p className="text-xs text-muted-foreground">
                   10-digit US number; stored as +1…
                 </p>
                 <UsPhoneField
@@ -631,7 +631,7 @@ export default function AdminUsersPage() {
                   onChange={(value) => setForm((f) => ({ ...f, phone: value }))}
                 />
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label>Address</Label>
                 <Input
                   value={form.homeAddress}
@@ -640,7 +640,7 @@ export default function AdminUsersPage() {
                   }
                 />
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label>Role</Label>
                 <Select
                   value={form.roleId}
@@ -662,9 +662,9 @@ export default function AdminUsersPage() {
               {editingUser &&
                 (editingUser.accountType === "normal" ||
                   editingUser.accountType === "membership") && (
-                  <div>
+                  <div className="space-y-2">
                     <Label>Account type</Label>
-                    <p className="text-muted-foreground mb-2 text-xs">
+                    <p className="text-muted-foreground text-xs">
                       <strong>Normal</strong> = regular app user (stays on this list).{" "}
                       <strong>Membership (pre-approved)</strong> = also appears under{" "}
                       <strong>Memberships</strong>. Venue access is separate — use{" "}
@@ -697,9 +697,9 @@ export default function AdminUsersPage() {
                   <strong>Venue membership</strong> below.
                 </p>
               )}
-              <div>
+              <div className="space-y-2">
                 <Label>Venue membership (optional)</Label>
-                <p className="text-muted-foreground mb-2 text-xs">
+                <p className="text-muted-foreground text-xs">
                   Attach this user to a <strong>location</strong> for booking access (membership row).
                   <strong> None</strong> removes all venue memberships (super_admin; venue staff have
                   limits). This does not change account type — use <strong>Account type</strong> above
@@ -730,7 +730,7 @@ export default function AdminUsersPage() {
                 </Select>
               </div>
               {editingUser && (
-                <div>
+                <div className="space-y-2">
                   <Label>Status</Label>
                   <Select
                     value={form.status}
@@ -763,7 +763,7 @@ export default function AdminUsersPage() {
                   Require password change on first login
                 </Label>
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label>{editingUser ? "New password (optional)" : "Password"}</Label>
                 <div className="flex gap-2">
                   <Input

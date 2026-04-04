@@ -4,7 +4,7 @@ import PhoneInput from "react-phone-number-input";
 import { cn } from "@/lib/utils";
 
 const registerLikeInput =
-  "[&_.PhoneInputInput]:flex [&_.PhoneInputInput]:w-full [&_.PhoneInputInput]:rounded-md [&_.PhoneInputInput]:border-0 [&_.PhoneInputInput]:bg-transparent [&_.PhoneInputInput]:px-2 [&_.PhoneInputInput]:outline-none [&_.PhoneInputInput]:ring-0 flex w-full items-center gap-2 rounded-lg border border-input bg-background px-3 shadow-sm ring-offset-background transition-[color,box-shadow] focus-within:ring-2 focus-within:ring-ring";
+  "[&_.PhoneInputInput]:flex [&_.PhoneInputInput]:w-full [&_.PhoneInputInput]:rounded-md [&_.PhoneInputInput]:border-0 [&_.PhoneInputInput]:bg-transparent [&_.PhoneInputInput]:px-2 [&_.PhoneInputInput]:outline-none [&_.PhoneInputInput]:ring-0 flex w-full items-center gap-2 rounded-lg border border-input bg-background px-3 shadow-sm ring-offset-background transition-[color,box-shadow] focus-within:ring-2 focus-within:ring-ring focus-within:ring-inset";
 
 export type UsPhoneFieldProps = {
   id?: string;
