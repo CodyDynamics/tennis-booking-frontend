@@ -37,14 +37,14 @@ export function AuthDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[min(90vh,720px)] max-w-lg overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[min(90vh,720px)] max-w-lg flex-col gap-4 overflow-hidden sm:max-w-lg">
+        <DialogHeader className="shrink-0 pr-10">
           <DialogTitle>
             {mode === "login" ? "Sign in" : "Create account"}
           </DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <div className="pt-1">
+        <div className="scrollbar-app min-h-0 flex-1 overflow-y-auto pt-1">
           {mode === "login" ? (
             <LoginForm
               onSwitchToRegister={() => setMode("register")}

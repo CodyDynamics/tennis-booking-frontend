@@ -52,8 +52,8 @@ export function DashboardDrilldownDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] flex flex-col sm:max-w-lg">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-lg">
+        <DialogHeader className="shrink-0 pr-10">
           <DialogTitle>{title}</DialogTitle>
           {description ? (
             <DialogDescription>{description}</DialogDescription>
@@ -73,7 +73,7 @@ export function DashboardDrilldownDialog({
             <p className="text-sm text-muted-foreground py-6">{emptyMessage}</p>
           )}
           {!loading && !error && rows.length > 0 && (
-            <ul className="max-h-[50vh] space-y-2 overflow-y-auto pr-1">
+            <ul className="scrollbar-app max-h-[50vh] space-y-2 overflow-y-auto pr-1">
               {rows.map((r) => (
                 <li
                   key={r.id}

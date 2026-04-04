@@ -31,6 +31,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { DatePickerField } from "@/components/ui/date-picker-field";
 import { Label } from "@/components/ui/label";
 import { Loader2, Pencil, Plus } from "lucide-react";
 import { ApiError } from "@/lib/api";
@@ -598,11 +599,15 @@ export default function AdminUserMembershipPage() {
           }
         }}
       >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col gap-4 overflow-hidden">
+          <DialogHeader className="shrink-0 pr-10">
             <DialogTitle>Add membership</DialogTitle>
           </DialogHeader>
-          <form onSubmit={submitCreate} className="space-y-4">
+          <form
+            onSubmit={submitCreate}
+            className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden"
+          >
+            <div className="scrollbar-app min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
             {formError && <p className="text-sm text-destructive">{formError}</p>}
             {createMembership.isError &&
               createMembership.error instanceof ApiError &&
@@ -704,28 +709,33 @@ export default function AdminUserMembershipPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="min-w-0 space-y-2">
                 <Label>Join date (optional)</Label>
-                <Input
-                  type="date"
+                <DatePickerField
                   value={form.membershipJoinDate}
-                  onChange={(e) => {
+                  allowClear
+                  className="w-full"
+                  placeholder="Join date"
+                  onChange={(v) => {
                     setFormError(null);
-                    setForm((f) => ({ ...f, membershipJoinDate: e.target.value }));
+                    setForm((f) => ({ ...f, membershipJoinDate: v }));
                   }}
                 />
               </div>
               <div className="min-w-0 space-y-2">
                 <Label>End date (optional)</Label>
-                <Input
-                  type="date"
+                <DatePickerField
                   value={form.membershipEndDate}
-                  onChange={(e) => {
+                  allowClear
+                  className="w-full"
+                  placeholder="End date"
+                  onChange={(v) => {
                     setFormError(null);
-                    setForm((f) => ({ ...f, membershipEndDate: e.target.value }));
+                    setForm((f) => ({ ...f, membershipEndDate: v }));
                   }}
                 />
               </div>
             </div>
-            <DialogFooter>
+            </div>
+            <DialogFooter className="shrink-0 border-t border-border/50 pt-4">
               <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>
                 Cancel
               </Button>
@@ -752,12 +762,16 @@ export default function AdminUserMembershipPage() {
           }
         }}
       >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col gap-4 overflow-hidden">
+          <DialogHeader className="shrink-0 pr-10">
             <DialogTitle>Edit user / membership</DialogTitle>
           </DialogHeader>
           {editingUser && (
-            <form onSubmit={submitEdit} className="space-y-4">
+            <form
+              onSubmit={submitEdit}
+              className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden"
+            >
+              <div className="scrollbar-app min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
               {editUserDetailError && (
                 <p className="text-sm text-destructive">Could not load user details. Try again.</p>
               )}
@@ -880,30 +894,35 @@ export default function AdminUserMembershipPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="min-w-0 space-y-2">
                   <Label>Join date (optional)</Label>
-                  <Input
-                    type="date"
+                  <DatePickerField
                     value={editForm.membershipJoinDate}
-                    onChange={(e) => {
-                      setEditError(null);
-                      setEditForm((f) => ({ ...f, membershipJoinDate: e.target.value }));
-                    }}
+                    allowClear
+                    className="w-full"
+                    placeholder="Join date"
                     disabled={!editFormReady}
+                    onChange={(v) => {
+                      setEditError(null);
+                      setEditForm((f) => ({ ...f, membershipJoinDate: v }));
+                    }}
                   />
                 </div>
                 <div className="min-w-0 space-y-2">
                   <Label>End date (optional)</Label>
-                  <Input
-                    type="date"
+                  <DatePickerField
                     value={editForm.membershipEndDate}
-                    onChange={(e) => {
-                      setEditError(null);
-                      setEditForm((f) => ({ ...f, membershipEndDate: e.target.value }));
-                    }}
+                    allowClear
+                    className="w-full"
+                    placeholder="End date"
                     disabled={!editFormReady}
+                    onChange={(v) => {
+                      setEditError(null);
+                      setEditForm((f) => ({ ...f, membershipEndDate: v }));
+                    }}
                   />
                 </div>
               </div>
-              <DialogFooter>
+              </div>
+              <DialogFooter className="shrink-0 border-t border-border/50 pt-4">
                 <Button type="button" variant="outline" onClick={() => setEditModalOpen(false)}>
                   Cancel
                 </Button>

@@ -104,7 +104,7 @@ export function LocationMyBookingsSidebar({
           <p className="text-xs text-muted-foreground mt-0.5">Your bookings</p>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+        <div className="scrollbar-app flex-1 overflow-y-auto p-3 space-y-2.5">
           {isLoading && (
             <GlobalLoadingPlaceholder minHeight="min-h-[200px]" className="rounded-xl" />
           )}

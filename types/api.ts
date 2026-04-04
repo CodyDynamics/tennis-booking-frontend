@@ -271,6 +271,9 @@ export interface AdminSportDrilldownItemApi {
   email: string;
   fullName: string | null;
   bookingCount: number;
+  phone?: string | null;
+  homeAddress?: string | null;
+  primaryCourtName?: string | null;
 }
 
 export interface AdminSportDrilldownPageApi {

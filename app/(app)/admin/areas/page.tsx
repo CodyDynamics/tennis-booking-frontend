@@ -402,11 +402,15 @@ export default function AdminAreasPage() {
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col gap-4 overflow-hidden">
+          <DialogHeader className="shrink-0 pr-10">
             <DialogTitle>{editingId ? "Edit Area" : "Create Area"}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={onSubmit} className="space-y-4">
+          <form
+            onSubmit={onSubmit}
+            className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden"
+          >
+            <div className="scrollbar-app min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
             <div className="rounded-lg border border-sky-200/80 bg-sky-50/90 p-3 text-sm text-slate-700 dark:border-sky-900 dark:bg-sky-950/40 dark:text-slate-300">
               <p className="font-medium text-slate-900 dark:text-slate-100">
                 Area vs people
@@ -593,7 +597,8 @@ export default function AdminAreasPage() {
                 </p>
               </div>
             )}
-            <DialogFooter>
+            </div>
+            <DialogFooter className="shrink-0 border-t border-border/50 pt-4">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
