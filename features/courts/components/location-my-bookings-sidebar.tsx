@@ -122,39 +122,40 @@ export function LocationMyBookingsSidebar({
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.98 }}
-                  role="button"
-                  tabIndex={0}
-                  className="relative rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-950/40 p-3 pr-9 cursor-pointer text-left transition-colors hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-900/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                  onClick={() => onReschedule(b)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      onReschedule(b);
-                    }
-                  }}
+                  className="relative rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-950/40 p-3"
                 >
                   <button
                     type="button"
-                    className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+                    className="absolute top-3 right-3 z-10 inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors"
                     aria-label="Edit booking"
-                    onClick={(ev) => {
-                      ev.stopPropagation();
-                      setActive(b);
-                    }}
+                    onClick={() => setActive(b)}
                   >
                     <Pencil className="h-3.5 w-3.5" />
                     Edit
                   </button>
-                  <p className="font-semibold text-sm capitalize text-slate-900 dark:text-slate-100">
-                    {b.sport ?? "Court"} · {b.courtType ?? "—"}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {format(parse(b.bookingDate.slice(0, 10), "yyyy-MM-dd", new Date()), "EEE, MMM d, yyyy")}
-                  </p>
-                  <p className="text-xs font-medium mt-1.5">
-                    {timeAmPm(b.startTime)} – {timeAmPm(b.endTime)}{" "}
-                    <span className="text-muted-foreground font-normal">({b.durationMinutes} min)</span>
-                  </p>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    className="cursor-pointer text-left rounded-lg pr-[4.5rem] outline-none transition-colors hover:bg-slate-100/80 dark:hover:bg-slate-900/60 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 -m-1 p-1"
+                    onClick={() => onReschedule(b)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onReschedule(b);
+                      }
+                    }}
+                  >
+                    <p className="font-semibold text-sm capitalize text-slate-900 dark:text-slate-100">
+                      {b.sport ?? "Court"} · {b.courtType ?? "—"}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {format(parse(b.bookingDate.slice(0, 10), "yyyy-MM-dd", new Date()), "EEE, MMM d, yyyy")}
+                    </p>
+                    <p className="text-xs font-medium mt-1.5">
+                      {timeAmPm(b.startTime)} – {timeAmPm(b.endTime)}{" "}
+                      <span className="text-muted-foreground font-normal">({b.durationMinutes} min)</span>
+                    </p>
+                  </div>
                 </motion.div>
               ))}
           </AnimatePresence>

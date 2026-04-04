@@ -271,19 +271,19 @@ export function LocationCourtBookingWizard({
   const slotsParams = useMemo(
     () =>
       searchCommitted &&
-      sport &&
-      courtType &&
-      bookingDate &&
-      durationMinutes != null
+        sport &&
+        courtType &&
+        bookingDate &&
+        durationMinutes != null
         ? {
-            locationId,
-            ...(areaId ? { areaId } : {}),
-            sport,
-            courtType,
-            bookingDate,
-            durationMinutes,
-            ...(editingBookingId ? { excludeBookingId: editingBookingId } : {}),
-          }
+          locationId,
+          ...(areaId ? { areaId } : {}),
+          sport,
+          courtType,
+          bookingDate,
+          durationMinutes,
+          ...(editingBookingId ? { excludeBookingId: editingBookingId } : {}),
+        }
         : null,
     [
       searchCommitted,
@@ -529,7 +529,7 @@ export function LocationCourtBookingWizard({
     }
   };
 
-  const handleCancelSelections = useCallback(() => {
+  const clearBookingFormState = useCallback(() => {
     if (selectedSlot && sport && courtType && bookingDate) {
       releaseSlotHold({
         sport,
@@ -554,8 +554,9 @@ export function LocationCourtBookingWizard({
     setEditingBookingId(null);
     setSlotAutoTarget(null);
     setActivityAttentionKey(0);
-    void refetch();
-  }, [selectedSlot, sport, courtType, bookingDate, releaseSlotHold, refetch]);
+  }, [selectedSlot, sport, courtType, bookingDate, releaseSlotHold]);
+
+  const handleCancelSelections = clearBookingFormState;
 
   const handleCalendarSelect = useCallback(
     (d: Date) => {
@@ -588,10 +589,10 @@ export function LocationCourtBookingWizard({
             )}
           />
         </CardTitle>
-        <CardDescription className="text-xs sm:text-sm leading-snug">
+        {/* <CardDescription className="text-xs sm:text-sm leading-snug">
           Pick a date, activity, duration, and the time window you want. Tap
           Search to see open slots; the system assigns a court when you confirm.
-        </CardDescription>
+        </CardDescription> */}
         {editingBookingId && (
           <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
             <span className="font-medium">
@@ -613,15 +614,15 @@ export function LocationCourtBookingWizard({
       </CardHeader>
 
       <CardContent className="px-4 pb-4 pt-2 sm:px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-6 lg:gap-8">
-          {/* ── Left: date picker ── */}
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold">Select a date</Label>
+        <div className="grid grid-cols-1 lg:grid-cols-[auto_minmax(0,1fr)] gap-6 lg:gap-6 lg:items-start">
+          {/* ── Left: date picker (column only as wide as calendar) ── */}
+          <div className="space-y-2 w-full max-w-sm mx-auto lg:mx-0 lg:w-max lg:max-w-sm shrink-0">
+            <Label className="text-sm font-semibold">Select a date</Label>
             <CalendarGrid
               selectedDate={selectedCalendarDate}
               onSelectDate={handleCalendarSelect}
               isDateDisabled={(d) => format(d, "yyyy-MM-dd") < todayVenueYmd}
-              className="border rounded-lg p-0 shadow-none text-sm w-full max-w-sm mx-auto lg:mx-0"
+              className="border rounded-lg p-0 shadow-none text-sm w-full max-w-sm"
             />
             {searchAttempted && !bookingDate && (
               <p className="text-sm text-destructive" role="alert">
@@ -630,8 +631,8 @@ export function LocationCourtBookingWizard({
             )}
           </div>
 
-          {/* ── Right: activity, duration, time window, search ── */}
-          <div className="space-y-4 lg:border-l lg:pl-6 dark:border-slate-800">
+          {/* ── Right: fills remaining width next to calendar ── */}
+          <div className="flex flex-col min-w-0 w-full space-y-4 lg:border-l lg:pl-6 dark:border-slate-800">
             <motion.div
               key={activityAttentionKey}
               className="rounded-lg p-1 -m-1"
@@ -639,13 +640,13 @@ export function LocationCourtBookingWizard({
               animate={
                 activityAttentionKey > 0 && !sport
                   ? {
-                      boxShadow: [
-                        "0 0 0 0px rgba(234,88,12,0)",
-                        "0 0 0 3px rgba(234,88,12,0.45)",
-                        "0 0 0 0px rgba(234,88,12,0)",
-                      ],
-                      scale: [1, 1.01, 1],
-                    }
+                    boxShadow: [
+                      "0 0 0 0px rgba(234,88,12,0)",
+                      "0 0 0 3px rgba(234,88,12,0.45)",
+                      "0 0 0 0px rgba(234,88,12,0)",
+                    ],
+                    scale: [1, 1.01, 1],
+                  }
                   : false
               }
               transition={{ duration: 0.5, ease: "easeOut" }}
@@ -653,7 +654,7 @@ export function LocationCourtBookingWizard({
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
                   <span className="text-sm font-bold shrink-0">
-                    Activity
+                    Activity:
                   </span>
                   <div className="flex flex-wrap items-center gap-1">
                     {sportOptions.length === 0 ? (
@@ -682,7 +683,7 @@ export function LocationCourtBookingWizard({
                 {sport && courtTypeOptions.length > 0 && (
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pl-0 sm:pl-0">
                     <span className="text-sm font-bold shrink-0">
-                      Indoor / outdoor
+                      Indoor / outdoor:
                     </span>
                     <div className="flex flex-wrap items-center gap-1">
                       {courtTypeOptions.map((t) => (
@@ -724,23 +725,27 @@ export function LocationCourtBookingWizard({
               )}
 
             <div className="space-y-1">
-              <Label className="text-sm font-semibold">Duration</Label>
-              <div className="flex flex-wrap gap-1.5">
-                {DURATIONS.map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => setDurationMinutes(d)}
-                    className={cn(
-                      "rounded-full px-3.5 py-1.5 text-xs font-semibold border transition-all",
-                      durationMinutes === d
-                        ? "bg-primary text-primary-foreground border-primary shadow-sm hover:bg-primary-hover"
-                        : "bg-background text-foreground border-slate-200 dark:border-slate-700 hover:border-primary hover:text-primary",
-                    )}
-                  >
-                    {d} min
-                  </button>
-                ))}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <span className="text-sm font-bold text-foreground shrink-0">
+                  Duration:
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {DURATIONS.map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setDurationMinutes(d)}
+                      className={cn(
+                        "rounded-full px-3.5 py-1.5 text-xs font-semibold border transition-all",
+                        durationMinutes === d
+                          ? "bg-primary text-primary-foreground border-primary shadow-sm hover:bg-primary-hover"
+                          : "bg-background text-foreground border-slate-200 dark:border-slate-700 hover:border-primary hover:text-primary",
+                      )}
+                    >
+                      {d} min
+                    </button>
+                  ))}
+                </div>
               </div>
               {searchAttempted && durationMinutes == null && (
                 <p className="text-sm text-destructive pt-0.5" role="alert">
@@ -749,41 +754,51 @@ export function LocationCourtBookingWizard({
               )}
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-sm font-semibold">
-                Search for available time
-              </Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <Select
-                  value={timeFrom ?? undefined}
-                  onValueChange={(v) => setTimeFrom(v)}
-                >
-                  <SelectTrigger className="h-9 text-xs rounded-lg">
-                    <SelectValue placeholder="Time from" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIME_OPTIONS.map((t) => (
-                      <SelectItem key={t} value={t} className="text-xs">
-                        {formatTimeAmPm(t)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={timeTo ?? undefined}
-                  onValueChange={(v) => setTimeTo(v)}
-                >
-                  <SelectTrigger className="h-9 text-xs rounded-lg">
-                    <SelectValue placeholder="Time to" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timeToOptions.map((t) => (
-                      <SelectItem key={t} value={t} className="text-xs">
-                        {formatTimeAmPm(t)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="space-y-1.5 w-full">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-2 w-full">
+                <span className="text-sm font-bold text-foreground shrink-0 max-w-[min(100%,11rem)] leading-tight sm:max-w-none">
+                  Search for available times:
+                </span>
+                <span className="text-xs font-semibold text-muted-foreground shrink-0">
+                  From
+                </span>
+                <div className="w-full min-w-[9rem] flex-1 sm:w-auto sm:min-w-[10rem]">
+                  <Select
+                    value={timeFrom ?? undefined}
+                    onValueChange={(v) => setTimeFrom(v)}
+                  >
+                    <SelectTrigger className="h-9 w-full text-xs rounded-lg">
+                      <SelectValue placeholder="Start" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIME_OPTIONS.map((t) => (
+                        <SelectItem key={t} value={t} className="text-xs">
+                          {formatTimeAmPm(t)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <span className="text-xs font-semibold text-muted-foreground shrink-0">
+                  To
+                </span>
+                <div className="w-full min-w-[9rem] flex-1 sm:w-auto sm:min-w-[10rem]">
+                  <Select
+                    value={timeTo ?? undefined}
+                    onValueChange={(v) => setTimeTo(v)}
+                  >
+                    <SelectTrigger className="h-9 w-full text-xs rounded-lg">
+                      <SelectValue placeholder="End" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {timeToOptions.map((t) => (
+                        <SelectItem key={t} value={t} className="text-xs">
+                          {formatTimeAmPm(t)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               {searchAttempted && (!timeFrom || !timeTo) && (
                 <p className="text-sm text-destructive" role="alert">
@@ -800,13 +815,23 @@ export function LocationCourtBookingWizard({
                 )}
             </div>
 
-            <Button
-              type="button"
-              className="w-full sm:w-auto rounded-full px-8 h-10 text-sm font-semibold"
-              onClick={handleSearch}
-            >
-              Search
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                className="rounded-full px-8 h-10 text-sm font-semibold"
+                onClick={handleSearch}
+              >
+                Search
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full px-6 h-10 text-sm font-semibold"
+                onClick={clearBookingFormState}
+              >
+                Clear
+              </Button>
+            </div>
 
             {/* Time slots: directly under Search, same column as filters */}
             {searchCommitted && (
@@ -951,7 +976,7 @@ export function LocationCourtBookingWizard({
 
         {/* ── Booking summary: only after activity + type + slot are chosen ── */}
         {readyToConfirm && selectedSlot && (
-          <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 dark:bg-primary/10 p-3 space-y-2">
+          <div className="mt-3 w-fit max-w-full rounded-lg border border-primary/30 bg-primary/5 dark:bg-primary/10 p-3 space-y-2">
             <h3 className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wide">
               Your selection
             </h3>
@@ -960,10 +985,10 @@ export function LocationCourtBookingWizard({
                 <span className="font-medium">
                   {sport
                     ? sportButtonLabel(
-                        sport,
-                        sportOptions.find((s) => s.code === sport)?.name ??
-                          sport,
-                      )
+                      sport,
+                      sportOptions.find((s) => s.code === sport)?.name ??
+                      sport,
+                    )
                     : "-"}
                 </span>{" "}
                 <span className="text-muted-foreground capitalize">
