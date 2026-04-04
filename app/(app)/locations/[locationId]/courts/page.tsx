@@ -173,6 +173,7 @@ export default function LocationCourtsPage() {
               locationTimezone={venueTz}
               prefill={prefill}
               onPrefillConsumed={clearPrefill}
+              userCourtBookings={myBookings}
             />
           </div>
           <LocationMyBookingsSidebar

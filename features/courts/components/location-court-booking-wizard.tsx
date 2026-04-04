@@ -33,6 +33,7 @@ import { format, parse } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import { cn } from "@/lib/utils";
 import type { CourtSlotApi } from "@/types/api";
+import type { CourtBooking } from "@/types";
 import { ApiError } from "@/lib/api";
 import { motion } from "framer-motion";
 
@@ -52,6 +53,10 @@ const TIME_OPTIONS: string[] = (() => {
   }
   return out;
 })();
+
+/** Default time window shown in “Search for available times” (must exist in TIME_OPTIONS). */
+const DEFAULT_TIME_FROM = "08:00";
+const DEFAULT_TIME_TO = "11:00";
 
 /** Public booking activity order (Tennis → Pickleball → Ball Machine). */
 const ACTIVITY_ORDER = ["tennis", "pickleball", "ball-machine"] as const;
@@ -99,6 +104,21 @@ function toMinutes(t: string) {
   return h * 60 + m;
 }
 
+/** Active (non-cancelled) court booking on this calendar day, excluding the row being rescheduled. */
+function hasOtherCourtBookingOnDate(
+  bookings: CourtBooking[] | undefined,
+  ymd: string,
+  excludeBookingId: string | null,
+): boolean {
+  if (!bookings?.length) return false;
+  return bookings.some(
+    (b) =>
+      b.bookingStatus !== "cancelled" &&
+      b.bookingDate.slice(0, 10) === ymd &&
+      b.id !== excludeBookingId,
+  );
+}
+
 export function LocationCourtBookingWizard({
   locationId,
   areaId,
@@ -106,6 +126,7 @@ export function LocationCourtBookingWizard({
   locationTimezone,
   prefill,
   onPrefillConsumed,
+  userCourtBookings,
 }: {
   locationId: string;
   areaId?: string;
@@ -113,6 +134,8 @@ export function LocationCourtBookingWizard({
   locationTimezone: string;
   prefill?: LocationBookingPrefill | null;
   onPrefillConsumed?: () => void;
+  /** Used to enforce one booking per day before Search (server enforces on confirm). */
+  userCourtBookings?: CourtBooking[];
 }) {
   const tz = locationTimezone || "UTC";
   const { user } = useAuth();
@@ -136,8 +159,8 @@ export function LocationCourtBookingWizard({
   const [sport, setSport] = useState<Sport | null>(null);
   const [courtType, setCourtType] = useState<CourtType | null>(null);
   const [durationMinutes, setDurationMinutes] = useState<number | null>(null);
-  const [timeFrom, setTimeFrom] = useState<string | null>(null);
-  const [timeTo, setTimeTo] = useState<string | null>(null);
+  const [timeFrom, setTimeFrom] = useState<string | null>(DEFAULT_TIME_FROM);
+  const [timeTo, setTimeTo] = useState<string | null>(DEFAULT_TIME_TO);
   /** User clicked Search — show inline validation for empty fields. */
   const [searchAttempted, setSearchAttempted] = useState(false);
   /** Last successful Search — fetch slots and show grid until filters change. */
@@ -173,7 +196,14 @@ export function LocationCourtBookingWizard({
 
   useEffect(() => {
     if (!timeFrom || !timeTo) return;
-    if (toMinutes(timeTo) <= toMinutes(timeFrom)) setTimeTo(null);
+    if (toMinutes(timeTo) <= toMinutes(timeFrom)) {
+      const later = TIME_OPTIONS.filter(
+        (t) => toMinutes(t) > toMinutes(timeFrom),
+      );
+      setTimeTo(
+        later[0] ?? TIME_OPTIONS[TIME_OPTIONS.length - 1] ?? DEFAULT_TIME_TO,
+      );
+    }
   }, [timeFrom, timeTo]);
 
   // Clear selection when filters change (skip once after prefill applies — same render updates all filters)
@@ -435,6 +465,18 @@ export function LocationCourtBookingWizard({
     if (durationMinutes == null) return;
     if (!timeFrom || !timeTo) return;
     if (toMinutes(timeTo) <= toMinutes(timeFrom)) return;
+    if (
+      hasOtherCourtBookingOnDate(
+        userCourtBookings,
+        bookingDate,
+        editingBookingId,
+      )
+    ) {
+      toast.error(
+        "You already have a court booking on this date. Only one booking per day is allowed.",
+      );
+      return;
+    }
     setSearchCommitted(true);
     setAppliedTimeFrom(timeFrom);
     setAppliedTimeTo(timeTo);
@@ -447,6 +489,8 @@ export function LocationCourtBookingWizard({
     durationMinutes,
     timeFrom,
     timeTo,
+    userCourtBookings,
+    editingBookingId,
   ]);
 
   useEffect(() => {
@@ -544,8 +588,8 @@ export function LocationCourtBookingWizard({
     setCourtType(null);
     setDurationMinutes(null);
     setBookingDate(null);
-    setTimeFrom(null);
-    setTimeTo(null);
+    setTimeFrom(DEFAULT_TIME_FROM);
+    setTimeTo(DEFAULT_TIME_TO);
     setSearchAttempted(false);
     setSearchCommitted(false);
     setAppliedTimeFrom(null);
@@ -755,20 +799,20 @@ export function LocationCourtBookingWizard({
             </div>
 
             <div className="space-y-1.5 w-full">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-2 w-full">
-                <span className="text-sm font-bold text-foreground shrink-0 max-w-[min(100%,11rem)] leading-tight sm:max-w-none">
+              <div className="flex w-full flex-wrap items-center gap-x-2 gap-y-2 min-[1600px]:flex-nowrap">
+                <span className="text-sm font-bold text-foreground shrink-0 basis-full min-[1600px]:basis-auto">
                   Search for available times:
                 </span>
                 <span className="text-xs font-semibold text-muted-foreground shrink-0">
                   From
                 </span>
-                <div className="w-full min-w-[9rem] flex-1 sm:w-auto sm:min-w-[10rem]">
+                <div className="min-w-[9rem] w-36 shrink-0 sm:w-40">
                   <Select
                     value={timeFrom ?? undefined}
                     onValueChange={(v) => setTimeFrom(v)}
                   >
                     <SelectTrigger className="h-9 w-full text-xs rounded-lg">
-                      <SelectValue placeholder="Start" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {TIME_OPTIONS.map((t) => (
@@ -782,13 +826,13 @@ export function LocationCourtBookingWizard({
                 <span className="text-xs font-semibold text-muted-foreground shrink-0">
                   To
                 </span>
-                <div className="w-full min-w-[9rem] flex-1 sm:w-auto sm:min-w-[10rem]">
+                <div className="min-w-[9rem] w-36 shrink-0 sm:w-40">
                   <Select
                     value={timeTo ?? undefined}
                     onValueChange={(v) => setTimeTo(v)}
                   >
                     <SelectTrigger className="h-9 w-full text-xs rounded-lg">
-                      <SelectValue placeholder="End" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {timeToOptions.map((t) => (
