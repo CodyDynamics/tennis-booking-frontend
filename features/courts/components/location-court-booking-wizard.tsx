@@ -807,129 +807,141 @@ export function LocationCourtBookingWizard({
             >
               Search
             </Button>
-          </div>
-        </div>
 
-        {/* ── Time slots (only after a successful Search) ── */}
-        {searchCommitted && (
-          <div className="mt-6 space-y-3 border-t border-slate-200 dark:border-slate-800 pt-5">
-            {loadingSlots && (
-              <GlobalLoadingPlaceholder minHeight="min-h-[160px]" />
-            )}
+            {/* Time slots: directly under Search, same column as filters */}
+            {searchCommitted && (
+              <div className="space-y-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+                {loadingSlots && (
+                  <GlobalLoadingPlaceholder minHeight="min-h-[160px]" />
+                )}
 
-            {slotsError && (
-              <p className="text-sm text-destructive">
-                {(slotsErr as Error)?.message ??
-                  "Could not load available slots."}
-              </p>
-            )}
+                {slotsError && (
+                  <p className="text-sm text-destructive">
+                    {(slotsErr as Error)?.message ??
+                      "Could not load available slots."}
+                  </p>
+                )}
 
-            {!loadingSlots &&
-              slotsData &&
-              slotsData.slots.length === 0 &&
-              bookingDate && (
-                <p className="text-sm text-muted-foreground">
-                  No slots available for this combination. Try a different date
-                  or duration.
-                </p>
-              )}
+                {!loadingSlots &&
+                  slotsData &&
+                  slotsData.slots.length === 0 &&
+                  bookingDate && (
+                    <p className="text-sm text-muted-foreground">
+                      No slots available for this combination. Try a different
+                      date or duration.
+                    </p>
+                  )}
 
-            {!loadingSlots &&
-              slotsData &&
-              slotsData.slots.length > 0 &&
-              filteredSlots.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  No slots overlap your selected time window. Widen the range or
-                  tap Search again.
-                </p>
-              )}
+                {!loadingSlots &&
+                  slotsData &&
+                  slotsData.slots.length > 0 &&
+                  filteredSlots.length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      No slots overlap your selected time window. Widen the
+                      range or tap Search again.
+                    </p>
+                  )}
 
-            {!loadingSlots && filteredSlots.length > 0 && sport && courtType && bookingDate && (
-              <div className="space-y-1.5">
-                <p className="text-xs text-muted-foreground leading-snug">
-                  Select a time slot. A court will be automatically assigned.
-                </p>
+                {!loadingSlots &&
+                  filteredSlots.length > 0 &&
+                  sport &&
+                  courtType &&
+                  bookingDate && (
+                    <div className="space-y-2 rounded-xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-950/30 p-3">
+                      <p className="text-xs text-muted-foreground leading-snug">
+                        Select a time slot. A court will be automatically
+                        assigned.
+                      </p>
 
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
-                  {filteredSlots.map((slot) => {
-                    const key = slotHoldKey(
-                      sport,
-                      courtType,
-                      bookingDate,
-                      slot.startTime,
-                      slot.endTime,
-                    );
-                    const isSelected =
-                      myHoldKey === key ||
-                      (selectedSlot?.startTime === slot.startTime &&
-                        selectedSlot?.endTime === slot.endTime);
-                    const holdCount = holdCounts[key] ?? 0;
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                        {filteredSlots.map((slot) => {
+                          const key = slotHoldKey(
+                            sport,
+                            courtType,
+                            bookingDate,
+                            slot.startTime,
+                            slot.endTime,
+                          );
+                          const isSelected =
+                            myHoldKey === key ||
+                            (selectedSlot?.startTime === slot.startTime &&
+                              selectedSlot?.endTime === slot.endTime);
+                          const holdCount = holdCounts[key] ?? 0;
 
-                    const slotStart = toMinutes(slot.startTime);
-                    const slotEnd = toMinutes(slot.endTime);
-                    const events: Array<{ t: number; delta: number }> = [];
-                    for (const h of currentIntervalHolds) {
-                      const overlapStart = Math.max(slotStart, h.start);
-                      const overlapEnd = Math.min(slotEnd, h.end);
-                      if (overlapStart < overlapEnd) {
-                        events.push({ t: overlapStart, delta: h.count });
-                        events.push({ t: overlapEnd, delta: -h.count });
-                      }
-                    }
-                    events.sort((a, b) =>
-                      a.t === b.t ? a.delta - b.delta : a.t - b.t,
-                    );
-                    let active = 0;
-                    let maxConcurrentHolds = 0;
-                    for (const e of events) {
-                      active += e.delta;
-                      if (active > maxConcurrentHolds)
-                        maxConcurrentHolds = active;
-                    }
+                          const slotStart = toMinutes(slot.startTime);
+                          const slotEnd = toMinutes(slot.endTime);
+                          const events: Array<{ t: number; delta: number }> =
+                            [];
+                          for (const h of currentIntervalHolds) {
+                            const overlapStart = Math.max(slotStart, h.start);
+                            const overlapEnd = Math.min(slotEnd, h.end);
+                            if (overlapStart < overlapEnd) {
+                              events.push({
+                                t: overlapStart,
+                                delta: h.count,
+                              });
+                              events.push({
+                                t: overlapEnd,
+                                delta: -h.count,
+                              });
+                            }
+                          }
+                          events.sort((a, b) =>
+                            a.t === b.t ? a.delta - b.delta : a.t - b.t,
+                          );
+                          let active = 0;
+                          let maxConcurrentHolds = 0;
+                          for (const e of events) {
+                            active += e.delta;
+                            if (active > maxConcurrentHolds)
+                              maxConcurrentHolds = active;
+                          }
 
-                    const realAvailable = Math.max(
-                      0,
-                      slot.availableCount - maxConcurrentHolds,
-                    );
-                    const isFull = realAvailable <= 0 && !isSelected;
+                          const realAvailable = Math.max(
+                            0,
+                            slot.availableCount - maxConcurrentHolds,
+                          );
+                          const isFull = realAvailable <= 0 && !isSelected;
 
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        disabled={isFull}
-                        onClick={() => !isFull && handleSelectSlot(slot)}
-                        className={cn(
-                          "relative rounded-lg border p-2 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                          isSelected
-                            ? "bg-primary hover:bg-primary-hover text-primary-foreground border-primary shadow-sm scale-[1.02]"
-                            : isFull
-                              ? "bg-slate-100 dark:bg-slate-800 text-muted-foreground border-slate-200 dark:border-slate-700 opacity-60 cursor-not-allowed"
-                              : "bg-background border-slate-200 dark:border-slate-700 hover:border-primary hover:shadow-sm cursor-pointer",
-                        )}
-                      >
-                        <div className="font-semibold text-xs leading-tight">
-                          {formatTimeAmPm(slot.startTime)}
-                        </div>
-                        {holdCount > 0 && !isFull && (
-                          <div
-                            className={cn(
-                              "absolute top-1 right-1 h-1.5 w-1.5 rounded-full",
-                              isSelected
-                                ? "bg-primary-foreground/70"
-                                : "bg-amber-400",
-                            )}
-                            title={`${holdCount} user${holdCount > 1 ? "s" : ""} holding`}
-                          />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              disabled={isFull}
+                              onClick={() => !isFull && handleSelectSlot(slot)}
+                              className={cn(
+                                "relative rounded-lg border p-2 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                                isSelected
+                                  ? "bg-primary hover:bg-primary-hover text-primary-foreground border-primary shadow-sm scale-[1.02]"
+                                  : isFull
+                                    ? "bg-slate-100 dark:bg-slate-800 text-muted-foreground border-slate-200 dark:border-slate-700 opacity-60 cursor-not-allowed"
+                                    : "bg-background border-slate-200 dark:border-slate-700 hover:border-primary hover:shadow-sm cursor-pointer",
+                              )}
+                            >
+                              <div className="font-semibold text-xs leading-tight">
+                                {formatTimeAmPm(slot.startTime)}
+                              </div>
+                              {holdCount > 0 && !isFull && (
+                                <div
+                                  className={cn(
+                                    "absolute top-1 right-1 h-1.5 w-1.5 rounded-full",
+                                    isSelected
+                                      ? "bg-primary-foreground/70"
+                                      : "bg-amber-400",
+                                  )}
+                                  title={`${holdCount} user${holdCount > 1 ? "s" : ""} holding`}
+                                />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
               </div>
             )}
           </div>
-        )}
+        </div>
 
         {bookError && (
           <p className="text-sm text-destructive font-medium mt-3">
