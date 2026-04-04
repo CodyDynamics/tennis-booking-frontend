@@ -342,7 +342,7 @@ export function CourtBookingModal({
                           type="button"
                           variant={isSelected ? "default" : "outline"}
                           className={`h-auto flex-col gap-0.5 rounded-xl py-3 ${isSelected
-                              ? "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/25"
+                              ? "bg-primary hover:bg-primary-hover text-primary-foreground shadow-md ring-2 ring-primary/25"
                               : "border-dashed hover:border-primary/40 hover:bg-primary/5"
                             }`}
                           onClick={() => {
@@ -374,7 +374,7 @@ export function CourtBookingModal({
                               setDuration(d);
                               setSelectedBlock(null);
                             }}
-                            className={`min-w-[4.5rem] rounded-full px-4 font-bold ${duration === d ? "bg-primary shadow-sm" : "border-muted-foreground/20"
+                            className={`min-w-[4.5rem] rounded-full px-4 font-bold ${duration === d ? "bg-primary hover:bg-primary-hover shadow-sm" : "border-muted-foreground/20"
                               }`}
                           >
                             {d} min
@@ -408,7 +408,7 @@ export function CourtBookingModal({
                                   variant={isSelected ? "default" : "outline"}
                                   className={
                                     isSelected
-                                      ? "rounded-xl border-transparent bg-primary text-primary-foreground shadow-md"
+                                      ? "rounded-xl border-transparent bg-primary hover:bg-primary-hover text-primary-foreground shadow-md"
                                       : "rounded-xl border-dashed hover:border-primary/50 hover:bg-primary/5"
                                   }
                                   onClick={() => setSelectedBlock(block)}
@@ -482,7 +482,7 @@ export function CourtBookingModal({
             </Button>
             <Button
               type="submit"
-              className="w-full rounded-full bg-primary px-10 py-6 text-base font-bold shadow-brand transition-all hover:opacity-95 sm:min-w-[220px]"
+              className="w-full rounded-full bg-primary px-10 py-6 text-base font-bold shadow-brand transition-all hover:bg-primary-hover sm:min-w-[220px]"
               disabled={!selectedBlock || createBooking.isPending}
               aria-busy={createBooking.isPending}
             >

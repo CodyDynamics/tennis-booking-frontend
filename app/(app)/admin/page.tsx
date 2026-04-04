@@ -53,13 +53,13 @@ type SportBarRow = { sportKey: string; name: string; value: number };
 
 type DashboardDrillSpec =
   | {
-      kind: "sport";
-      sport: string;
-      dimension: "role" | "bookingType" | "accountType";
-      value: string;
-      segmentCount: number;
-      heading: string;
-    }
+    kind: "sport";
+    sport: string;
+    dimension: "role" | "bookingType" | "accountType";
+    value: string;
+    segmentCount: number;
+    heading: string;
+  }
   | { kind: "kpi"; metric: string; heading: string; totalHint: number }
   | { kind: "day"; date: string; heading: string; countHint: number };
 
@@ -144,7 +144,7 @@ function KpiCard({
   const className = cn(
     "relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900",
     onActivate &&
-      "cursor-pointer text-left transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-950",
+    "cursor-pointer text-left transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-950",
   );
   if (onActivate) {
     return (
@@ -586,327 +586,327 @@ export default function AdminOverviewPage() {
       )}
 
       <AnimatePresence mode="wait">
-      {metrics && (
-      <motion.div
-        key={mode}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -6 }}
-        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-        className="space-y-8"
-      >
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        <KpiCard
-          label="Active users"
-          value={metrics.totals.usersActive.toLocaleString()}
-          icon={Users}
-          delay={0.05}
-          accent="bg-gradient-to-br from-sky-500 to-blue-600"
-          onActivate={() =>
-            openDashboardDrill({
-              kind: "kpi",
-              metric: "usersActive",
-              heading: "Active users",
-              totalHint: metrics.totals.usersActive,
-            })
-          }
-        />
-        <KpiCard
-          label="Courts"
-          value={metrics.totals.courts}
-          icon={Activity}
-          delay={0.1}
-          accent="bg-gradient-to-br from-emerald-500 to-teal-600"
-          onActivate={() =>
-            openDashboardDrill({
-              kind: "kpi",
-              metric: "courts",
-              heading: "Courts",
-              totalHint: metrics.totals.courts,
-            })
-          }
-        />
-        <KpiCard
-          label="Locations"
-          value={metrics.totals.locations}
-          icon={MapPin}
-          delay={0.15}
-          accent="bg-gradient-to-br from-violet-500 to-purple-600"
-          onActivate={() =>
-            openDashboardDrill({
-              kind: "kpi",
-              metric: "locations",
-              heading: "Locations",
-              totalHint: metrics.totals.locations,
-            })
-          }
-        />
-        <KpiCard
-          label="Open court bookings"
-          value={metrics.totals.courtBookingsOpen}
-          icon={CalendarCheck}
-          delay={0.2}
-          accent="bg-gradient-to-br from-sky-500 to-blue-600"
-          onActivate={() =>
-            openDashboardDrill({
-              kind: "kpi",
-              metric: "courtBookingsOpen",
-              heading: "Open court bookings",
-              totalHint: metrics.totals.courtBookingsOpen,
-            })
-          }
-        />
-        <KpiCard
-          label="Coach sessions (scheduled)"
-          value={metrics.totals.coachSessionsScheduled}
-          icon={BarChart3}
-          delay={0.25}
-          accent="bg-gradient-to-br from-cyan-500 to-blue-500"
-          onActivate={() =>
-            openDashboardDrill({
-              kind: "kpi",
-              metric: "coachSessionsScheduled",
-              heading: "Coach sessions (scheduled)",
-              totalHint: metrics.totals.coachSessionsScheduled,
-            })
-          }
-        />
-        <KpiCard
-          label="Coaches"
-          value={metrics.totals.coaches}
-          icon={Users}
-          delay={0.3}
-          accent="bg-gradient-to-br from-fuchsia-500 to-pink-600"
-          onActivate={() =>
-            openDashboardDrill({
-              kind: "kpi",
-              metric: "coaches",
-              heading: "Coaches",
-              totalHint: metrics.totals.coaches,
-            })
-          }
-        />
-        <KpiCard
-          label="Revenue (14 days)"
-          value={`$${metrics.totals.revenue14d.toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}`}
-          icon={DollarSign}
-          delay={0.35}
-          accent="bg-gradient-to-br from-lime-500 to-emerald-600"
-          onActivate={() =>
-            openDashboardDrill({
-              kind: "kpi",
-              metric: "revenue14d",
-              heading: "Revenue (14 days) — bookings",
-              totalHint: Math.max(1, Math.floor(metrics.totals.revenue14d / 40)),
-            })
-          }
-        />
-      </div>
-
-      <div className="grid gap-8 lg:grid-cols-5">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-          className="lg:col-span-3 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-900"
-        >
-          <div className="mb-6 flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Court bookings / day</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                Last 14 days (non-cancelled) — click a point to list that day&apos;s bookings
-              </p>
+        {metrics && (
+          <motion.div
+            key={mode}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            className="space-y-8"
+          >
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <KpiCard
+                label="Active users"
+                value={metrics.totals.usersActive.toLocaleString()}
+                icon={Users}
+                delay={0.05}
+                accent="bg-gradient-to-br from-sky-500 to-blue-600"
+                onActivate={() =>
+                  openDashboardDrill({
+                    kind: "kpi",
+                    metric: "usersActive",
+                    heading: "Active users",
+                    totalHint: metrics.totals.usersActive,
+                  })
+                }
+              />
+              <KpiCard
+                label="Courts"
+                value={metrics.totals.courts}
+                icon={Activity}
+                delay={0.1}
+                accent="bg-gradient-to-br from-emerald-500 to-teal-600"
+                onActivate={() =>
+                  openDashboardDrill({
+                    kind: "kpi",
+                    metric: "courts",
+                    heading: "Courts",
+                    totalHint: metrics.totals.courts,
+                  })
+                }
+              />
+              <KpiCard
+                label="Locations"
+                value={metrics.totals.locations}
+                icon={MapPin}
+                delay={0.15}
+                accent="bg-gradient-to-br from-violet-500 to-purple-600"
+                onActivate={() =>
+                  openDashboardDrill({
+                    kind: "kpi",
+                    metric: "locations",
+                    heading: "Locations",
+                    totalHint: metrics.totals.locations,
+                  })
+                }
+              />
+              <KpiCard
+                label="Open court bookings"
+                value={metrics.totals.courtBookingsOpen}
+                icon={CalendarCheck}
+                delay={0.2}
+                accent="bg-gradient-to-br from-sky-500 to-blue-600"
+                onActivate={() =>
+                  openDashboardDrill({
+                    kind: "kpi",
+                    metric: "courtBookingsOpen",
+                    heading: "Open court bookings",
+                    totalHint: metrics.totals.courtBookingsOpen,
+                  })
+                }
+              />
+              <KpiCard
+                label="Coach sessions (scheduled)"
+                value={metrics.totals.coachSessionsScheduled}
+                icon={BarChart3}
+                delay={0.25}
+                accent="bg-gradient-to-br from-cyan-500 to-blue-500"
+                onActivate={() =>
+                  openDashboardDrill({
+                    kind: "kpi",
+                    metric: "coachSessionsScheduled",
+                    heading: "Coach sessions (scheduled)",
+                    totalHint: metrics.totals.coachSessionsScheduled,
+                  })
+                }
+              />
+              <KpiCard
+                label="Coaches"
+                value={metrics.totals.coaches}
+                icon={Users}
+                delay={0.3}
+                accent="bg-gradient-to-br from-fuchsia-500 to-pink-600"
+                onActivate={() =>
+                  openDashboardDrill({
+                    kind: "kpi",
+                    metric: "coaches",
+                    heading: "Coaches",
+                    totalHint: metrics.totals.coaches,
+                  })
+                }
+              />
+              <KpiCard
+                label="Revenue (14 days)"
+                value={`$${metrics.totals.revenue14d.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}`}
+                icon={DollarSign}
+                delay={0.35}
+                accent="bg-gradient-to-br from-lime-500 to-emerald-600"
+                onActivate={() =>
+                  openDashboardDrill({
+                    kind: "kpi",
+                    metric: "revenue14d",
+                    heading: "Revenue (14 days) — bookings",
+                    totalHint: Math.max(1, Math.floor(metrics.totals.revenue14d / 40)),
+                  })
+                }
+              />
             </div>
-          </div>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={metrics.dailyCourtBookings}>
-                <defs>
-                  <linearGradient id="fillBookings" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200 dark:stroke-slate-700" />
-                <XAxis
-                  dataKey="date"
-                  tick={{ fontSize: 11 }}
-                  tickFormatter={(v) => v.slice(5)}
-                  stroke="#94a3b8"
-                />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#94a3b8" />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: 12,
-                    border: "1px solid #e2e8f0",
-                    boxShadow: "0 10px 40px rgba(15,23,42,0.08)",
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="count"
-                  name="Bookings"
-                  stroke="#2563eb"
-                  strokeWidth={2}
-                  fill="url(#fillBookings)"
-                  dot={(dotProps: {
-                    cx?: number;
-                    cy?: number;
-                    payload?: { date?: string };
-                  }) => {
-                    const { cx, cy, payload } = dotProps;
-                    if (cx == null || cy == null) return <g />;
-                    return (
-                      <circle
-                        cx={cx}
-                        cy={cy}
-                        r={4}
-                        fill="#2563eb"
-                        stroke="#fff"
-                        strokeWidth={1}
-                        className="cursor-pointer"
-                        onClick={() =>
-                          payload?.date && handleBookingsDayDrill(payload.date)
-                        }
+
+            <div className="grid gap-8 lg:grid-cols-5">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35 }}
+                className="lg:col-span-3 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-900"
+              >
+                <div className="mb-6 flex items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">Court bookings / day</h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      Last 14 days (non-cancelled) — click a point to list that day&apos;s bookings
+                    </p>
+                  </div>
+                </div>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={metrics.dailyCourtBookings}>
+                      <defs>
+                        <linearGradient id="fillBookings" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.35} />
+                          <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200 dark:stroke-slate-700" />
+                      <XAxis
+                        dataKey="date"
+                        tick={{ fontSize: 11 }}
+                        tickFormatter={(v) => v.slice(5)}
+                        stroke="#94a3b8"
                       />
-                    );
-                  }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </motion.div>
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                      <Tooltip
+                        contentStyle={{
+                          borderRadius: 12,
+                          border: "1px solid #e2e8f0",
+                          boxShadow: "0 10px 40px rgba(15,23,42,0.08)",
+                        }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="count"
+                        name="Bookings"
+                        stroke="#2563eb"
+                        strokeWidth={2}
+                        fill="url(#fillBookings)"
+                        dot={(dotProps: {
+                          cx?: number;
+                          cy?: number;
+                          payload?: { date?: string };
+                        }) => {
+                          const { cx, cy, payload } = dotProps;
+                          if (cx == null || cy == null) return <g />;
+                          return (
+                            <circle
+                              cx={cx}
+                              cy={cy}
+                              r={4}
+                              fill="#2563eb"
+                              stroke="#fff"
+                              strokeWidth={1}
+                              className="cursor-pointer"
+                              onClick={() =>
+                                payload?.date && handleBookingsDayDrill(payload.date)
+                              }
+                            />
+                          );
+                        }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.42 }}
-          className="lg:col-span-2 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-900"
-        >
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">By sport</h2>
-          <p className="mb-1 text-sm text-slate-500 dark:text-slate-400">
-            Last 14 days, non-cancelled — click a bar for role and booking-type breakdown
-          </p>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={pieData} layout="vertical" margin={{ left: 8, right: 16 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200 dark:stroke-slate-700" />
-                <XAxis type="number" allowDecimals={false} stroke="#94a3b8" />
-                <YAxis type="category" dataKey="name" width={88} tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: 12,
-                    border: "1px solid #e2e8f0",
-                  }}
-                />
-                <Bar
-                  dataKey="value"
-                  name="Bookings"
-                  radius={[0, 8, 8, 0]}
-                  className="cursor-pointer outline-none"
-                  onClick={(entry: unknown, index?: number) => {
-                    let row = parseSportBarClickEntry(entry);
-                    if (!row && typeof index === "number" && pieData[index]) {
-                      const d = pieData[index];
-                      row = { sportKey: d.sportKey, name: d.name, value: d.value };
-                    }
-                    if (row) setSportSelection({ key: row.sportKey, label: row.name });
-                  }}
-                >
-                  {pieData.map((_, i) => (
-                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </motion.div>
-      </div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.42 }}
+                className="lg:col-span-2 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-900"
+              >
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white">By sport</h2>
+                <p className="mb-1 text-sm text-slate-500 dark:text-slate-400">
+                  Last 14 days, non-cancelled — click a bar for role and booking-type breakdown
+                </p>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={pieData} layout="vertical" margin={{ left: 8, right: 16 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200 dark:stroke-slate-700" />
+                      <XAxis type="number" allowDecimals={false} stroke="#94a3b8" />
+                      <YAxis type="category" dataKey="name" width={88} tick={{ fontSize: 12 }} stroke="#94a3b8" />
+                      <Tooltip
+                        contentStyle={{
+                          borderRadius: 12,
+                          border: "1px solid #e2e8f0",
+                        }}
+                      />
+                      <Bar
+                        dataKey="value"
+                        name="Bookings"
+                        radius={[0, 8, 8, 0]}
+                        className="cursor-pointer outline-none"
+                        onClick={(entry: unknown, index?: number) => {
+                          let row = parseSportBarClickEntry(entry);
+                          if (!row && typeof index === "number" && pieData[index]) {
+                            const d = pieData[index];
+                            row = { sportKey: d.sportKey, name: d.name, value: d.value };
+                          }
+                          if (row) setSportSelection({ key: row.sportKey, label: row.name });
+                        }}
+                      >
+                        {pieData.map((_, i) => (
+                          <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </motion.div>
+            </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.08 }}
-        className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-900"
-      >
-        <div className="mb-4">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Court revenue / day</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Sum of booking totals (last 14 days, non-cancelled) — click a point for that day&apos;s
-            bookings
-          </p>
-        </div>
-        <div className="h-[280px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={metrics.dailyRevenue}>
-              <defs>
-                <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10b981" stopOpacity={0.4} />
-                  <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200 dark:stroke-slate-700" />
-              <XAxis
-                dataKey="date"
-                tick={{ fontSize: 11 }}
-                tickFormatter={(v) => v.slice(5)}
-                stroke="#94a3b8"
-              />
-              <YAxis
-                tick={{ fontSize: 11 }}
-                stroke="#94a3b8"
-                tickFormatter={(v) => `$${v}`}
-              />
-              <Tooltip
-                contentStyle={{
-                  borderRadius: 12,
-                  border: "1px solid #e2e8f0",
-                  boxShadow: "0 10px 40px rgba(15,23,42,0.08)",
-                }}
-                formatter={(value: number) => [
-                  `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                  "Revenue",
-                ]}
-              />
-              <Area
-                type="monotone"
-                dataKey="revenue"
-                name="Revenue"
-                stroke="#059669"
-                strokeWidth={2}
-                fill="url(#fillRevenue)"
-                dot={(dotProps: {
-                  cx?: number;
-                  cy?: number;
-                  payload?: { date?: string };
-                }) => {
-                  const { cx, cy, payload } = dotProps;
-                  if (cx == null || cy == null) return <g />;
-                  return (
-                    <circle
-                      cx={cx}
-                      cy={cy}
-                      r={4}
-                      fill="#059669"
-                      stroke="#fff"
-                      strokeWidth={1}
-                      className="cursor-pointer"
-                      onClick={() =>
-                        payload?.date && handleRevenueDayDrill(payload.date)
-                      }
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.08 }}
+              className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-900"
+            >
+              <div className="mb-4">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white">Court revenue / day</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Sum of booking totals (last 14 days, non-cancelled) — click a point for that day&apos;s
+                  bookings
+                </p>
+              </div>
+              <div className="h-[280px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={metrics.dailyRevenue}>
+                    <defs>
+                      <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" stopOpacity={0.4} />
+                        <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200 dark:stroke-slate-700" />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 11 }}
+                      tickFormatter={(v) => v.slice(5)}
+                      stroke="#94a3b8"
                     />
-                  );
-                }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </motion.div>
-      </motion.div>
-      )}
+                    <YAxis
+                      tick={{ fontSize: 11 }}
+                      stroke="#94a3b8"
+                      tickFormatter={(v) => `$${v}`}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: 12,
+                        border: "1px solid #e2e8f0",
+                        boxShadow: "0 10px 40px rgba(15,23,42,0.08)",
+                      }}
+                      formatter={(value: number) => [
+                        `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                        "Revenue",
+                      ]}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="revenue"
+                      name="Revenue"
+                      stroke="#059669"
+                      strokeWidth={2}
+                      fill="url(#fillRevenue)"
+                      dot={(dotProps: {
+                        cx?: number;
+                        cy?: number;
+                        payload?: { date?: string };
+                      }) => {
+                        const { cx, cy, payload } = dotProps;
+                        if (cx == null || cy == null) return <g />;
+                        return (
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r={4}
+                            fill="#059669"
+                            stroke="#fff"
+                            strokeWidth={1}
+                            className="cursor-pointer"
+                            onClick={() =>
+                              payload?.date && handleRevenueDayDrill(payload.date)
+                            }
+                          />
+                        );
+                      }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       <AnimatePresence>
@@ -1100,9 +1100,9 @@ export default function AdminOverviewPage() {
         description={listDrillDialogData?.description}
         loading={Boolean(
           drillOpen &&
-            drillSpec &&
-            drillSpec.kind !== "sport" &&
-            (!listDrillDialogData || listDrillDialogData.loading),
+          drillSpec &&
+          drillSpec.kind !== "sport" &&
+          (!listDrillDialogData || listDrillDialogData.loading),
         )}
         error={listDrillDialogData?.error ?? null}
         rows={listDrillDialogData?.rows ?? []}

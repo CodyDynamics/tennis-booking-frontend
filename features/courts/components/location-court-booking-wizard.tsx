@@ -245,7 +245,6 @@ export function LocationCourtBookingWizard({
     isError: slotsError,
     error: slotsErr,
     refetch,
-    isFetching,
   } = useCourtSlots(slotsParams, true);
 
   // ── Slot hold (soft-lock via WebSocket) ──────────────────────────────────
@@ -596,6 +595,11 @@ export function LocationCourtBookingWizard({
                 )}
               </div>
             </motion.div>
+            {!sport && sportOptions.length > 0 && (
+              <p className="text-sm text-destructive" role="alert">
+                Please select an activity first, then choose indoor/outdoor, date, and time.
+              </p>
+            )}
 
             {/* Duration pills */}
             <div className="space-y-1">
@@ -609,7 +613,7 @@ export function LocationCourtBookingWizard({
                     className={cn(
                       "rounded-full px-3.5 py-1.5 text-xs font-semibold border transition-all",
                       durationMinutes === d
-                        ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                        ? "bg-primary text-primary-foreground border-primary shadow-sm hover:bg-primary-hover"
                         : "bg-background text-foreground border-slate-200 dark:border-slate-700 hover:border-primary hover:text-primary",
                     )}
                   >
@@ -644,7 +648,8 @@ export function LocationCourtBookingWizard({
                   <p className="text-xs text-muted-foreground leading-snug">
                     Select a time slot. A court will be automatically assigned.
                   </p>
-                  <Button
+                  {/* Temporarily hidden — re-enable if users need manual refresh */}
+                  {/* <Button
                     type="button"
                     variant="ghost"
                     size="sm"
@@ -653,7 +658,7 @@ export function LocationCourtBookingWizard({
                     className="h-7 shrink-0 px-2 text-[11px]"
                   >
                     {isFetching ? "Refreshing…" : "↺ Refresh"}
-                  </Button>
+                  </Button> */}
                 </div>
 
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
@@ -711,7 +716,7 @@ export function LocationCourtBookingWizard({
                         className={cn(
                           "relative rounded-lg border p-2 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                           isSelected
-                            ? "bg-primary text-primary-foreground border-primary shadow-sm scale-[1.02]"
+                            ? "bg-primary hover:bg-primary-hover text-primary-foreground border-primary shadow-sm scale-[1.02]"
                             : isFull
                               ? "bg-slate-100 dark:bg-slate-800 text-muted-foreground border-slate-200 dark:border-slate-700 opacity-60 cursor-not-allowed"
                               : "bg-background border-slate-200 dark:border-slate-700 hover:border-primary hover:shadow-sm cursor-pointer",

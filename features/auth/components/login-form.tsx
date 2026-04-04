@@ -184,7 +184,7 @@ export function LoginForm({
               )}
               <Button
                 type="submit"
-                className="w-full text-md font-bold h-11 bg-primary hover:opacity-90 text-primary-foreground shadow-brand"
+                className="w-full text-md font-bold h-11 bg-primary hover:bg-primary-hover text-primary-foreground shadow-brand"
                 disabled={isLoggingIn}
                 aria-busy={isLoggingIn}
               >
@@ -296,7 +296,7 @@ export function LoginForm({
             </p>
             <Button
               type="submit"
-              className="w-full text-md font-bold h-11 bg-primary hover:opacity-90 text-primary-foreground shadow-brand"
+              className="w-full text-md font-bold h-11 bg-primary hover:bg-primary-hover text-primary-foreground shadow-brand"
               disabled={isRequestingOtp}
               aria-busy={isRequestingOtp}
             >

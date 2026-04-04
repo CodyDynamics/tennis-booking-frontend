@@ -84,7 +84,7 @@ export function Navbar() {
               // whileHover={{ rotate: 180, scale: 1.1 }}
               whileHover={{ scale: 1.1 }}
               transition={{ duration: 0.3 }}
-              className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl p-2 text-primary-foreground shadow-brand"
+              className="bg-gradient-to-br from-primary to-primary-hover rounded-xl p-2 text-primary-foreground shadow-brand"
             >
               <Activity className="h-6 w-6" />
               {/* <div className="w-10 h-10 justify-center items-center flex">
@@ -116,7 +116,7 @@ export function Navbar() {
                     className={cn(
                       "transition-all duration-300 rounded-full px-5",
                       isActive
-                        ? "bg-primary text-primary-foreground hover:opacity-90 shadow-brand"
+                        ? "bg-primary text-primary-foreground hover:bg-primary-hover shadow-brand"
                         : "text-muted-foreground hover:bg-muted"
                     )}
                   >
@@ -134,7 +134,7 @@ export function Navbar() {
                 className={cn(
                   "transition-all duration-300 rounded-full px-5",
                   pathname.startsWith("/locations/")
-                    ? "bg-primary text-primary-foreground hover:opacity-90 shadow-brand"
+                    ? "bg-primary text-primary-foreground hover:bg-primary-hover shadow-brand"
                     : "text-muted-foreground hover:bg-muted"
                 )}
                 onClick={() => setLocationOpen((o) => !o)}
@@ -226,7 +226,7 @@ export function Navbar() {
                 )}
                 {!isAuthenticated && (
                   <Link href="/login" className="ml-2">
-                    <Button className="rounded-full bg-primary hover:opacity-90 text-primary-foreground shadow-brand px-6 font-bold">
+                    <Button className="rounded-full bg-primary hover:bg-primary-hover text-primary-foreground shadow-brand px-6 font-bold">
                       Sign In <LogIn className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>
@@ -306,7 +306,7 @@ export function Navbar() {
                     </Button>
                   </Link>
                   <Link href="/login">
-                    <Button size="sm" className="rounded-full bg-primary hover:opacity-90 text-primary-foreground px-4 font-bold">
+                    <Button size="sm" className="rounded-full bg-primary hover:bg-primary-hover text-primary-foreground px-4 font-bold">
                       Sign In <LogIn className="ml-1 h-4 w-4" />
                     </Button>
                   </Link>

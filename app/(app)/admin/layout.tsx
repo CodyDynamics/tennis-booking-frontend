@@ -145,7 +145,7 @@ export default function AdminLayout({
               <motion.div
                 whileHover={{ scale: 1.06 }}
                 transition={{ duration: 0.3 }}
-                className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl p-2.5 text-primary-foreground shadow-md shadow-primary/25 ring-1 ring-primary/20"
+                className="bg-gradient-to-br from-primary to-primary-hover rounded-xl p-2.5 text-primary-foreground shadow-md shadow-primary/25 ring-1 ring-primary/20"
               >
                 <Activity className="h-6 w-6" />
               </motion.div>
@@ -173,7 +173,7 @@ export default function AdminLayout({
                     className={cn(
                       "w-full justify-start h-12 text-md transition-all rounded-xl font-medium",
                       isActive
-                        ? "bg-primary hover:bg-primary/90 text-primary-foreground shadow-md shadow-primary/20"
+                        ? "bg-primary hover:bg-primary-hover text-primary-foreground shadow-md shadow-primary/20"
                         : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                     )}
                   >

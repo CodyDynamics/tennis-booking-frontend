@@ -98,7 +98,7 @@ export function CourtCard({ court, onBook, index = 0, showBooking = true, detail
           {showBooking && onBook ? (
             <Button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); onBook(court); }}
-              className={`w-full h-12 text-md rounded-xl font-bold shadow-lg transition-transform ${isPickleball ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20 text-white" : "bg-primary hover:opacity-90 text-primary-foreground shadow-brand"} group-hover:scale-[1.02] active:scale-95`}
+              className={`w-full h-12 text-md rounded-xl font-bold shadow-lg transition-transform ${isPickleball ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20 text-white" : "bg-primary hover:bg-primary-hover text-primary-foreground shadow-brand"} group-hover:scale-[1.02] active:scale-95`}
               disabled={court.status !== "active"}
             >
               <Calendar className="mr-2 h-5 w-5" />

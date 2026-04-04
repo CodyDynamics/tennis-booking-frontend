@@ -103,7 +103,7 @@ export function Calendar({
                 "hover:bg-accent hover:text-accent-foreground",
                 "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
                 disabled && "opacity-50 cursor-not-allowed",
-                selected && "bg-primary text-primary-foreground hover:bg-primary/90",
+                selected && "bg-primary text-primary-foreground hover:bg-primary-hover",
                 today && !selected && "bg-blue-100 text-blue-900 font-semibold",
                 !disabled && !selected && !today && "hover:bg-blue-50"
               )}
