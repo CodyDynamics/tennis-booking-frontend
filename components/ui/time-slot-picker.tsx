@@ -52,7 +52,7 @@ export function TimeSlotPicker({
   return (
     <div className={cn("space-y-2", className)}>
       <label className="text-sm font-medium">Select Time</label>
-      <div className="grid grid-cols-4 gap-2 max-h-64 overflow-y-auto p-2 border rounded-lg">
+      <div className="scrollbar-app grid grid-cols-4 gap-2 max-h-64 overflow-y-auto p-2 border rounded-lg">
         {timeSlots.map((slot) => {
           const isSelected = selectedTime === slot.time;
           const isDisabled = !slot.available;

@@ -105,32 +105,60 @@
     background: hsl(var(--primary) / 0.75);
   }
 
-  /* Admin / dialogs — slim neutral scrollbar (avoids heavy browser default) */
+  /**
+   * Themed scrollbar — add `scrollbar-app` on any `overflow-y-auto` / `overflow-auto` region.
+   * Legacy alias: `.scrollbar-dialog` (same rules).
+   */
+  .scrollbar-app,
   .scrollbar-dialog {
     scrollbar-width: thin;
-    scrollbar-color: hsl(215 16% 55% / 0.35) transparent;
+    scrollbar-color: hsl(var(--primary) / 0.45) hsl(var(--muted));
   }
+  .scrollbar-app::-webkit-scrollbar,
   .scrollbar-dialog::-webkit-scrollbar {
-    width: 6px;
+    width: 8px;
+    height: 8px;
   }
+  .scrollbar-app::-webkit-scrollbar-track,
   .scrollbar-dialog::-webkit-scrollbar-track {
-    background: transparent;
-    margin: 8px 0;
-  }
-  .scrollbar-dialog::-webkit-scrollbar-thumb {
-    background: hsl(215 16% 50% / 0.28);
+    background: hsl(var(--muted) / 0.85);
     border-radius: 9999px;
+    margin: 4px 0;
   }
+  .scrollbar-app::-webkit-scrollbar-thumb,
+  .scrollbar-dialog::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+      180deg,
+      hsl(var(--primary) / 0.55),
+      hsl(var(--primary) / 0.3)
+    );
+    border-radius: 9999px;
+    border: 2px solid hsl(var(--muted));
+  }
+  .scrollbar-app::-webkit-scrollbar-thumb:hover,
   .scrollbar-dialog::-webkit-scrollbar-thumb:hover {
-    background: hsl(215 16% 40% / 0.45);
+    background: hsl(var(--primary) / 0.72);
+    border-color: hsl(var(--muted));
   }
+  .dark .scrollbar-app,
   .dark .scrollbar-dialog {
-    scrollbar-color: hsl(215 20% 55% / 0.35) transparent;
+    scrollbar-color: hsl(var(--primary) / 0.4) hsl(222 20% 14%);
   }
+  .dark .scrollbar-app::-webkit-scrollbar-track,
+  .dark .scrollbar-dialog::-webkit-scrollbar-track {
+    background: hsl(222 20% 14%);
+  }
+  .dark .scrollbar-app::-webkit-scrollbar-thumb,
   .dark .scrollbar-dialog::-webkit-scrollbar-thumb {
-    background: hsl(215 20% 50% / 0.32);
+    background: linear-gradient(
+      180deg,
+      hsl(var(--primary) / 0.5),
+      hsl(var(--primary) / 0.25)
+    );
+    border-color: hsl(222 20% 14%);
   }
+  .dark .scrollbar-app::-webkit-scrollbar-thumb:hover,
   .dark .scrollbar-dialog::-webkit-scrollbar-thumb:hover {
-    background: hsl(215 20% 60% / 0.5);
+    background: hsl(var(--primary) / 0.7);
   }
 }

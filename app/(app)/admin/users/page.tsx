@@ -573,12 +573,12 @@ export default function AdminUsersPage() {
       </Card>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[85vh] max-w-2xl flex-col overflow-hidden">
+          <DialogHeader className="shrink-0 pr-10">
             <DialogTitle>{editingUser ? "Edit User" : "Create User"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="min-h-0 flex flex-col gap-4">
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-2 py-2 pr-3">
+            <div className="scrollbar-app min-h-0 flex-1 space-y-4 overflow-y-auto px-2 py-2 pr-3">
               {submitError && (
                 <p className="text-sm text-destructive">
                   {Array.isArray(submitError.body?.message)

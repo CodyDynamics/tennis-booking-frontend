@@ -161,7 +161,7 @@ export default function AdminLayout({
             {/* <SportSelector /> */}
           </div>
 
-          <nav className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-4 py-8">
+          <nav className="scrollbar-app min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-4 py-8">
             <p className="px-4 text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Administration</p>
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -203,7 +203,7 @@ export default function AdminLayout({
           </div>
         </aside>
 
-        <main className="relative min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain bg-slate-50 dark:bg-slate-950">
+        <main className="scrollbar-app relative min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain bg-slate-50 dark:bg-slate-950">
           <div className="absolute top-0 left-0 right-0 h-64 bg-gradient-to-b from-blue-100/50 to-transparent dark:from-blue-900/10 pointer-events-none z-0"></div>
           <div className="container py-6 px-8 lg:px-12 relative z-10 max-w-[100%]">
             {children}

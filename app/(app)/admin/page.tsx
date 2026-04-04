@@ -25,9 +25,14 @@ import {
 } from "@/lib/admin-dashboard-mock";
 import { api } from "@/lib/api";
 import { DashboardDrilldownDialog } from "@/components/admin/dashboard-drilldown-dialog";
+import { SportBookersDrilldownDialog } from "@/components/admin/sport-bookers-drilldown-dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { DashboardMetricsApi, SportBookingBreakdownApi } from "@/types/api";
+import type {
+  AdminSportDrilldownItemApi,
+  DashboardMetricsApi,
+  SportBookingBreakdownApi,
+} from "@/types/api";
 import {
   Activity,
   BarChart3,
@@ -279,33 +284,88 @@ export default function AdminOverviewPage() {
     setDrillPage(0);
   }, [drillSpec]);
 
-  const drillDialogData = useMemo(() => {
-    if (!drillOpen || !drillSpec) return null;
+  const sportDrillDialogData = useMemo(() => {
+    if (!drillOpen || !drillSpec || drillSpec.kind !== "sport") return null;
     const pageSize = 40;
     if (mode === "mock") {
-      if (drillSpec.kind === "sport") {
-        const d = mockSportDrilldownPage(
-          drillSpec.sport,
-          drillSpec.dimension,
-          drillSpec.value,
-          drillSpec.segmentCount,
-          drillPage,
-          pageSize,
-        );
-        return {
-          title: drillSpec.heading,
-          description: "Sample bookers (mock data)",
-          loading: false,
-          error: null as string | null,
-          rows: d.items.map((u) => ({
-            id: u.userId,
-            primary: u.fullName || u.email,
-            secondary: u.fullName ? u.email : undefined,
-            right: `${u.bookingCount} bookings`,
-          })),
-          total: d.total,
-        };
-      }
+      const d = mockSportDrilldownPage(
+        drillSpec.sport,
+        drillSpec.dimension,
+        drillSpec.value,
+        drillSpec.segmentCount,
+        drillPage,
+        pageSize,
+      );
+      return {
+        title: drillSpec.heading,
+        description: "Sample bookers (mock data)",
+        loading: false,
+        error: null as string | null,
+        items: d.items,
+        total: d.total,
+        sportKey: drillSpec.sport,
+      };
+    }
+    if (sportDrillQ.isPending) {
+      return {
+        title: drillSpec.heading,
+        description: undefined as string | undefined,
+        loading: true,
+        error: null as string | null,
+        items: [] as AdminSportDrilldownItemApi[],
+        total: 0,
+        sportKey: drillSpec.sport,
+      };
+    }
+    if (sportDrillQ.isError) {
+      return {
+        title: drillSpec.heading,
+        description: undefined as string | undefined,
+        loading: false,
+        error: String(
+          sportDrillQ.error instanceof Error ? sportDrillQ.error.message : "Could not load list",
+        ),
+        items: [],
+        total: 0,
+        sportKey: drillSpec.sport,
+      };
+    }
+    const d = sportDrillQ.data;
+    if (!d) {
+      return {
+        title: drillSpec.heading,
+        description: undefined as string | undefined,
+        loading: true,
+        error: null as string | null,
+        items: [] as AdminSportDrilldownItemApi[],
+        total: 0,
+        sportKey: drillSpec.sport,
+      };
+    }
+    return {
+      title: drillSpec.heading,
+      description: `${d.total.toLocaleString()} distinct bookers in this segment (14-day window)`,
+      loading: false,
+      error: null as string | null,
+      items: d.items,
+      total: d.total,
+      sportKey: drillSpec.sport,
+    };
+  }, [
+    drillOpen,
+    drillSpec,
+    drillPage,
+    mode,
+    sportDrillQ.data,
+    sportDrillQ.isPending,
+    sportDrillQ.isError,
+    sportDrillQ.error,
+  ]);
+
+  const listDrillDialogData = useMemo(() => {
+    if (!drillOpen || !drillSpec || drillSpec.kind === "sport") return null;
+    const pageSize = 40;
+    if (mode === "mock") {
       if (drillSpec.kind === "kpi") {
         const d = mockKpiDrilldownPage(
           drillSpec.metric,
@@ -344,48 +404,6 @@ export default function AdminOverviewPage() {
           secondary: r.userName,
           tertiary: `${r.sport ?? "—"} · ${r.courtName ?? "Court"}`,
           right: `$${Number(r.totalPrice).toFixed(2)}`,
-        })),
-        total: d.total,
-      };
-    }
-
-    if (drillSpec.kind === "sport") {
-      if (sportDrillQ.isPending) {
-        return {
-          title: drillSpec.heading,
-          description: undefined,
-          loading: true,
-          error: null as string | null,
-          rows: [],
-          total: 0,
-        };
-      }
-      if (sportDrillQ.isError) {
-        return {
-          title: drillSpec.heading,
-          description: undefined,
-          loading: false,
-          error: String(
-            sportDrillQ.error instanceof Error
-              ? sportDrillQ.error.message
-              : "Could not load list",
-          ),
-          rows: [],
-          total: 0,
-        };
-      }
-      const d = sportDrillQ.data;
-      if (!d) return null;
-      return {
-        title: drillSpec.heading,
-        description: `${d.total.toLocaleString()} distinct bookers in this segment (14-day window)`,
-        loading: false,
-        error: null as string | null,
-        rows: d.items.map((u) => ({
-          id: u.userId,
-          primary: u.fullName || u.email,
-          secondary: u.fullName ? u.email : undefined,
-          right: `${u.bookingCount} bookings`,
         })),
         total: d.total,
       };
@@ -478,10 +496,6 @@ export default function AdminOverviewPage() {
     drillSpec,
     drillPage,
     mode,
-    sportDrillQ.data,
-    sportDrillQ.isPending,
-    sportDrillQ.isError,
-    sportDrillQ.error,
     kpiDrillQ.data,
     kpiDrillQ.isPending,
     kpiDrillQ.isError,
@@ -941,7 +955,7 @@ export default function AdminOverviewPage() {
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              <div className="flex-1 overflow-y-auto px-5 py-4">
+              <div className="scrollbar-app flex-1 overflow-y-auto px-5 py-4">
                 {mode === "real" && breakdownLoading && (
                   <p className="text-sm text-slate-500">Loading breakdown…</p>
                 )}
@@ -1054,18 +1068,45 @@ export default function AdminOverviewPage() {
         )}
       </AnimatePresence>
 
-      <DashboardDrilldownDialog
-        open={drillOpen}
+      <SportBookersDrilldownDialog
+        open={Boolean(drillOpen && drillSpec?.kind === "sport")}
         onOpenChange={(v) => {
           setDrillOpen(v);
           if (!v) setDrillSpec(null);
         }}
-        title={drillDialogData?.title ?? "Details"}
-        description={drillDialogData?.description}
-        loading={Boolean(drillOpen && (!drillDialogData || drillDialogData.loading))}
-        error={drillDialogData?.error ?? null}
-        rows={drillDialogData?.rows ?? []}
-        total={drillDialogData?.total ?? 0}
+        title={
+          sportDrillDialogData?.title ??
+          (drillSpec?.kind === "sport" ? drillSpec.heading : "Bookers")
+        }
+        description={sportDrillDialogData?.description}
+        loading={
+          sportDrillDialogData?.loading ?? Boolean(drillOpen && drillSpec?.kind === "sport")
+        }
+        error={sportDrillDialogData?.error ?? null}
+        items={sportDrillDialogData?.items ?? []}
+        total={sportDrillDialogData?.total ?? 0}
+        page={drillPage}
+        pageSize={40}
+        onPageChange={setDrillPage}
+        sportKey={drillSpec?.kind === "sport" ? drillSpec.sport : "tennis"}
+      />
+      <DashboardDrilldownDialog
+        open={Boolean(drillOpen && drillSpec && drillSpec.kind !== "sport")}
+        onOpenChange={(v) => {
+          setDrillOpen(v);
+          if (!v) setDrillSpec(null);
+        }}
+        title={listDrillDialogData?.title ?? "Details"}
+        description={listDrillDialogData?.description}
+        loading={Boolean(
+          drillOpen &&
+            drillSpec &&
+            drillSpec.kind !== "sport" &&
+            (!listDrillDialogData || listDrillDialogData.loading),
+        )}
+        error={listDrillDialogData?.error ?? null}
+        rows={listDrillDialogData?.rows ?? []}
+        total={listDrillDialogData?.total ?? 0}
         page={drillPage}
         pageSize={40}
         onPageChange={setDrillPage}

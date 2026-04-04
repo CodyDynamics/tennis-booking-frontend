@@ -587,7 +587,7 @@ export default function AdminCourtManagementPage() {
           <DialogHeader className="shrink-0 space-y-1.5 px-6 pb-2 pt-6 pr-14 text-left">
             <DialogTitle>{editingId ? "Edit court" : "Create court"}</DialogTitle>
           </DialogHeader>
-          <div className="scrollbar-dialog min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-1">
+          <div className="scrollbar-app min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-1">
             <div>
               <Label>Location</Label>
               <Select

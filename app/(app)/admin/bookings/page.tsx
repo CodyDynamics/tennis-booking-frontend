@@ -6,8 +6,8 @@ import { useAdminCourtBookings, useAdminUpdateCourtBooking, useLocations } from 
 import { Card, CardContent } from "@/components/ui/card";
 import { AdminFilter, AdminPagination, AdminTable } from "../components";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePickerField } from "@/components/ui/date-picker-field";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +25,7 @@ import {
 import { Loader2, Pencil } from "lucide-react";
 import type { AdminCourtBookingRowApi } from "@/lib/api/endpoints/bookings";
 import { ApiError } from "@/lib/api";
+import { endOfDay, startOfDay } from "date-fns";
 import { formatTime, titleCaseFilterLabel } from "@/lib/format";
 import { useDebouncedSearchValue } from "@/lib/hooks/use-debounced-search-value";
 
@@ -82,6 +83,18 @@ export default function AdminBookingsPage() {
     for (const l of locations) m.set(l.id, l.name);
     return m;
   }, [locations]);
+
+  const fromDayStart = useMemo(() => {
+    if (!from?.trim()) return undefined;
+    const d = new Date(`${from}T12:00:00`);
+    return Number.isNaN(d.getTime()) ? undefined : startOfDay(d);
+  }, [from]);
+
+  const toDayEnd = useMemo(() => {
+    if (!to?.trim()) return undefined;
+    const d = new Date(`${to}T12:00:00`);
+    return Number.isNaN(d.getTime()) ? undefined : endOfDay(d);
+  }, [to]);
 
   useEffect(() => setPage(1), [debouncedSearch, status, paymentStatus, from, to, adminLocationId]);
 
@@ -184,19 +197,21 @@ export default function AdminBookingsPage() {
         onSearchChange={setSearch}
       >
         <div className="flex flex-wrap gap-3 items-center">
-          <Input
-            type="date"
+          <DatePickerField
             value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            className="w-[160px] h-10"
+            onChange={setFrom}
+            className="w-[180px]"
+            placeholder="From date"
             aria-label="From date"
+            maxDate={toDayEnd}
           />
-          <Input
-            type="date"
+          <DatePickerField
             value={to}
-            onChange={(e) => setTo(e.target.value)}
-            className="w-[160px] h-10"
+            onChange={setTo}
+            className="w-[180px]"
+            placeholder="To date"
             aria-label="To date"
+            minDate={fromDayStart}
           />
           <Select value={status} onValueChange={setStatus}>
             <SelectTrigger className="w-[180px] h-10">

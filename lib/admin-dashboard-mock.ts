@@ -145,6 +145,9 @@ export function mockSportDrilldownPage(
       email: `player.${sport}.${n}@demo.test`,
       fullName: `Demo Player ${n}`,
       bookingCount: 1 + (n % 5),
+      phone: `+1555${String(1000000 + n).slice(-7)}`,
+      homeAddress: `${100 + (n % 900)} Mock St, Demo City`,
+      primaryCourtName: `Court ${(n % 8) + 1} — Springpark`,
     };
   });
   return {

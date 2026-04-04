@@ -88,7 +88,7 @@ export function TimeRangePicker({
           </span>
         )}
       </div>
-      <div className="grid grid-cols-4 gap-2 max-h-64 overflow-y-auto p-2 border rounded-lg bg-gray-50/50">
+      <div className="scrollbar-app grid grid-cols-4 gap-2 max-h-64 overflow-y-auto p-2 border rounded-lg bg-gray-50/50">
         {timeSlots.map((time) => {
           const inRange = isInRange(time);
           const isStart = isStartTime(time);

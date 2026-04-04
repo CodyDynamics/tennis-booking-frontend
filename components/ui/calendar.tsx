@@ -28,6 +28,12 @@ export function Calendar({
 }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = React.useState(new Date());
 
+  React.useEffect(() => {
+    if (selectedDate) {
+      setCurrentMonth(startOfMonth(selectedDate));
+    }
+  }, [selectedDate]);
+
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
