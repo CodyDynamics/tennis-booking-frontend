@@ -15,9 +15,10 @@ import {
 } from "@/lib/queries";
 import { useAuth } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 import type { CourtBooking } from "@/types";
 import toast from "react-hot-toast";
@@ -33,8 +34,8 @@ export default function LocationCourtsPage() {
   const [prefill, setPrefill] = useState<LocationBookingPrefill | null>(null);
   const prefillIdRef = useRef(0);
   const redirectedRef = useRef(false);
-
   const { data: myBookings = [], isLoading: loadingMyBookings } = useMyCourtBookings(user?.id);
+  const [bookingDrawerOpen, setBookingDrawerOpen] = useState(true);
 
   const queryEnabled = !authLoading && isAuthenticated && !!locationId;
 
@@ -90,7 +91,18 @@ export default function LocationCourtsPage() {
     router,
   ]);
 
-  const handleReschedule = useCallback((b: CourtBooking) => {
+  useEffect(() => {
+    if (!bookingDrawerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (window.matchMedia("(min-width: 1180px)").matches) return;
+      setBookingDrawerOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [bookingDrawerOpen]);
+
+  const handleReschedule = (b: CourtBooking) => {
     const sport = b.sport;
     const courtType = b.courtType;
     if (!sport || (courtType !== "indoor" && courtType !== "outdoor")) return;
@@ -105,7 +117,7 @@ export default function LocationCourtsPage() {
       endTime: b.endTime,
       editingBookingId: b.id,
     });
-  }, []);
+  };
 
   const clearPrefill = useCallback(() => setPrefill(null), []);
 
@@ -158,30 +170,44 @@ export default function LocationCourtsPage() {
   const venueTz = location.timezone?.trim() || "America/Chicago";
 
   return (
-    <div className="w-full min-h-[calc(100vh-4rem)] py-8 px-4 sm:px-6 lg:px-10">
+    <div className="w-full min-h-[calc(100vh-4rem)] py-8 pt-2 px-4 sm:px-4 lg:px-10">
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="max-w-[1600px] mx-auto"
+        className="relative max-w-[1600px] mx-auto"
       >
-        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-3xl sm:text-4xl font-bold text-foreground">{location.name}</h1>
-            <p className="text-muted-foreground text-base sm:text-lg mt-2 max-w-2xl">
-              Pick sport, court type, date, and slot — a court is assigned automatically. Your bookings
-              stay on the right.
-            </p>
-          </div>
-          <Link href="/" className="shrink-0 self-end sm:self-start sm:pt-1">
-            <Button variant="ghost" size="sm" className="hover:bg-slate-100 dark:hover:bg-slate-800">
-              <ArrowLeft className="w-4 h-4 mr-2" /> Back
-            </Button>
-          </Link>
-        </div>
+        {bookingDrawerOpen && (
+          <div
+            className="fixed inset-x-0 bottom-0 top-20 z-30 bg-black/40 md:hidden min-[1180px]:hidden"
+            aria-hidden
+            onClick={() => setBookingDrawerOpen(false)}
+          />
+        )}
 
-        <div className="flex flex-col lg:flex-row gap-8 lg:gap-10 items-start">
-          <div className="flex-1 min-w-0 w-full">
+        <button
+          type="button"
+          id="court-bookings-drawer-toggle"
+          aria-expanded={bookingDrawerOpen}
+          aria-controls="court-bookings-sidebar"
+          onClick={() => setBookingDrawerOpen((o) => !o)}
+          className={cn(
+            "fixed z-50 flex h-28 w-9 flex-col items-center justify-center rounded-l-xl border border-r-0 border-slate-200 bg-primary text-primary-foreground shadow-lg transition-[right] duration-300 ease-out hover:bg-primary-hover min-[1180px]:hidden",
+            bookingDrawerOpen ? "right-[min(100vw,360px)]" : "right-0",
+          )}
+        >
+          {bookingDrawerOpen ? (
+            <ChevronRight className="h-5 w-5" aria-hidden />
+          ) : (
+            <ChevronLeft className="h-5 w-5" aria-hidden />
+          )}
+          <span className="sr-only">
+            {bookingDrawerOpen ? "Hide your bookings" : "Show your bookings"}
+          </span>
+        </button>
+
+        <div className="flex flex-col min-[1180px]:flex-row min-[1180px]:gap-10 items-start">
+          <div className="w-full min-w-0 flex-1">
             <LocationCourtBookingWizard
               locationId={locationId}
               areaId={selectedAreaId ?? undefined}
@@ -189,9 +215,20 @@ export default function LocationCourtsPage() {
               locationTimezone={venueTz}
               prefill={prefill}
               onPrefillConsumed={clearPrefill}
+              userCourtBookings={myBookings}
             />
           </div>
+
           <LocationMyBookingsSidebar
+            id="court-bookings-sidebar"
+            className={cn(
+              "max-[1179px]:fixed max-[1179px]:top-20 max-[1179px]:bottom-0 max-[1179px]:right-0 max-[1179px]:z-40 max-[1179px]:w-[min(100vw,360px)] max-[1179px]:max-h-none max-[1179px]:rounded-l-2xl max-[1179px]:rounded-r-none max-[1179px]:border-r-0 max-[1179px]:shadow-xl",
+              "max-[1179px]:transition-transform max-[1179px]:duration-300 max-[1179px]:ease-out",
+              bookingDrawerOpen
+                ? "max-[1179px]:translate-x-0"
+                : "max-[1179px]:translate-x-full",
+              "min-[1180px]:translate-x-0 min-[1180px]:w-[360px] min-[1180px]:min-w-[300px] min-[1180px]:shrink-0 min-[1180px]:max-h-[calc(100vh-5rem)] min-[1180px]:sticky min-[1180px]:top-20 min-[1180px]:rounded-2xl min-[1180px]:shadow-sm",
+            )}
             locationId={locationId}
             displayName={user?.fullName?.split(" ")[0] ?? user?.email ?? "there"}
             bookings={myBookings}

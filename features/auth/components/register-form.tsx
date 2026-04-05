@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
+import { useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -14,6 +15,7 @@ import { User, Mail, MapPin } from "lucide-react";
 import { UsPhoneField } from "@/components/ui/us-phone-field";
 import { PasswordInput } from "@/components/ui/password-input";
 import { useAuth } from "@/lib/auth-store";
+import { api } from "@/lib/api";
 import { registerSchema, type RegisterFormValues } from "@/features/auth/schemas/register.schema";
 import { ApiError } from "@/lib/api";
 import { safeNextPath } from "@/lib/safe-next-path";
@@ -45,6 +47,13 @@ export function RegisterForm({
   });
 
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const { data: authConfig } = useQuery({
+    queryKey: ["auth", "config"],
+    queryFn: () => api.auth.getConfig(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const registrationEmailEnabled = authConfig?.registrationEmailEnabled ?? true;
+
   const {
     requestRegisterOtp,
     verifyRegisterOtp,
@@ -58,7 +67,7 @@ export function RegisterForm({
     const email = data.email.trim().toLowerCase();
     const fullName = `${data.firstName.trim()} ${data.lastName.trim()}`;
     try {
-      await requestRegisterOtp({
+      const registeredUser = await requestRegisterOtp({
         email,
         password: data.password,
         fullName,
@@ -70,6 +79,10 @@ export function RegisterForm({
         state: data.state.trim(),
         zipCode: data.zipCode.trim(),
       });
+      if (registeredUser) {
+        goAfterRegister(registeredUser);
+        return;
+      }
       setPendingEmail(email);
       setStep("otp");
     } catch (error) {
@@ -269,22 +282,25 @@ export function RegisterForm({
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              After you continue, we&apos;ll email a 6-digit code. Your account is created only after
-              you enter that code.
+              {registrationEmailEnabled
+                ? "After you continue, we&apos;ll email a 6-digit code. Your account is created only after you enter that code."
+                : "Your account will be created as soon as you continue (email verification is off on this server)."}
             </p>
             {submitError && (
               <p className="text-sm text-destructive">{submitError}</p>
             )}
             <Button
               type="submit"
-              className="w-full text-md font-bold h-11 bg-primary hover:opacity-90 text-primary-foreground shadow-brand"
+              className="w-full text-md font-bold h-11 bg-primary hover:bg-primary-hover text-primary-foreground shadow-brand"
               disabled={isRequestingRegisterOtp}
               aria-busy={isRequestingRegisterOtp}
             >
               {isRequestingRegisterOtp ? (
-                <LoadingLabel>Sending code</LoadingLabel>
+                <LoadingLabel>
+                  {registrationEmailEnabled ? "Sending code" : "Creating account"}
+                </LoadingLabel>
               ) : (
-                "Continue"
+                registrationEmailEnabled ? "Continue" : "Create account"
               )}
             </Button>
             <div className="text-center text-sm text-muted-foreground">

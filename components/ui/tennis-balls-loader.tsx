@@ -227,7 +227,7 @@ export function TennisBallsLoaderDemo() {
       </p>
       <button
         type="button"
-        className="rounded-full bg-primary px-5 py-2 text-sm font-bold text-primary-foreground"
+        className="rounded-full bg-primary hover:bg-primary-hover px-5 py-2 text-sm font-bold text-primary-foreground"
         onClick={() => setOn((v) => !v)}
       >
         {on ? "Hide loader" : "Show loader"}

@@ -80,7 +80,7 @@ export function ForgotPasswordForm() {
             )}
             <Button
               type="submit"
-              className="w-full bg-primary hover:opacity-90 text-primary-foreground"
+              className="w-full bg-primary hover:bg-primary-hover text-primary-foreground"
               disabled={isSubmitting}
               aria-busy={isSubmitting}
             >

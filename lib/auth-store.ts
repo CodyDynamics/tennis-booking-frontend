@@ -125,6 +125,21 @@ export function useAuth() {
 
   const requestRegisterOtpMutation = useMutation({
     mutationFn: (data: RegisterInput) => api.auth.requestRegisterOtp(data),
+    onSuccess: (res) => {
+      if (
+        res &&
+        typeof res === "object" &&
+        "accessToken" in res &&
+        res.accessToken &&
+        "user" in res &&
+        res.user
+      ) {
+        queryClient.setQueryData(["auth", "user"], mapAuthUserToUser(res.user));
+        void queryClient.invalidateQueries({ queryKey: ["auth", "user"] });
+        void queryClient.invalidateQueries({ queryKey: ["locations"] });
+        void queryClient.invalidateQueries({ queryKey: ["locationMembership"] });
+      }
+    },
   });
 
   const verifyRegisterOtpMutation = useMutation({
@@ -164,8 +179,20 @@ export function useAuth() {
       .mutateAsync({ email, otp, rememberMe })
       .then((res) => mapAuthUserToUser(res.user));
 
-  const requestRegisterOtp = (data: RegisterInput) =>
-    requestRegisterOtpMutation.mutateAsync(data);
+  const requestRegisterOtp = async (data: RegisterInput) => {
+    const res = await requestRegisterOtpMutation.mutateAsync(data);
+    if (
+      res &&
+      typeof res === "object" &&
+      "accessToken" in res &&
+      res.accessToken &&
+      "user" in res &&
+      res.user
+    ) {
+      return mapAuthUserToUser(res.user);
+    }
+    return null;
+  };
 
   const verifyRegisterOtp = (email: string, otp: string) =>
     verifyRegisterOtpMutation

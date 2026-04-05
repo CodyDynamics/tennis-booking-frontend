@@ -81,6 +81,8 @@ export interface CourtBooking {
   locationId?: string | null;
   sport?: string | null;
   courtType?: string | null;
+  /** Từ GET /bookings/my khi API trả kèm relation `court` */
+  courtName?: string | null;
 }
 
 export interface Coach {

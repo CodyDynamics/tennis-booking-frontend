@@ -29,7 +29,11 @@ export class ApiError extends Error {
 }
 
 function buildURL(base: string, path: string, params?: Record<string, string>): string {
-  const url = new URL(path, base);
+  // new URL("/users", "http://host/api") → http://host/users (drops /api).
+  // new URL("users", "http://host/api") → http://host/users without trailing slash on base.
+  const baseWithSlash = `${base.replace(/\/+$/, "")}/`;
+  const pathNoLeadingSlash = path.replace(/^\/+/, "");
+  const url = new URL(pathNoLeadingSlash, baseWithSlash);
   if (params) {
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
   }

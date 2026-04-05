@@ -192,7 +192,7 @@ export function ReportForm({ studentId, coachId }: ReportFormProps) {
 
           <Button
             type="submit"
-            className="w-full bg-primary hover:opacity-90 text-primary-foreground"
+            className="w-full bg-primary hover:bg-primary-hover text-primary-foreground"
             disabled={createReport.isPending}
             aria-busy={createReport.isPending}
           >

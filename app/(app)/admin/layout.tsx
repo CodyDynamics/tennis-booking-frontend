@@ -104,7 +104,7 @@ export default function AdminLayout({
   if (!allowed) return null;
 
   const allNavItems = [
-    { href: "/admin", label: "Overview", icon: LayoutDashboard },
+    { href: "/admin", label: "Analytics", icon: LayoutDashboard },
     { href: "/admin/court-management", label: "Court Management", icon: Grid3X3 },
     { href: "/admin/bookings", label: "Bookings", icon: Activity },
     { href: "/admin/users", label: "Users", icon: Users },
@@ -140,12 +140,12 @@ export default function AdminLayout({
       {/* Fixed below global Navbar (h-20) so the document body does not scroll; only sidebar nav + main pane scroll. */}
       <div className="fixed inset-x-0 top-20 bottom-0 z-30 flex min-h-0 overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans">
         <aside className="flex h-full min-h-0 w-72 shrink-0 flex-col border-r border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900 z-20">
-          <div className="p-6 border-b border-slate-100 dark:border-slate-800">
+          <div className="p-6 py-2 border-b border-slate-100 dark:border-slate-800">
             <Link href="/admin" className="flex items-center space-x-3 group">
               <motion.div
                 whileHover={{ scale: 1.06 }}
                 transition={{ duration: 0.3 }}
-                className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl p-2.5 text-primary-foreground shadow-md shadow-primary/25 ring-1 ring-primary/20"
+                className="bg-gradient-to-br from-primary to-primary-hover rounded-xl p-2.5 text-primary-foreground shadow-md shadow-primary/25 ring-1 ring-primary/20"
               >
                 <Activity className="h-6 w-6" />
               </motion.div>
@@ -156,12 +156,12 @@ export default function AdminLayout({
             </Link>
           </div>
 
-          <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 space-y-4">
+          <div className="px-6 py-1 border-b border-slate-100 dark:border-slate-800 space-y-4">
             <LocationScopeSelector />
             {/* <SportSelector /> */}
           </div>
 
-          <nav className="scrollbar-app min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-4 py-8">
+          <nav className="scrollbar-app min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-4 py-2">
             <p className="px-4 text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Administration</p>
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -173,7 +173,7 @@ export default function AdminLayout({
                     className={cn(
                       "w-full justify-start h-12 text-md transition-all rounded-xl font-medium",
                       isActive
-                        ? "bg-primary hover:bg-primary/90 text-primary-foreground shadow-md shadow-primary/20"
+                        ? "bg-primary hover:bg-primary-hover text-primary-foreground shadow-md shadow-primary/20"
                         : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                     )}
                   >
@@ -190,7 +190,7 @@ export default function AdminLayout({
             })}
           </nav>
 
-          <div className="p-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
+          {/* <div className="p-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
             <Link href="/dashboard">
               <Button variant="ghost" className="w-full justify-start h-12 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl">
                 <ArrowLeft className="mr-3 h-5 w-5 text-slate-400" />
@@ -200,7 +200,7 @@ export default function AdminLayout({
             <Button variant="ghost" onClick={handleLogout} className="w-full justify-start h-12 text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30 rounded-xl">
               Logout
             </Button>
-          </div>
+          </div> */}
         </aside>
 
         <main className="scrollbar-app relative min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain bg-slate-50 dark:bg-slate-950">

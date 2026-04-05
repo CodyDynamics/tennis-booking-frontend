@@ -16,6 +16,9 @@ import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeho
 import { useCancelBooking } from "@/lib/queries";
 import type { CourtBooking } from "@/types";
 import { cn } from "@/lib/utils";
+
+/** GET /bookings/my rows mapped with `courtName` from joined `court` (see `mapCourtBookingApiToCourtBooking`). */
+type SidebarCourtBooking = CourtBooking & { courtName?: string | null };
 import { formatTime } from "@/lib/format";
 import toast from "react-hot-toast";
 import { ApiError } from "@/lib/api";
@@ -36,14 +39,18 @@ export function LocationMyBookingsSidebar({
   bookings,
   isLoading,
   onReschedule,
+  id,
+  className,
 }: {
   locationId: string;
   displayName: string;
-  bookings: CourtBooking[];
+  bookings: SidebarCourtBooking[];
   isLoading: boolean;
-  onReschedule: (b: CourtBooking) => void;
+  onReschedule: (b: SidebarCourtBooking) => void;
+  id?: string;
+  className?: string;
 }) {
-  const [active, setActive] = useState<CourtBooking | null>(null);
+  const [active, setActive] = useState<SidebarCourtBooking | null>(null);
   const cancelBooking = useCancelBooking();
 
   const atLocation = useMemo(() => {
@@ -92,9 +99,10 @@ export function LocationMyBookingsSidebar({
   return (
     <>
       <aside
+        id={id}
         className={cn(
-          "flex flex-col border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 shadow-sm",
-          "w-full lg:w-[360px] lg:min-w-[300px] shrink-0 lg:max-h-[calc(100vh-7rem)] lg:sticky lg:top-20",
+          "flex h-full min-h-0 w-full flex-col border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm",
+          className,
         )}
       >
         <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
@@ -122,27 +130,43 @@ export function LocationMyBookingsSidebar({
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.98 }}
-                  className="relative rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-950/40 p-3 pr-9"
+                  className="relative rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-950/40 p-3"
                 >
                   <button
                     type="button"
-                    className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+                    className="absolute top-3 right-3 z-10 inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors"
                     aria-label="Edit booking"
                     onClick={() => setActive(b)}
                   >
                     <Pencil className="h-3.5 w-3.5" />
                     Edit
                   </button>
-                  <p className="font-semibold text-sm capitalize text-slate-900 dark:text-slate-100">
-                    {b.sport ?? "Court"} · {b.courtType ?? "—"}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {format(parse(b.bookingDate.slice(0, 10), "yyyy-MM-dd", new Date()), "EEE, MMM d, yyyy")}
-                  </p>
-                  <p className="text-xs font-medium mt-1.5">
-                    {timeAmPm(b.startTime)} – {timeAmPm(b.endTime)}{" "}
-                    <span className="text-muted-foreground font-normal">({b.durationMinutes} min)</span>
-                  </p>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    className="cursor-pointer text-left rounded-lg pr-[4.5rem] outline-none transition-colors hover:bg-slate-100/80 dark:hover:bg-slate-900/60 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 -m-1 p-1"
+                    onClick={() => onReschedule(b)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onReschedule(b);
+                      }
+                    }}
+                  >
+                    <p className="font-semibold text-sm text-slate-900 dark:text-slate-100">
+                      {b.courtName?.trim() || "Court"}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5 capitalize">
+                      {b.sport ?? "Court"} · {b.courtType ?? "—"}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {format(parse(b.bookingDate.slice(0, 10), "yyyy-MM-dd", new Date()), "EEE, MMM d, yyyy")}
+                    </p>
+                    <p className="text-xs font-medium mt-1.5">
+                      {timeAmPm(b.startTime)} – {timeAmPm(b.endTime)}{" "}
+                      <span className="text-muted-foreground font-normal">({b.durationMinutes} min)</span>
+                    </p>
+                  </div>
                 </motion.div>
               ))}
           </AnimatePresence>

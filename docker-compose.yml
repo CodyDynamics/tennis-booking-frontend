@@ -1,6 +1,8 @@
 # Frontend stack only (Next.js). Run backend compose separately.
 # From frontend/: docker compose up -d --build
-# Set NEXT_PUBLIC_API_URL to where the API is reachable from the browser (default: http://localhost:3000).
+#
+# NEXT_PUBLIC_API_URL: URL API mà *trình duyệt* gọi được (mặc định http://localhost:3000 = backend compose).
+# Flow đăng ký OTP hay tạo user ngay do backend quyết định (SEND_REGISTRATION_EMAIL trong backend compose / .env).
 
 services:
   web:

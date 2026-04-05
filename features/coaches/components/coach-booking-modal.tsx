@@ -277,7 +277,7 @@ export function CoachBookingModal({
             </Button>
             <Button
               type="submit"
-              className="bg-primary hover:opacity-90 text-primary-foreground px-8 py-6 text-lg rounded-full shadow-brand transition-all min-w-[200px]"
+              className="bg-primary hover:bg-primary-hover text-primary-foreground px-8 py-6 text-lg rounded-full shadow-brand transition-all min-w-[200px]"
               disabled={!dateRange.from || !dateRange.to || !selectedStartTime || !selectedDuration || createSession.isPending}
               aria-busy={createSession.isPending}
             >

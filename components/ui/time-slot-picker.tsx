@@ -67,7 +67,7 @@ export function TimeSlotPicker({
                 "px-3 py-2 text-sm rounded-md transition-all",
                 "hover:bg-blue-50 hover:border-blue-200",
                 "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1",
-                isSelected && "bg-primary text-primary-foreground hover:bg-primary/90 border-primary",
+                isSelected && "bg-primary text-primary-foreground hover:bg-primary-hover border-primary",
                 !isSelected && !isDisabled && "border border-gray-200 bg-white",
                 isDisabled && "opacity-50 cursor-not-allowed bg-gray-100 border-gray-200"
               )}

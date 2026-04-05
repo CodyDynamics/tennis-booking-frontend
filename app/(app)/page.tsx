@@ -284,7 +284,7 @@ export default function Home() {
               <Button
                 type="button"
                 size="lg"
-                className="w-full sm:w-auto text-lg h-14 px-8 rounded-full bg-primary hover:opacity-90 text-primary-foreground shadow-brand transition-all font-bold"
+                className="w-full sm:w-auto text-lg h-14 px-8 rounded-full bg-primary hover:bg-primary-hover text-primary-foreground shadow-brand transition-all font-bold"
                 onClick={handleReserveCourtClick}
               >
                 Reserve <ArrowRight className="ml-2 w-5 h-5" />

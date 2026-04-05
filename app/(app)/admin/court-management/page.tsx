@@ -196,8 +196,26 @@ function formatAvailabilityCell(windows: CourtBookingWindowAdminApi[] | undefine
   const names = courtSports.map(sportDisplay).join(", ");
   if (ranges.length === 0) return "—";
   if (!names) return ranges.join("; ");
-  if (ranges.length === 1) return `${names}: ${ranges[0]}`;
-  return ranges.map((r) => `${names}: ${r}`).join("; ");
+  if (ranges.length === 1) {
+    return (
+      <span className="text-sm text-muted-foreground">
+        <span className="font-medium text-foreground">{names}</span>
+        {": "}
+        {ranges[0]}
+      </span>
+    );
+  }
+  return (
+    <div className="space-y-0.5 text-sm text-muted-foreground">
+      {ranges.map((r) => (
+        <div key={r}>
+          <span className="font-medium text-foreground">{names}</span>
+          {": "}
+          {r}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function cmpLocale(a: string, b: string, dir: "asc" | "desc"): number {
@@ -652,7 +670,7 @@ export default function AdminCourtManagementPage() {
                   <RadioGroupItem value="per_sport" id="sched-per" className="mt-1" />
                   <div className="min-w-0 flex-1 space-y-3">
                     <Label htmlFor="sched-per" className="cursor-pointer font-medium leading-none">
-                      Option 1: Different window per sport
+                      Option 1: Multiple time slots for Activity
                     </Label>
                     <p className="text-xs text-muted-foreground">
                       Set start and end for each activity. Time ranges must not overlap between sports
@@ -669,108 +687,108 @@ export default function AdminCourtManagementPage() {
                             >
                               <div className="overflow-x-auto pb-0.5">
                                 <div className="flex min-w-0 flex-nowrap items-end gap-2">
-                                <div className="w-[140px] shrink-0">
-                                  <Label className="text-xs">Sport</Label>
-                                  <Select
-                                    value={row.sport}
-                                    onValueChange={(v) => {
-                                      setFormScheduleError(null);
-                                      setPerSportRows((rows) =>
-                                        rows.map((r, i) => (i === idx ? { ...r, sport: v } : r)),
-                                      );
-                                    }}
-                                  >
-                                    <SelectTrigger className="h-9">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {SPORT_OPTIONS.map(({ code, label }) => (
-                                        <SelectItem key={code} value={code}>
-                                          {label}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <div className="w-[132px] shrink-0">
-                                  <Label className="text-xs">Start</Label>
-                                  <Select
-                                    value={row.windowStartTime}
-                                    onValueChange={(v) => {
-                                      setFormScheduleError(null);
-                                      setPerSportRows((rows) =>
-                                        rows.map((r, i) =>
-                                          i === idx ? { ...r, windowStartTime: v } : r,
-                                        ),
-                                      );
-                                    }}
-                                  >
-                                    <SelectTrigger
-                                      className={cn(
-                                        "h-9",
-                                        rowIssue &&
-                                          "border-destructive ring-1 ring-destructive/30 focus:ring-destructive/40",
-                                      )}
-                                      aria-invalid={rowIssue ? true : undefined}
+                                  <div className="w-[140px] shrink-0">
+                                    <Label className="text-xs">Sport</Label>
+                                    <Select
+                                      value={row.sport}
+                                      onValueChange={(v) => {
+                                        setFormScheduleError(null);
+                                        setPerSportRows((rows) =>
+                                          rows.map((r, i) => (i === idx ? { ...r, sport: v } : r)),
+                                        );
+                                      }}
                                     >
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent className="max-h-72">
-                                      {TIME_OPTIONS.map((t) => (
-                                        <SelectItem key={t} value={t}>
-                                          {toAmPmLabel(t)}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <div className="w-[132px] shrink-0">
-                                  <Label className="text-xs">End</Label>
-                                  <Select
-                                    value={row.windowEndTime}
-                                    onValueChange={(v) => {
-                                      setFormScheduleError(null);
-                                      setPerSportRows((rows) =>
-                                        rows.map((r, i) =>
-                                          i === idx ? { ...r, windowEndTime: v } : r,
-                                        ),
-                                      );
-                                    }}
-                                  >
-                                    <SelectTrigger
-                                      className={cn(
-                                        "h-9",
-                                        rowIssue &&
-                                          "border-destructive ring-1 ring-destructive/30 focus:ring-destructive/40",
-                                      )}
-                                      aria-invalid={rowIssue ? true : undefined}
+                                      <SelectTrigger className="h-9">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {SPORT_OPTIONS.map(({ code, label }) => (
+                                          <SelectItem key={code} value={code}>
+                                            {label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="w-[132px] shrink-0">
+                                    <Label className="text-xs">Start</Label>
+                                    <Select
+                                      value={row.windowStartTime}
+                                      onValueChange={(v) => {
+                                        setFormScheduleError(null);
+                                        setPerSportRows((rows) =>
+                                          rows.map((r, i) =>
+                                            i === idx ? { ...r, windowStartTime: v } : r,
+                                          ),
+                                        );
+                                      }}
                                     >
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent className="max-h-72">
-                                      {TIME_OPTIONS.map((t) => (
-                                        <SelectItem key={t} value={t}>
-                                          {toAmPmLabel(t)}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                {perSportRows.length > 1 && (
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="mb-0.5 h-9 w-9 shrink-0 text-muted-foreground"
-                                    aria-label="Remove row"
-                                    onClick={() => {
-                                      setFormScheduleError(null);
-                                      setPerSportRows((rows) => rows.filter((_, i) => i !== idx));
-                                    }}
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                )}
+                                      <SelectTrigger
+                                        className={cn(
+                                          "h-9",
+                                          rowIssue &&
+                                          "border-destructive ring-1 ring-destructive/30 focus:ring-destructive/40",
+                                        )}
+                                        aria-invalid={rowIssue ? true : undefined}
+                                      >
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent className="max-h-72">
+                                        {TIME_OPTIONS.map((t) => (
+                                          <SelectItem key={t} value={t}>
+                                            {toAmPmLabel(t)}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="w-[132px] shrink-0">
+                                    <Label className="text-xs">End</Label>
+                                    <Select
+                                      value={row.windowEndTime}
+                                      onValueChange={(v) => {
+                                        setFormScheduleError(null);
+                                        setPerSportRows((rows) =>
+                                          rows.map((r, i) =>
+                                            i === idx ? { ...r, windowEndTime: v } : r,
+                                          ),
+                                        );
+                                      }}
+                                    >
+                                      <SelectTrigger
+                                        className={cn(
+                                          "h-9",
+                                          rowIssue &&
+                                          "border-destructive ring-1 ring-destructive/30 focus:ring-destructive/40",
+                                        )}
+                                        aria-invalid={rowIssue ? true : undefined}
+                                      >
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent className="max-h-72">
+                                        {TIME_OPTIONS.map((t) => (
+                                          <SelectItem key={t} value={t}>
+                                            {toAmPmLabel(t)}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  {perSportRows.length > 1 && (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="mb-0.5 h-9 w-9 shrink-0 text-muted-foreground"
+                                      aria-label="Remove row"
+                                      onClick={() => {
+                                        setFormScheduleError(null);
+                                        setPerSportRows((rows) => rows.filter((_, i) => i !== idx));
+                                      }}
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  )}
                                 </div>
                               </div>
                               {rowIssue ? (
@@ -794,7 +812,7 @@ export default function AdminCourtManagementPage() {
                   <RadioGroupItem value="shared" id="sched-shared" className="mt-1" />
                   <div className="min-w-0 flex-1 space-y-3">
                     <Label htmlFor="sched-shared" className="cursor-pointer font-medium leading-none">
-                      Option 2: One window for multiple sports
+                      Option 2: One Time Slot for Activity
                     </Label>
                     <p className="text-xs text-muted-foreground">
                       One time range applies to every activity you select below.
