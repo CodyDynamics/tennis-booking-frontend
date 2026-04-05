@@ -24,7 +24,7 @@ jobs:
             git pull origin main
 
             echo "📦 Installing dependencies..."
-            npm ci
+            npm i
 
             echo "🏗 Building Next.js app..."
             pnpm run build
