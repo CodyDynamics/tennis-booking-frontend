@@ -18,6 +18,9 @@ import type { PermissionSchemaItem } from "@/lib/api/endpoints/roles";
 import type { AreaApi } from "@/lib/api/endpoints/areas";
 import type { AdminCourtBookingRowApi } from "@/lib/api/endpoints/bookings";
 
+/** Mapped from GET /bookings/my when `court` is joined (`courtName` from `court.name`). */
+type CourtBookingRow = CourtBooking & { courtName?: string | null };
+
 function mapCoachApiToCoach(c: CoachApi): Coach {
   return {
     id: c.id,
@@ -85,7 +88,7 @@ function mapCourtApiToCourt(c: CourtApi): Court {
   return base;
 }
 
-function mapCourtBookingApiToCourtBooking(b: CourtBookingApi): CourtBooking {
+function mapCourtBookingApiToCourtBooking(b: CourtBookingApi): CourtBookingRow {
   const dateStr = typeof b.bookingDate === "string" ? b.bookingDate : (b.bookingDate as unknown as Date)?.toString?.()?.slice(0, 10) ?? "";
   const totalPrice =
     typeof b.totalPrice === "string"
@@ -116,6 +119,7 @@ function mapCourtBookingApiToCourtBooking(b: CourtBookingApi): CourtBooking {
     locationId,
     sport,
     courtType,
+    courtName: b.court?.name ?? null,
   };
 }
 
@@ -187,7 +191,7 @@ export function useCoaches() {
 
 // Bookings queries (court bookings for current user)
 export function useBookings(userId?: string) {
-  return useQuery<CourtBooking[]>({
+  return useQuery<CourtBookingRow[]>({
     queryKey: ["bookings", userId],
     queryFn: async () => {
       const res = await api.bookings.getMyBookings();
@@ -237,7 +241,7 @@ export function useMyCourtBookings(userId?: string) {
     return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
   }, []);
 
-  return useQuery<CourtBooking[]>({
+  return useQuery<CourtBookingRow[]>({
     queryKey: ["bookings", "my", userId, range.from, range.to],
     queryFn: async () => {
       const res = await api.bookings.getMyBookings(range.from, range.to);

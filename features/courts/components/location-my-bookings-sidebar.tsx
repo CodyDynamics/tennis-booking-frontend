@@ -16,6 +16,9 @@ import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeho
 import { useCancelBooking } from "@/lib/queries";
 import type { CourtBooking } from "@/types";
 import { cn } from "@/lib/utils";
+
+/** GET /bookings/my rows mapped with `courtName` from joined `court` (see `mapCourtBookingApiToCourtBooking`). */
+type SidebarCourtBooking = CourtBooking & { courtName?: string | null };
 import { formatTime } from "@/lib/format";
 import toast from "react-hot-toast";
 import { ApiError } from "@/lib/api";
@@ -41,13 +44,13 @@ export function LocationMyBookingsSidebar({
 }: {
   locationId: string;
   displayName: string;
-  bookings: CourtBooking[];
+  bookings: SidebarCourtBooking[];
   isLoading: boolean;
-  onReschedule: (b: CourtBooking) => void;
+  onReschedule: (b: SidebarCourtBooking) => void;
   id?: string;
   className?: string;
 }) {
-  const [active, setActive] = useState<CourtBooking | null>(null);
+  const [active, setActive] = useState<SidebarCourtBooking | null>(null);
   const cancelBooking = useCancelBooking();
 
   const atLocation = useMemo(() => {
@@ -150,7 +153,10 @@ export function LocationMyBookingsSidebar({
                       }
                     }}
                   >
-                    <p className="font-semibold text-sm capitalize text-slate-900 dark:text-slate-100">
+                    <p className="font-semibold text-sm text-slate-900 dark:text-slate-100">
+                      {b.courtName?.trim() || "Court"}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5 capitalize">
                       {b.sport ?? "Court"} · {b.courtType ?? "—"}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
