@@ -1,18 +1,19 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-import "react-phone-number-input/style.css";
-import { Navbar } from "@/components/layout/navbar";
-import { MustChangePasswordGate } from "@/components/auth/must-change-password-gate";
-import { AppLoadingProvider } from "@/components/layout/app-loading-provider";
-import { ReactQueryProvider } from "@/lib/react-query-provider";
-import { Toaster } from "react-hot-toast";
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import './globals.css';
+import 'react-phone-number-input/style.css';
+import { Navbar } from '@/components/layout/navbar';
+import { MustChangePasswordGate } from '@/components/auth/must-change-password-gate';
+import { AppLoadingProvider } from '@/components/layout/app-loading-provider';
+import { ReactQueryProvider } from '@/lib/react-query-provider';
+import { Toaster } from 'react-hot-toast';
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: "Tennis Booking & Coaching System",
-  description: "Modern tennis court booking and coaching progress management system",
+  title: 'Tennis Booking & Coaching System',
+  description:
+    'Modern tennis court booking and coaching progress management system',
 };
 
 export default function RootLayout({
@@ -20,8 +21,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  console.log('Welcome');
+
   return (
-    <html lang="en">
+    <html lang='en'>
       <body className={inter.className}>
         <ReactQueryProvider>
           <AppLoadingProvider>
@@ -29,9 +32,9 @@ export default function RootLayout({
             <MustChangePasswordGate />
             {children}
             <Toaster
-              position="bottom-right"
+              position='bottom-right'
               toastOptions={{
-                className: "text-sm font-medium",
+                className: 'text-sm font-medium',
                 duration: 4000,
               }}
             />
