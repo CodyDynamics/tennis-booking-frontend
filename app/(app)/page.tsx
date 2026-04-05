@@ -95,8 +95,6 @@ function PartnerCard({ partner }: { partner: Partner }) {
   const showPlaceholder = fallbackAlsoError || (!imgLoaded && !imgError);
   const isFeatured = partner.featured;
 
-  console.log('Welcome');
-
   const handleImgError = () => {
     if (imgError) setFallbackAlsoError(true);
     else setImgError(true);
