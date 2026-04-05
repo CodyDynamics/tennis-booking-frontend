@@ -71,6 +71,7 @@ export async function request<T>(
 
     const token = getAccessToken?.() ?? null;
     if (token) {
+      console.log("token ne", token);
       headers["Authorization"] = `Bearer ${token}`;
     }
 
