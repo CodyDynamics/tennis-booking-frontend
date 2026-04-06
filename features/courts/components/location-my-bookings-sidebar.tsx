@@ -112,12 +112,12 @@ export function LocationMyBookingsSidebar({
           <p className="text-xs text-muted-foreground mt-0.5">Your bookings</p>
         </div>
 
-        <div className="scrollbar-app flex-1 overflow-y-auto p-3 space-y-2.5">
+        <div className="scrollbar-app flex-1 space-y-3 overflow-y-auto p-3 sm:p-4">
           {isLoading && (
             <GlobalLoadingPlaceholder minHeight="min-h-[200px]" className="rounded-xl" />
           )}
           {!isLoading && atLocation.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-8 px-2">
+            <p className="px-2 py-8 text-center text-sm text-muted-foreground">
               No bookings at this venue yet. Book a court on the left — they will show up here.
             </p>
           )}
@@ -130,21 +130,26 @@ export function LocationMyBookingsSidebar({
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.98 }}
-                  className="relative rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-950/40 p-3"
+                  className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-950/40"
                 >
-                  <button
-                    type="button"
-                    className="absolute top-3 right-3 z-10 inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors"
-                    aria-label="Edit booking"
-                    onClick={() => setActive(b)}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    Edit
-                  </button>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="min-w-0 flex-1 text-sm font-semibold leading-snug text-slate-900 break-words dark:text-slate-100">
+                      {b.courtName?.trim() || "Court"}
+                    </p>
+                    <button
+                      type="button"
+                      className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                      aria-label="Edit booking"
+                      onClick={() => setActive(b)}
+                    >
+                      <Pencil className="h-3.5 w-3.5 shrink-0" />
+                      Edit
+                    </button>
+                  </div>
                   <div
                     role="button"
                     tabIndex={0}
-                    className="cursor-pointer text-left rounded-lg pr-[4.5rem] outline-none transition-colors hover:bg-slate-100/80 dark:hover:bg-slate-900/60 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 -m-1 p-1"
+                    className="cursor-pointer rounded-lg text-left outline-none ring-offset-2 transition-colors hover:bg-slate-100/90 focus-visible:ring-2 focus-visible:ring-primary dark:ring-offset-slate-950 dark:hover:bg-slate-900/70 -mx-1 -mb-1 px-1 pb-1"
                     onClick={() => onReschedule(b)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
@@ -153,18 +158,17 @@ export function LocationMyBookingsSidebar({
                       }
                     }}
                   >
-                    <p className="font-semibold text-sm text-slate-900 dark:text-slate-100">
-                      {b.courtName?.trim() || "Court"}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5 capitalize">
+                    <p className="text-xs leading-relaxed text-muted-foreground capitalize">
                       {b.sport ?? "Court"} · {b.courtType ?? "—"}
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
                       {format(parse(b.bookingDate.slice(0, 10), "yyyy-MM-dd", new Date()), "EEE, MMM d, yyyy")}
                     </p>
-                    <p className="text-xs font-medium mt-1.5">
+                    <p className="mt-2 text-sm font-medium leading-snug text-slate-800 dark:text-slate-100">
                       {timeAmPm(b.startTime)} – {timeAmPm(b.endTime)}{" "}
-                      <span className="text-muted-foreground font-normal">({b.durationMinutes} min)</span>
+                      <span className="text-xs font-normal text-muted-foreground">
+                        ({b.durationMinutes} min)
+                      </span>
                     </p>
                   </div>
                 </motion.div>

@@ -222,11 +222,37 @@ export function useAdminCourtBookings(params?: {
 export function useAdminUpdateCourtBooking() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: { bookingStatus?: string; paymentStatus?: string } }) =>
-      api.bookings.adminUpdateCourtBooking(id, body),
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string;
+      body: {
+        bookingStatus?: string;
+        paymentStatus?: string;
+        bookingDate?: string;
+        startTime?: string;
+        endTime?: string;
+      };
+    }) => api.bookings.adminUpdateCourtBooking(id, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "bookings"] });
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["courtSlots"] });
+      queryClient.invalidateQueries({ queryKey: ["courtAvailability"] });
+    },
+  });
+}
+
+export function useAdminCancelCourtBooking() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.bookings.adminCancelCourtBooking(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["courtSlots"] });
+      queryClient.invalidateQueries({ queryKey: ["courtAvailability"] });
     },
   });
 }
@@ -434,6 +460,7 @@ export function useCreateSlotBooking() {
       queryClient.invalidateQueries({ queryKey: ["courtSlots"] });
       queryClient.invalidateQueries({ queryKey: ["courtAvailability"] });
       queryClient.invalidateQueries({ queryKey: ["courtWizardAvailability"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "bookings"] });
     },
   });
 }
@@ -499,9 +526,46 @@ export function useCreateCourtBooking() {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       queryClient.invalidateQueries({ queryKey: ["courtAvailability"] });
       queryClient.invalidateQueries({ queryKey: ["courtWizardAvailability"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "bookings"] });
       if (variables.userId) {
         queryClient.invalidateQueries({ queryKey: ["bookings", variables.userId] });
       }
+    },
+  });
+}
+
+/** Admin court calendar: many dates in one request; optional single summary email */
+export function useAdminCreateCourtCalendarBatch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      courtId: string;
+      bookingDates: string[];
+      startTime: string;
+      endTime: string;
+      durationMinutes?: number;
+      adminCalendarSeriesId?: string;
+      sendConfirmationEmail?: boolean;
+    }) => api.bookings.adminCreateCourtCalendarBatch(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["courtAvailability"] });
+      queryClient.invalidateQueries({ queryKey: ["courtWizardAvailability"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["courtSlots"] });
+    },
+  });
+}
+
+export function useAdminCancelCourtBookingSeries() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (seriesId: string) => api.bookings.adminCancelCourtBookingSeries(seriesId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["courtSlots"] });
+      queryClient.invalidateQueries({ queryKey: ["courtAvailability"] });
     },
   });
 }

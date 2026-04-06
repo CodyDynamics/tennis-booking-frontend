@@ -193,7 +193,7 @@ export default function LocationCourtsPage() {
           onClick={() => setBookingDrawerOpen((o) => !o)}
           className={cn(
             "fixed z-50 flex h-28 w-9 flex-col items-center justify-center rounded-l-xl border border-r-0 border-slate-200 bg-primary text-primary-foreground shadow-lg transition-[right] duration-300 ease-out hover:bg-primary-hover min-[1180px]:hidden",
-            bookingDrawerOpen ? "right-[min(100vw,360px)]" : "right-0",
+            bookingDrawerOpen ? "right-[min(100vw,380px)]" : "right-0",
           )}
         >
           {bookingDrawerOpen ? (
@@ -222,12 +222,12 @@ export default function LocationCourtsPage() {
           <LocationMyBookingsSidebar
             id="court-bookings-sidebar"
             className={cn(
-              "max-[1179px]:fixed max-[1179px]:top-20 max-[1179px]:bottom-0 max-[1179px]:right-0 max-[1179px]:z-40 max-[1179px]:w-[min(100vw,360px)] max-[1179px]:max-h-none max-[1179px]:rounded-l-2xl max-[1179px]:rounded-r-none max-[1179px]:border-r-0 max-[1179px]:shadow-xl",
+              "max-[1179px]:fixed max-[1179px]:top-20 max-[1179px]:bottom-0 max-[1179px]:right-0 max-[1179px]:z-40 max-[1179px]:w-[min(100vw,380px)] max-[1179px]:max-h-none max-[1179px]:rounded-l-2xl max-[1179px]:rounded-r-none max-[1179px]:border-r-0 max-[1179px]:shadow-xl",
               "max-[1179px]:transition-transform max-[1179px]:duration-300 max-[1179px]:ease-out",
               bookingDrawerOpen
                 ? "max-[1179px]:translate-x-0"
                 : "max-[1179px]:translate-x-full",
-              "min-[1180px]:translate-x-0 min-[1180px]:w-[360px] min-[1180px]:min-w-[300px] min-[1180px]:shrink-0 min-[1180px]:max-h-[calc(100vh-5rem)] min-[1180px]:sticky min-[1180px]:top-20 min-[1180px]:rounded-2xl min-[1180px]:shadow-sm",
+              "min-[1180px]:translate-x-0 min-[1180px]:w-[min(380px,32vw)] min-[1180px]:min-w-[300px] min-[1180px]:shrink-0 min-[1180px]:max-h-[calc(100vh-5rem)] min-[1180px]:sticky min-[1180px]:top-20 min-[1180px]:rounded-2xl min-[1180px]:shadow-sm",
             )}
             locationId={locationId}
             displayName={user?.fullName?.split(" ")[0] ?? user?.email ?? "there"}

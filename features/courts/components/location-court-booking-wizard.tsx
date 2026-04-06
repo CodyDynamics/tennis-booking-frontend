@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useCourts,
   useCourtSlots,
@@ -165,6 +166,7 @@ export function LocationCourtBookingWizard({
 }) {
   const tz = locationTimezone || "UTC";
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const createSlotBooking = useCreateSlotBooking();
   const updateSlotBooking = useUpdateSlotBooking();
   const [editingBookingId, setEditingBookingId] = useState<string | null>(null);
@@ -392,6 +394,8 @@ export function LocationCourtBookingWizard({
       setSelectedSlot(null);
       setBookError(null);
       refetch();
+      void queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "bookings"] });
     },
   });
 

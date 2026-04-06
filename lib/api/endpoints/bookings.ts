@@ -32,6 +32,8 @@ export interface AdminCourtBookingRowApi {
   court?: { id: string; name: string } | null;
   user?: { id: string; email: string; fullName: string } | null;
   location?: { id: string; name: string } | null;
+  /** Set when created from admin calendar multi-date / recurring batch */
+  adminCalendarSeriesId?: string | null;
 }
 
 export function createBookingsEndpoints(client: ApiClient) {
@@ -156,8 +158,49 @@ export function createBookingsEndpoints(client: ApiClient) {
     },
     adminUpdateCourtBooking: (
       id: string,
-      body: { bookingStatus?: string; paymentStatus?: string },
+      body: {
+        bookingStatus?: string;
+        paymentStatus?: string;
+        bookingDate?: string;
+        startTime?: string;
+        endTime?: string;
+      },
     ) => client.patch<AdminCourtBookingRowApi>(`/bookings/admin/court/${id}`, body),
+
+    adminCancelCourtBooking: (id: string) =>
+      client.post<AdminCourtBookingRowApi>(`/bookings/admin/court/${id}/cancel`, {}),
+
+    adminCreateCourtBooking: (body: {
+      courtId: string;
+      bookingDate: string;
+      startTime: string;
+      endTime: string;
+      durationMinutes?: number;
+      coachId?: string;
+      locationBookingWindowId?: string;
+      adminCalendarSeriesId?: string;
+      sendConfirmationEmail?: boolean;
+    }) => client.post<CreateBookingResult>("/bookings/admin/court", body),
+
+    adminCreateCourtCalendarBatch: (body: {
+      courtId: string;
+      bookingDates: string[];
+      startTime: string;
+      endTime: string;
+      durationMinutes?: number;
+      adminCalendarSeriesId?: string;
+      sendConfirmationEmail?: boolean;
+    }) =>
+      client.post<{
+        created: CreateBookingResult[];
+        errors: { bookingDate: string; message: string }[];
+      }>("/bookings/admin/court/batch", body),
+
+    adminCancelCourtBookingSeries: (seriesId: string) =>
+      client.post<{ cancelledCount: number }>(
+        `/bookings/admin/court/series/${seriesId}/cancel`,
+        {},
+      ),
   };
 }
 

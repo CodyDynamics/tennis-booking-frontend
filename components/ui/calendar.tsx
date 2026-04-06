@@ -4,7 +4,16 @@ import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isSameDay, addMonths, subMonths } from "date-fns";
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  isToday,
+  isSameDay,
+  addMonths,
+  subMonths,
+} from "date-fns";
 
 interface CalendarProps {
   selectedDate?: Date;
@@ -17,6 +26,12 @@ interface CalendarProps {
   className?: string;
   /** ~2/3 visual scale of default (tighter padding & type) for dense layouts. */
   size?: "default" | "compact";
+  /**
+   * Controlled month (any day in the month). Use with `onVisibleMonthChange` for multi-month sidebars
+   * so navigating months does not follow `selectedDate`.
+   */
+  visibleMonth?: Date;
+  onVisibleMonthChange?: (month: Date) => void;
 }
 
 export function Calendar({
@@ -28,18 +43,47 @@ export function Calendar({
   isDateDisabled,
   className,
   size = "default",
+  visibleMonth: visibleMonthProp,
+  onVisibleMonthChange,
 }: CalendarProps) {
   const compact = size === "compact";
-  const [currentMonth, setCurrentMonth] = React.useState(new Date());
+  const monthControlled =
+    visibleMonthProp != null && onVisibleMonthChange != null;
+  const [internalMonth, setInternalMonth] = React.useState(() =>
+    visibleMonthProp ? startOfMonth(visibleMonthProp) : new Date(),
+  );
 
   React.useEffect(() => {
+    if (monthControlled) return;
     if (selectedDate) {
-      setCurrentMonth(startOfMonth(selectedDate));
+      setInternalMonth(startOfMonth(selectedDate));
     }
-  }, [selectedDate]);
+  }, [selectedDate, monthControlled]);
 
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
+  React.useEffect(() => {
+    if (!monthControlled && visibleMonthProp) {
+      setInternalMonth(startOfMonth(visibleMonthProp));
+    }
+  }, [visibleMonthProp, monthControlled]);
+
+  const displayMonth = monthControlled
+    ? startOfMonth(visibleMonthProp)
+    : internalMonth;
+
+  const goPrevMonth = () => {
+    const next = subMonths(displayMonth, 1);
+    if (monthControlled) onVisibleMonthChange!(next);
+    else setInternalMonth(next);
+  };
+
+  const goNextMonth = () => {
+    const next = addMonths(displayMonth, 1);
+    if (monthControlled) onVisibleMonthChange!(next);
+    else setInternalMonth(next);
+  };
+
+  const monthStart = startOfMonth(displayMonth);
+  const monthEnd = endOfMonth(displayMonth);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
   const firstDayOfWeek = monthStart.getDay();
@@ -76,7 +120,7 @@ export function Calendar({
           variant="ghost"
           size="icon"
           className={cn(compact && "h-7 w-7")}
-          onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+          onClick={goPrevMonth}
         >
           <ChevronLeft className={cn(compact ? "h-3.5 w-3.5" : "h-4 w-4")} />
         </Button>
@@ -86,13 +130,13 @@ export function Calendar({
             compact ? "text-sm" : "text-lg",
           )}
         >
-          {format(currentMonth, "MMMM yyyy")}
+          {format(displayMonth, "MMMM yyyy")}
         </h3>
         <Button
           variant="ghost"
           size="icon"
           className={cn(compact && "h-7 w-7")}
-          onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+          onClick={goNextMonth}
         >
           <ChevronRight className={cn(compact ? "h-3.5 w-3.5" : "h-4 w-4")} />
         </Button>
