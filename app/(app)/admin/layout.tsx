@@ -133,9 +133,9 @@ export default function AdminLayout({
 
   const allNavItems = [
     { href: "/admin", label: "Analytics", icon: LayoutDashboard },
+    { href: "/admin/court-calendar", label: "Court calendar", icon: CalendarDays },
     { href: "/admin/court-management", label: "Court Management", icon: Grid3X3 },
     { href: "/admin/bookings", label: "Bookings", icon: Activity },
-    { href: "/admin/court-calendar", label: "Court calendar", icon: CalendarDays },
     { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/user-memberships", label: "Memberships", icon: Users },
     { href: "/admin/roles", label: "Roles & Permissions", icon: Shield },
