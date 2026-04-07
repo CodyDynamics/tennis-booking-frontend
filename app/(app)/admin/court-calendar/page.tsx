@@ -10,7 +10,13 @@ import {
 import { addMonths, format, isSameDay, startOfMonth, subMonths } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { useAdmin } from "../admin-context";
-import { useAdminCourtBookings, useCourts, useLocations } from "@/lib/queries";
+import {
+  useAdminCourtBookings,
+  useBookableLocations,
+  useCourtBookingWindows,
+  useCourts,
+  useLocations,
+} from "@/lib/queries";
 import type { AdminCourtBookingRowApi } from "@/lib/api/endpoints/bookings";
 import type { Court } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -23,6 +29,9 @@ import {
   CourtCalendarBookingDialog,
   type CalendarColumnMeta,
 } from "./court-calendar-booking-dialog";
+import { AdminCourtFormDialog } from "../components/admin-court-form-dialog";
+import { formatCourtBookingWindowsAsLines } from "../court-availability-format";
+import type { CourtBookingWindowAdminApi } from "@/lib/api/endpoints/courts";
 
 const TIME_COL_WIDTH_PX = 52;
 /** Minimum total width before horizontal scroll; columns grow to fill above this. */
@@ -173,6 +182,9 @@ export default function AdminCourtCalendarPage() {
   const scopedLocationId = adminLocationId !== "all" ? adminLocationId : undefined;
 
   const { data: locations = [] } = useLocations();
+  const { data: bookableLocs = [] } = useBookableLocations(user?.role === "super_user");
+  const locationsForCourtDialog =
+    user?.role === "super_user" && bookableLocs.length > 0 ? bookableLocs : locations;
   const locationTimezone = useMemo(() => {
     if (!scopedLocationId) return null;
     return locations.find((l) => l.id === scopedLocationId)?.timezone ?? null;
@@ -187,6 +199,8 @@ export default function AdminCourtCalendarPage() {
   const [dialogStartMinute, setDialogStartMinute] = useState(0);
   const [dialogEditingBooking, setDialogEditingBooking] =
     useState<AdminCourtBookingRowApi | null>(null);
+  const [courtEditOpen, setCourtEditOpen] = useState(false);
+  const [courtToEdit, setCourtToEdit] = useState<Court | null>(null);
 
   const dateStr = ymd(selectedDate);
 
@@ -194,6 +208,20 @@ export default function AdminCourtCalendarPage() {
     locationId: scopedLocationId,
     enabled: !!scopedLocationId,
   });
+
+  const { data: bookingWindows = [], isLoading: windowsLoading } = useCourtBookingWindows({
+    enabled: !!scopedLocationId,
+  });
+
+  const windowsByCourtId = useMemo(() => {
+    const m = new Map<string, CourtBookingWindowAdminApi[]>();
+    for (const w of bookingWindows) {
+      const arr = m.get(w.courtId) ?? [];
+      arr.push(w);
+      m.set(w.courtId, arr);
+    }
+    return m;
+  }, [bookingWindows]);
 
   const {
     data: bookingsRaw = [],
@@ -294,7 +322,7 @@ export default function AdminCourtCalendarPage() {
     setDialogOpen(true);
   };
 
-  const loading = !!scopedLocationId && (courtsLoading || bookingsLoading);
+  const loading = !!scopedLocationId && (courtsLoading || bookingsLoading || windowsLoading);
 
   useLayoutEffect(() => {
     const body = bodyScrollRef.current;
@@ -331,23 +359,35 @@ export default function AdminCourtCalendarPage() {
   return (
     <div className="flex flex-col gap-6 pb-10 lg:flex-row lg:items-start">
       {scopedLocationId ? (
-        <CourtCalendarBookingDialog
-          open={dialogOpen}
-          onOpenChange={(v) => {
-            setDialogOpen(v);
-            if (!v) {
-              setDialogCourt(null);
-              setDialogEditingBooking(null);
-            }
-          }}
-          locationTimezone={locationTimezone}
-          bookingDate={dateStr}
-          column={dialogCourt}
-          startHour={dialogStartHour}
-          startMinute={dialogStartMinute}
-          editingBooking={dialogEditingBooking}
-          isSuperAdmin={user?.role === "super_admin"}
-        />
+        <>
+          <CourtCalendarBookingDialog
+            open={dialogOpen}
+            onOpenChange={(v) => {
+              setDialogOpen(v);
+              if (!v) {
+                setDialogCourt(null);
+                setDialogEditingBooking(null);
+              }
+            }}
+            locationTimezone={locationTimezone}
+            bookingDate={dateStr}
+            column={dialogCourt}
+            startHour={dialogStartHour}
+            startMinute={dialogStartMinute}
+            editingBooking={dialogEditingBooking}
+            isSuperAdmin={user?.role === "super_admin"}
+          />
+          <AdminCourtFormDialog
+            open={courtEditOpen}
+            onOpenChange={(o) => {
+              setCourtEditOpen(o);
+              if (!o) setCourtToEdit(null);
+            }}
+            editingCourt={courtToEdit}
+            locations={locationsForCourtDialog}
+            adminScopedLocationId={adminLocationId}
+          />
+        </>
       ) : null}
 
       <aside className="w-full shrink-0 space-y-4 lg:w-[280px]">
@@ -442,15 +482,54 @@ export default function AdminCourtCalendarPage() {
                   Time
                 </div>
                 <div className="flex min-w-0 flex-1">
-                  {columns.map((c) => (
-                    <div
-                      key={c.id}
-                      className="flex min-h-[48px] min-w-0 flex-1 basis-0 items-center justify-center border-r border-slate-100 px-1 py-3 text-center text-xs font-semibold text-slate-800 last:border-r-0 dark:border-slate-800 dark:text-slate-100"
-                      title={c.name}
-                    >
-                      <span className="line-clamp-2 break-words">{c.name}</span>
-                    </div>
-                  ))}
+                  {columns.map((c) => {
+                    const courtRow = courts.find((x) => x.id === c.id);
+                    const availLines = formatCourtBookingWindowsAsLines(windowsByCourtId.get(c.id));
+                    const headerTitle = [c.name, ...availLines].join("\n");
+                    return (
+                      <div
+                        key={c.id}
+                        className="flex min-h-[56px] min-w-0 flex-1 basis-0 items-stretch justify-center border-r border-slate-100 px-1 py-2 text-center text-xs font-semibold text-slate-800 last:border-r-0 dark:border-slate-800 dark:text-slate-100"
+                      >
+                        {courtRow ? (
+                          <button
+                            type="button"
+                            className="flex w-full flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1 text-center transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/80"
+                            title={`Edit ${c.name}${availLines.length ? `\n${availLines.join("\n")}` : ""}`}
+                            aria-label={`Edit court ${c.name}`}
+                            onClick={() => {
+                              setCourtToEdit(courtRow);
+                              setCourtEditOpen(true);
+                            }}
+                          >
+                            <span className="line-clamp-2 break-words leading-tight">{c.name}</span>
+                            {availLines.length ? (
+                              <span className="max-w-full space-y-0.5 text-[10px] font-normal leading-tight text-slate-500 dark:text-slate-400">
+                                {availLines.map((line, li) => (
+                                  <span key={`${c.id}-avail-${li}`} className="block break-words">
+                                    {line}
+                                  </span>
+                                ))}
+                              </span>
+                            ) : null}
+                          </button>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center gap-0.5" title={headerTitle}>
+                            <span className="line-clamp-2 break-words leading-tight">{c.name}</span>
+                            {availLines.length ? (
+                              <span className="max-w-full space-y-0.5 text-[10px] font-normal leading-tight text-slate-500 dark:text-slate-400">
+                                {availLines.map((line, li) => (
+                                  <span key={`${c.id}-avail-${li}`} className="block break-words">
+                                    {line}
+                                  </span>
+                                ))}
+                              </span>
+                            ) : null}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
