@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import { io, Socket } from "socket.io-client";
+import { getSocketIoOrigin } from "@/lib/api/config";
 
 export interface SlotKey {
   sport: string;
@@ -37,8 +38,6 @@ interface UseSlotHoldResult {
   connected: boolean;
 }
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
-
 export function useSlotHold({
   locationId,
   sport,
@@ -57,7 +56,7 @@ export function useSlotHold({
 
   // One-time socket setup
   useEffect(() => {
-    const socket = io(`${SOCKET_URL}/holds`, {
+    const socket = io(`${getSocketIoOrigin()}/holds`, {
       auth: { displayName },
       transports: ["websocket"],
       autoConnect: true,

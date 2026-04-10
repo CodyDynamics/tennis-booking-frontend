@@ -3,9 +3,8 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { useAuth } from "@/lib/auth-store";
+import { getSocketIoOrigin } from "@/lib/api/config";
 import toast from "react-hot-toast";
-
-const WS_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 
 export interface HoldEntry {
   socketId: string;
@@ -58,7 +57,7 @@ export function useCourtHold({ locationId, courtIds, enabled = true, onAvailabil
     if (!enabled || !locationId) return;
 
     const displayName = user?.fullName ?? user?.email ?? "Guest";
-    const socket = io(`${WS_URL}/holds`, {
+    const socket = io(`${getSocketIoOrigin()}/holds`, {
       withCredentials: true,
       auth: { displayName },
       transports: ["websocket"],

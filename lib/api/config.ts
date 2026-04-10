@@ -9,3 +9,11 @@ const getBaseUrl = (): string => {
 };
 
 export const API_BASE_URL = getBaseUrl();
+
+/**
+ * Origin for Socket.IO (no /api suffix). REST clients often set NEXT_PUBLIC_API_URL to …/api;
+ * io(`${that}/holds`) would otherwise use namespace /api/holds while the gateway is on /holds.
+ */
+export function getSocketIoOrigin(): string {
+  return getBaseUrl().replace(/\/api\/?$/, "");
+}
