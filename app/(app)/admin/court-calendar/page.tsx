@@ -30,7 +30,10 @@ import {
   type CalendarColumnMeta,
 } from "./court-calendar-booking-dialog";
 import { AdminCourtFormDialog } from "../components/admin-court-form-dialog";
-import { formatCourtBookingWindowsAsLines } from "../court-availability-format";
+import {
+  CourtCalendarAvailabilityLine,
+  formatCourtBookingWindowsAsLines,
+} from "../court-availability-format";
 import type { CourtBookingWindowAdminApi } from "@/lib/api/endpoints/courts";
 
 const TIME_COL_WIDTH_PX = 52;
@@ -476,7 +479,7 @@ export default function AdminCourtCalendarPage() {
                 style={{ minWidth: rowMinWidthPx }}
               >
                 <div
-                  className="sticky left-0 z-20 flex shrink-0 items-center justify-center border-r border-slate-200 bg-white text-xs font-medium text-slate-400 dark:border-slate-800 dark:bg-slate-900"
+                  className="sticky left-0 z-20 flex shrink-0 items-center justify-center border-r border-slate-200 bg-white text-xs font-bold text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
                   style={{ width: TIME_COL_WIDTH_PX }}
                 >
                   Time
@@ -504,11 +507,12 @@ export default function AdminCourtCalendarPage() {
                           >
                             <span className="line-clamp-2 break-words leading-tight">{c.name}</span>
                             {availLines.length ? (
-                              <span className="max-w-full space-y-0.5 text-[10px] font-normal leading-tight text-slate-500 dark:text-slate-400">
+                              <span className="max-w-full space-y-0.5 text-[10px] leading-tight text-slate-500 dark:text-slate-400">
                                 {availLines.map((line, li) => (
-                                  <span key={`${c.id}-avail-${li}`} className="block break-words">
-                                    {line}
-                                  </span>
+                                  <CourtCalendarAvailabilityLine
+                                    key={`${c.id}-avail-${li}`}
+                                    line={line}
+                                  />
                                 ))}
                               </span>
                             ) : null}
@@ -517,11 +521,12 @@ export default function AdminCourtCalendarPage() {
                           <div className="flex flex-col items-center justify-center gap-0.5" title={headerTitle}>
                             <span className="line-clamp-2 break-words leading-tight">{c.name}</span>
                             {availLines.length ? (
-                              <span className="max-w-full space-y-0.5 text-[10px] font-normal leading-tight text-slate-500 dark:text-slate-400">
+                              <span className="max-w-full space-y-0.5 text-[10px] leading-tight text-slate-500 dark:text-slate-400">
                                 {availLines.map((line, li) => (
-                                  <span key={`${c.id}-avail-${li}`} className="block break-words">
-                                    {line}
-                                  </span>
+                                  <CourtCalendarAvailabilityLine
+                                    key={`${c.id}-avail-${li}`}
+                                    line={line}
+                                  />
                                 ))}
                               </span>
                             ) : null}

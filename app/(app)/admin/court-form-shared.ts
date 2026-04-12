@@ -3,7 +3,7 @@
 export const SPORT_OPTIONS = [
   { code: "tennis", label: "Tennis" },
   { code: "pickleball", label: "Pickleball" },
-  { code: "ball-machine", label: "Ball machine" },
+  { code: "ball-machine", label: "Ball Machine" },
 ] as const;
 
 export const ENV_OPTIONS = ["outdoor", "indoor"] as const;
@@ -52,8 +52,15 @@ export function toggleEnv(
 
 export function sportDisplay(code: string): string {
   const c = code.trim().toLowerCase();
-  if (c === "ball-machine") return "Ball machine";
-  return c ? c.charAt(0).toUpperCase() + c.slice(1) : code;
+  if (c === "ball-machine") return "Ball Machine";
+  if (c === "tennis") return "Tennis";
+  if (c === "pickleball") return "Pickleball";
+  if (!c) return code;
+  return c
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
 }
 
 export function defaultCourtFormLocation(

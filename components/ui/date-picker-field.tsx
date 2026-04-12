@@ -42,6 +42,8 @@ export interface DatePickerFieldProps {
   allowClear?: boolean;
   minDate?: Date;
   maxDate?: Date;
+  /** e.g. z-[100] when the field sits inside a Dialog (popover above modal layer). */
+  popoverContentClassName?: string;
 }
 
 export function DatePickerField({
@@ -55,6 +57,7 @@ export function DatePickerField({
   allowClear,
   minDate,
   maxDate,
+  popoverContentClassName,
 }: DatePickerFieldProps) {
   const [open, setOpen] = React.useState(false);
   const selected = parseLocalYmd(value);
@@ -78,7 +81,10 @@ export function DatePickerField({
           {selected ? format(selected, "MMM d, yyyy") : placeholder}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent
+        className={cn("w-auto p-0", popoverContentClassName)}
+        align="start"
+      >
         <Calendar
           className="border-0 shadow-none"
           selectedDate={selected}

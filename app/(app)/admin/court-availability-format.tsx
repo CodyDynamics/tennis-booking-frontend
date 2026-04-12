@@ -8,6 +8,31 @@ import {
   toAmPmLabel,
 } from "./court-form-shared";
 
+/** Renders one availability line with bold sport names and normal time range (court calendar header). */
+export function CourtCalendarAvailabilityLine({ line }: { line: string }) {
+  const idx = line.lastIndexOf(": ");
+  if (idx <= 0) {
+    return <span className="block break-words">{line}</span>;
+  }
+  const left = line.slice(0, idx).trim();
+  const right = line.slice(idx + 2).trim();
+  const segments = left
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return (
+    <span className="block break-words">
+      {segments.map((seg, i) => (
+        <span key={`${seg}-${i}`}>
+          {i > 0 ? ", " : null}
+          <span className="font-semibold text-slate-700 dark:text-slate-200">{seg}</span>
+        </span>
+      ))}
+      <span className="font-normal text-slate-500 dark:text-slate-400">: {right}</span>
+    </span>
+  );
+}
+
 /** Plain lines for calendar headers, tooltips, etc. */
 export function formatCourtBookingWindowsAsLines(
   windows: CourtBookingWindowAdminApi[] | undefined,
