@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { DatePickerField } from "@/components/ui/date-picker-field";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
@@ -121,6 +122,8 @@ function computeBookingDates(
   selectedDows: Set<number>,
   opts: {
     repeatWeekly: boolean;
+    /** Google Calendar–style: repeat every N weeks (1 = weekly). */
+    intervalWeeks: number;
     endMode: WeeklyEndMode;
     untilYmd: string;
     occurrencesPerWeekday: number;
@@ -143,6 +146,7 @@ function computeBookingDates(
   }
 
   const yearEnd = endOfYear(anchor);
+  const stepDays = 7 * Math.max(1, Math.min(52, Math.floor(opts.intervalWeeks)));
 
   for (const dow of Array.from(selectedDows)) {
     let d = firstDateOnOrAfterAnchor(anchorYmd, dow);
@@ -150,7 +154,7 @@ function computeBookingDates(
       const n = Math.max(1, Math.min(Math.floor(opts.occurrencesPerWeekday), MAX_DATES_PER_SUBMIT));
       for (let i = 0; i < n; i++) {
         out.add(format(d, "yyyy-MM-dd"));
-        d = addDays(d, 7);
+        d = addDays(d, stepDays);
       }
     } else {
       const endBound =
@@ -159,7 +163,7 @@ function computeBookingDates(
           : yearEnd;
       while (!isAfter(d, endBound)) {
         out.add(format(d, "yyyy-MM-dd"));
-        d = addDays(d, 7);
+        d = addDays(d, stepDays);
       }
     }
   }
@@ -208,6 +212,8 @@ export function CourtCalendarBookingDialog(props: {
   const [rangeEnd, setRangeEnd] = useState("10:00");
   const [selectedDows, setSelectedDows] = useState<Set<number>>(new Set());
   const [repeatWeekly, setRepeatWeekly] = useState(false);
+  /** Recurrence interval: repeat every N weeks (default 1). */
+  const [repeatIntervalWeeks, setRepeatIntervalWeeks] = useState(1);
   const [weeklyEndMode, setWeeklyEndMode] = useState<WeeklyEndMode>("year_end");
   const [untilDateYmd, setUntilDateYmd] = useState("");
   const [occurrenceCount, setOccurrenceCount] = useState(12);
@@ -224,11 +230,17 @@ export function CourtCalendarBookingDialog(props: {
     [bookingDate],
   );
 
+  const untilDateMin = useMemo(
+    () => startOfDay(parse(bookingDate, "yyyy-MM-dd", new Date())),
+    [bookingDate],
+  );
+
   useEffect(() => {
     if (!open || !column) return;
     setUntilDateYmd(anchorYearEndYmd);
     setWeeklyEndMode("year_end");
     setOccurrenceCount(12);
+    setRepeatIntervalWeeks(1);
     if (editingBooking) {
       const { h, m } = parseWallParts(editingBooking.startTime);
       setDurationMinutes(nearestDuration(editingBooking.durationMinutes));
@@ -285,6 +297,7 @@ export function CourtCalendarBookingDialog(props: {
     if (isEdit) return [];
     return computeBookingDates(bookingDate, selectedDows, {
       repeatWeekly: selectedDows.size > 0 && repeatWeekly,
+      intervalWeeks: repeatIntervalWeeks,
       endMode: weeklyEndMode,
       untilYmd: untilDateYmd || anchorYearEndYmd,
       occurrencesPerWeekday: occurrenceCount,
@@ -294,6 +307,7 @@ export function CourtCalendarBookingDialog(props: {
     bookingDate,
     selectedDows,
     repeatWeekly,
+    repeatIntervalWeeks,
     weeklyEndMode,
     untilDateYmd,
     anchorYearEndYmd,
@@ -479,8 +493,8 @@ export function CourtCalendarBookingDialog(props: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md rounded-2xl sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[min(90vh,44rem)] max-w-md flex-col overflow-hidden rounded-2xl sm:max-w-md">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{isEdit ? "Edit booking" : "New booking"}</DialogTitle>
           <DialogDescription>
             Times are validated in the venue timezone
@@ -491,7 +505,8 @@ export function CourtCalendarBookingDialog(props: {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2 text-sm">
+        <div className="min-h-0 flex-1 overflow-y-auto py-2 pr-1 text-sm [-webkit-overflow-scrolling:touch]">
+          <div className="space-y-4">
           <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/60">
             <p className="font-semibold text-slate-900 dark:text-white">{column.name}</p>
             <p className="text-slate-600 dark:text-slate-400">{isEdit ? editDateLabel : dateLabel}</p>
@@ -591,6 +606,9 @@ export function CourtCalendarBookingDialog(props: {
 
               {selectedDows.size > 0 ? (
                 <div className="space-y-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    Custom recurrence
+                  </p>
                   <label className="flex cursor-pointer items-center gap-2">
                     <Checkbox
                       checked={repeatWeekly}
@@ -600,11 +618,34 @@ export function CourtCalendarBookingDialog(props: {
                   </label>
 
                   {repeatWeekly ? (
+                    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-100 bg-slate-50/80 px-2 py-2 dark:border-slate-800 dark:bg-slate-900/50">
+                      <span className="text-sm text-slate-600 dark:text-slate-300">Repeat every</span>
+                      <Select
+                        value={String(repeatIntervalWeeks)}
+                        onValueChange={(v) => setRepeatIntervalWeeks(Number.parseInt(v, 10) || 1)}
+                      >
+                        <SelectTrigger className="h-9 w-[140px] rounded-lg" aria-label="Weeks between occurrences">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                            <SelectItem key={n} value={String(n)}>
+                              {n === 1 ? "1 week" : `${n} weeks`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : null}
+
+                  {repeatWeekly ? (
                     <RadioGroup
                       value={weeklyEndMode}
                       onValueChange={(v) => setWeeklyEndMode(v as WeeklyEndMode)}
                       className="space-y-2"
+                      aria-label="Recurrence end"
                     >
+                      <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Ends</p>
                       <div className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-100 p-2 dark:border-slate-800">
                         <RadioGroupItem value="year_end" id="we-year" className="mt-0.5" />
                         <Label htmlFor="we-year" className="cursor-pointer text-sm font-normal leading-snug">
@@ -620,12 +661,14 @@ export function CourtCalendarBookingDialog(props: {
                               Until a date
                             </Label>
                             {weeklyEndMode === "until_date" ? (
-                              <Input
-                                type="date"
-                                className="h-9 rounded-lg"
+                              <DatePickerField
                                 value={untilDateYmd}
-                                min={bookingDate}
-                                onChange={(e) => setUntilDateYmd(e.target.value)}
+                                onChange={setUntilDateYmd}
+                                minDate={untilDateMin}
+                                placeholder="Pick end date"
+                                aria-label="Repeat until date"
+                                className="h-9 w-full rounded-lg"
+                                popoverContentClassName="z-[100]"
                               />
                             ) : null}
                           </div>
@@ -716,9 +759,10 @@ export function CourtCalendarBookingDialog(props: {
               </Button>
             </div>
           ) : null}
+          </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="shrink-0 gap-2 border-t border-slate-100 pt-4 dark:border-slate-800 sm:gap-0">
           <Button
             type="button"
             variant="outline"
