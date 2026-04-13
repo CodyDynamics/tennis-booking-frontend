@@ -67,6 +67,12 @@ function canAccessAdmin(user: User | null, pathname: string): boolean {
 }
 
 import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { AdminProvider } from "./admin-context";
 import { LocationScopeSelector } from "./components/location-scope-selector";
 
@@ -162,6 +168,7 @@ export default function AdminLayout({
 
   return (
     <AdminProvider>
+      <TooltipProvider delayDuration={200} skipDelayDuration={200}>
       {/* Fixed below global Navbar (h-20) so the document body does not scroll; only sidebar nav + main pane scroll. */}
       <div className="fixed inset-x-0 top-20 bottom-0 z-30 flex min-h-0 overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans">
         <aside
@@ -206,21 +213,28 @@ export default function AdminLayout({
                 aria-hidden
               />
             ) : null}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={toggleSidebar}
-              className="h-9 w-9 shrink-0 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
-              aria-expanded={!sidebarCollapsed}
-              aria-label={sidebarCollapsed ? "Expand admin sidebar" : "Collapse admin sidebar"}
-            >
-              {sidebarCollapsed ? (
-                <ArrowRight className="h-5 w-5" aria-hidden />
-              ) : (
-                <ArrowLeft className="h-5 w-5" aria-hidden />
-              )}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleSidebar}
+                  className="h-9 w-9 shrink-0 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
+                  aria-expanded={!sidebarCollapsed}
+                  aria-label={sidebarCollapsed ? "Expand admin sidebar" : "Collapse admin sidebar"}
+                >
+                  {sidebarCollapsed ? (
+                    <ArrowRight className="h-5 w-5" aria-hidden />
+                  ) : (
+                    <ArrowLeft className="h-5 w-5" aria-hidden />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={10}>
+                {sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              </TooltipContent>
+            </Tooltip>
           </div>
 
           <div
@@ -247,8 +261,8 @@ export default function AdminLayout({
               const Icon = item.icon;
               const isActive =
                 pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
-              return (
-                <Link key={item.href} href={item.href} title={sidebarCollapsed ? item.label : undefined}>
+              const link = (
+                <Link href={item.href}>
                   <Button
                     variant={isActive ? "default" : "ghost"}
                     className={cn(
@@ -258,6 +272,7 @@ export default function AdminLayout({
                         ? "bg-primary text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary-hover"
                         : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white",
                     )}
+                    aria-label={sidebarCollapsed ? item.label : undefined}
                   >
                     <Icon
                       className={cn(
@@ -270,6 +285,17 @@ export default function AdminLayout({
                   </Button>
                 </Link>
               );
+
+              return sidebarCollapsed ? (
+                <Tooltip key={item.href}>
+                  <TooltipTrigger asChild>{link}</TooltipTrigger>
+                  <TooltipContent side="right" sideOffset={10}>
+                    {item.label}
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <div key={item.href}>{link}</div>
+              );
             })}
           </nav>
         </aside>
@@ -281,6 +307,7 @@ export default function AdminLayout({
           </div>
         </main>
       </div>
+      </TooltipProvider>
     </AdminProvider>
   );
 }
