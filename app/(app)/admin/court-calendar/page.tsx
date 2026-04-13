@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   useCallback,
+  useEffect,
   useLayoutEffect,
 } from "react";
 import { addMonths, format, isSameDay, startOfMonth, subMonths } from "date-fns";
@@ -204,8 +205,17 @@ export default function AdminCourtCalendarPage() {
     useState<AdminCourtBookingRowApi | null>(null);
   const [courtEditOpen, setCourtEditOpen] = useState(false);
   const [courtToEdit, setCourtToEdit] = useState<Court | null>(null);
+  /** Empty grid cell highlighted after one click; double-click opens create dialog. */
+  const [selectedEmptySlot, setSelectedEmptySlot] = useState<{
+    courtId: string;
+    hour: number;
+  } | null>(null);
 
   const dateStr = ymd(selectedDate);
+
+  useEffect(() => {
+    setSelectedEmptySlot(null);
+  }, [dateStr, scopedLocationId]);
 
   const { data: courts = [], isLoading: courtsLoading } = useCourts({
     locationId: scopedLocationId,
@@ -309,6 +319,7 @@ export default function AdminCourtCalendarPage() {
   }, [selectedDate]);
 
   const openBookingDialog = (court: CalendarColumnMeta, hour: number) => {
+    setSelectedEmptySlot(null);
     setDialogEditingBooking(null);
     setDialogCourt(court);
     setDialogStartHour(hour);
@@ -317,6 +328,7 @@ export default function AdminCourtCalendarPage() {
   };
 
   const openEditBooking = (court: CalendarColumnMeta, booking: AdminCourtBookingRowApi) => {
+    setSelectedEmptySlot(null);
     const { hour, minute } = parseStartHourMinute(booking.startTime);
     setDialogEditingBooking(booking);
     setDialogCourt(court);
@@ -592,17 +604,30 @@ export default function AdminCourtCalendarPage() {
 
                         {Array.from({ length: HOUR_COUNT }, (_, i) => {
                           const hour = FIRST_HOUR + i;
+                          const isSlotSelected =
+                            selectedEmptySlot?.courtId === court.id &&
+                            selectedEmptySlot.hour === hour;
                           return (
                             <button
                               key={`hit-${court.id}-${hour}`}
                               type="button"
-                              aria-label={`Book ${court.name} at ${hour}:00`}
-                              className="absolute right-0 left-0 z-[1] cursor-pointer border-b border-transparent hover:bg-sky-500/10 dark:hover:bg-sky-400/10"
+                              aria-pressed={isSlotSelected}
+                              aria-label={`${court.name} at ${hour}:00. Click to select, double-click to book.`}
+                              title="Click to select · Double-click to create booking"
+                              className={cn(
+                                "absolute right-0 left-0 z-[1] cursor-pointer border-b border-transparent",
+                                isSlotSelected
+                                  ? "bg-sky-500/10 dark:bg-sky-400/10"
+                                  : "hover:bg-sky-500/10 dark:hover:bg-sky-400/10",
+                              )}
                               style={{
                                 top: i * PX_PER_HOUR,
                                 height: PX_PER_HOUR,
                               }}
-                              onClick={() => openBookingDialog(court, hour)}
+                              onClick={() =>
+                                setSelectedEmptySlot({ courtId: court.id, hour })
+                              }
+                              onDoubleClick={() => openBookingDialog(court, hour)}
                             />
                           );
                         })}

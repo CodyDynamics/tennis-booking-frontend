@@ -7,12 +7,12 @@ import type { User } from "@/types";
 import { motion } from "framer-motion";
 import {
   Activity,
+  ArrowLeft,
+  ArrowRight,
   Building2,
   CalendarDays,
   Grid3X3,
   LayoutDashboard,
-  PanelLeft,
-  PanelLeftClose,
   Shield,
   Users,
 } from "lucide-react";
@@ -216,9 +216,9 @@ export default function AdminLayout({
               aria-label={sidebarCollapsed ? "Expand admin sidebar" : "Collapse admin sidebar"}
             >
               {sidebarCollapsed ? (
-                <PanelLeft className="h-5 w-5" aria-hidden />
+                <ArrowRight className="h-5 w-5" aria-hidden />
               ) : (
-                <PanelLeftClose className="h-5 w-5" aria-hidden />
+                <ArrowLeft className="h-5 w-5" aria-hidden />
               )}
             </Button>
           </div>
