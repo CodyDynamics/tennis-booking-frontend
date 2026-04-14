@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
 import type { User as AppUser } from "@/types";
 import { motion } from "framer-motion";
-import { Activity, ChevronDown, LogIn, LogOut, Shield, User, Users } from "lucide-react";
+import { Activity, ChevronDown, LogIn, Menu, Shield, User, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -73,6 +73,16 @@ export function Navbar() {
       const next = encodeURIComponent(href);
       router.push(`/login?next=${next}`);
     }
+  };
+
+  const navigateWithAuthGate = (href: string) => {
+    if (isLoading) return;
+    if (!isAuthenticated) {
+      const next = encodeURIComponent(href);
+      router.push(`/login?next=${next}`);
+      return;
+    }
+    router.push(href);
   };
 
   return (
@@ -235,83 +245,69 @@ export function Navbar() {
             )}
           </div>
 
-          {/* Mobile: Sign In / Sign Up and auth always visible (no menu to open) */}
+          {/* Mobile: compact menu */}
           {showAuthButtons && (
             <div className="flex md:hidden items-center gap-2">
-              <Link
-                href="/coaches"
-                onClick={(e) => requireLoginForHref(e, "/coaches")}
-              >
-                <Button variant="ghost" size="sm" className="rounded-full">
-                  <Users className="mr-1 h-4 w-4" />
-                  Coaches
-                </Button>
-              </Link>
-              {isAuthenticated && user ? (
-                <>
-                  {canShowAdminNav(user) && (
-                    <Link href="/admin">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className={cn(
-                          "rounded-full border-border",
-                          pathname.startsWith("/admin") && "bg-primary/10 text-primary border-primary/30",
-                        )}
-                      >
-                        <Shield className="mr-1 h-4 w-4 text-primary" />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-10 rounded-full px-3">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      navigateWithAuthGate("/coaches");
+                    }}
+                  >
+                    <Users className="mr-2 h-4 w-4" />
+                    Coaches
+                  </DropdownMenuItem>
+                  {isAuthenticated && user && canShowAdminNav(user) && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin" className="cursor-pointer">
+                        <Shield className="mr-2 h-4 w-4 text-primary" />
                         Admin
-                      </Button>
-                    </Link>
+                      </Link>
+                    </DropdownMenuItem>
                   )}
-                  <div className="md:hidden">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-10 gap-1 rounded-full px-2"
-                        >
-                          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
-                            <User className="h-4 w-4" />
-                          </span>
-                          <ChevronDown className="h-4 w-4 opacity-60" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem asChild>
-                          <Link href="/profile" className="cursor-pointer">
-                            Link Profile
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-red-600 focus:text-red-600"
-                          onSelect={(e) => {
-                            e.preventDefault();
-                            void handleLogout();
-                          }}
-                        >
-                          Logout
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <Link href="/register">
-                    <Button variant="outline" size="sm" className="rounded-full">
-                      Sign Up
-                    </Button>
-                  </Link>
-                  <Link href="/login">
-                    <Button size="sm" className="rounded-full bg-primary hover:bg-primary-hover text-primary-foreground px-4 font-bold">
-                      Sign In <LogIn className="ml-1 h-4 w-4" />
-                    </Button>
-                  </Link>
-                </>
-              )}
+                  <DropdownMenuSeparator />
+                  {isAuthenticated && user ? (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link href="/profile" className="cursor-pointer">
+                          <User className="mr-2 h-4 w-4" />
+                          Profile
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-red-600 focus:text-red-600"
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          void handleLogout();
+                        }}
+                      >
+                        Logout
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link href="/register" className="cursor-pointer">
+                          Sign Up
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/login" className="cursor-pointer">
+                          Sign In
+                          <LogIn className="ml-2 h-4 w-4" />
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
         </div>

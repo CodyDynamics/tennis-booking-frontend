@@ -185,26 +185,19 @@ export default function LocationCourtsPage() {
           />
         )}
 
-        <button
-          type="button"
-          id="court-bookings-drawer-toggle"
-          aria-expanded={bookingDrawerOpen}
-          aria-controls="court-bookings-sidebar"
-          onClick={() => setBookingDrawerOpen((o) => !o)}
-          className={cn(
-            "fixed z-50 flex h-28 w-9 flex-col items-center justify-center rounded-l-xl border border-r-0 border-slate-200 bg-primary text-primary-foreground shadow-lg transition-[right] duration-300 ease-out hover:bg-primary-hover min-[1180px]:hidden",
-            bookingDrawerOpen ? "right-[min(100vw,380px)]" : "right-0",
-          )}
-        >
-          {bookingDrawerOpen ? (
-            <ChevronRight className="h-5 w-5" aria-hidden />
-          ) : (
+        {!bookingDrawerOpen && (
+          <button
+            type="button"
+            id="court-bookings-drawer-toggle"
+            aria-expanded={bookingDrawerOpen}
+            aria-controls="court-bookings-sidebar"
+            onClick={() => setBookingDrawerOpen(true)}
+            className="fixed right-0 z-50 flex h-28 w-9 flex-col items-center justify-center rounded-l-xl border border-r-0 border-slate-200 bg-primary text-primary-foreground shadow-lg transition-colors hover:bg-primary-hover min-[1180px]:hidden"
+          >
             <ChevronLeft className="h-5 w-5" aria-hidden />
-          )}
-          <span className="sr-only">
-            {bookingDrawerOpen ? "Hide your bookings" : "Show your bookings"}
-          </span>
-        </button>
+            <span className="sr-only">Show your bookings</span>
+          </button>
+        )}
 
         <div className="flex flex-col min-[1180px]:flex-row min-[1180px]:gap-10 items-start">
           <div className="w-full min-w-0 flex-1">
@@ -234,6 +227,8 @@ export default function LocationCourtsPage() {
             bookings={myBookings}
             isLoading={loadingMyBookings}
             onReschedule={handleReschedule}
+            showMobileCloseToggle={bookingDrawerOpen}
+            onMobileCloseToggle={() => setBookingDrawerOpen(false)}
           />
         </div>
       </motion.div>

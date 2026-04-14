@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { format, parse } from "date-fns";
-import { Pencil } from "lucide-react";
+import { ChevronRight, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -39,6 +39,8 @@ export function LocationMyBookingsSidebar({
   bookings,
   isLoading,
   onReschedule,
+  showMobileCloseToggle = false,
+  onMobileCloseToggle,
   id,
   className,
 }: {
@@ -47,6 +49,8 @@ export function LocationMyBookingsSidebar({
   bookings: SidebarCourtBooking[];
   isLoading: boolean;
   onReschedule: (b: SidebarCourtBooking) => void;
+  showMobileCloseToggle?: boolean;
+  onMobileCloseToggle?: () => void;
   id?: string;
   className?: string;
 }) {
@@ -105,7 +109,24 @@ export function LocationMyBookingsSidebar({
           className,
         )}
       >
-        <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+        <div
+          className={cn(
+            "border-b border-slate-100 px-4 py-3 dark:border-slate-800",
+            showMobileCloseToggle && "relative pl-14 min-[1180px]:pl-4",
+          )}
+        >
+          {showMobileCloseToggle && onMobileCloseToggle && (
+            <button
+              type="button"
+              aria-expanded
+              aria-controls={id}
+              onClick={onMobileCloseToggle}
+              className="absolute left-3 top-1/2 flex h-11 w-8 -translate-y-1/2 items-center justify-center rounded-lg border border-slate-200 bg-primary text-primary-foreground shadow-md transition-colors hover:bg-primary-hover min-[1180px]:hidden"
+            >
+              <ChevronRight className="h-5 w-5" aria-hidden />
+              <span className="sr-only">Hide your bookings</span>
+            </button>
+          )}
           <h2 className="text-base font-bold text-slate-900 dark:text-white leading-tight">
             Hi {displayName},
           </h2>
