@@ -174,7 +174,7 @@ export default function AdminLayout({
         <aside
           className={cn(
             "z-20 flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white shadow-xl transition-[width] duration-200 ease-out dark:border-slate-800 dark:bg-slate-900",
-            sidebarCollapsed ? "w-[4.5rem]" : "w-72",
+            sidebarCollapsed ? "w-[3.5rem]" : "w-72",
           )}
         >
           <div
@@ -302,7 +302,7 @@ export default function AdminLayout({
 
         <main className="scrollbar-app relative min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain bg-slate-50 dark:bg-slate-950">
           <div className="absolute top-0 left-0 right-0 h-64 bg-gradient-to-b from-blue-100/50 to-transparent dark:from-blue-900/10 pointer-events-none z-0"></div>
-          <div className="container py-6 px-8 lg:px-12 relative z-10 max-w-[100%]">
+          <div className="container py-6 px-2 md:px-8 lg:px-12 relative z-10 max-w-[100%]">
             {children}
           </div>
         </main>
