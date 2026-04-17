@@ -378,4 +378,5 @@ export interface CreateCourtSlotBookingInput {
   endTime: string;
   durationMinutes: number;
   coachId?: string;
+  hasClientHold?: boolean;
 }

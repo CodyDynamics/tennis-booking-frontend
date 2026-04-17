@@ -442,6 +442,7 @@ export function useCreateSlotBooking() {
       endTime: string;
       durationMinutes: number;
       coachId?: string | null;
+      hasClientHold?: boolean;
     }) => {
       const payload = {
         locationId: data.locationId,
@@ -453,6 +454,7 @@ export function useCreateSlotBooking() {
         endTime: data.endTime,
         durationMinutes: data.durationMinutes,
         ...(data.coachId ? { coachId: data.coachId } : {}),
+        ...(data.hasClientHold ? { hasClientHold: true } : {}),
       };
       return api.bookings.createSlotBooking(payload);
     },
@@ -480,6 +482,7 @@ export function useUpdateSlotBooking() {
       startTime: string;
       endTime: string;
       durationMinutes: number;
+      hasClientHold?: boolean;
     }) => {
       const { bookingId, ...body } = data;
       return api.bookings.updateSlotBooking(bookingId, body);

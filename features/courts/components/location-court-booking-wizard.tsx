@@ -563,6 +563,15 @@ export function LocationCourtBookingWizard({
       startTime: wallShort(selectedSlot.startTime),
       endTime: wallShort(selectedSlot.endTime),
       durationMinutes: selectedSlot.durationMinutes,
+      hasClientHold:
+        myHoldKey ===
+        slotHoldKey(
+          sport!,
+          courtType!,
+          bookingDate,
+          selectedSlot.startTime,
+          selectedSlot.endTime,
+        ),
     };
     try {
       if (editingBookingId) {

@@ -75,6 +75,13 @@ export function AdminCourtFormDialog({
   ]);
   const [description, setDescription] = useState("");
   const [formScheduleError, setFormScheduleError] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<{
+    locationId?: string;
+    name?: string;
+    courtTypes?: string;
+    sharedWindow?: string;
+    sharedSports?: string;
+  }>({});
 
   const { data: bookingWindows = [] } = useCourtBookingWindows({});
 
@@ -103,6 +110,7 @@ export function AdminCourtFormDialog({
     setPerSportRows([{ sport: "tennis", windowStartTime: "08:00", windowEndTime: "11:00" }]);
     setDescription("");
     setFormScheduleError(null);
+    setFormErrors({});
   }, [adminScopedLocationId, locations]);
 
   useEffect(() => {
@@ -237,6 +245,29 @@ export function AdminCourtFormDialog({
     };
   };
 
+  const validateRequiredFields = () => {
+    const nextErrors: {
+      locationId?: string;
+      name?: string;
+      courtTypes?: string;
+      sharedWindow?: string;
+      sharedSports?: string;
+    } = {};
+    const loc = courtFormLocationId || locations[0]?.id;
+    if (!loc) nextErrors.locationId = "Location is required.";
+    if (!name.trim()) nextErrors.name = "Court number is required.";
+    if (!selectedCourtTypes.length)
+      nextErrors.courtTypes = "Select at least one venue type.";
+    if (scheduleMode === "shared") {
+      if (!selectedSports.length)
+        nextErrors.sharedSports = "Select at least one activity.";
+      if (windowEndTime <= windowStartTime)
+        nextErrors.sharedWindow = "Window end must be after start.";
+    }
+    setFormErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
   return (
     <Dialog
       open={open}
@@ -254,7 +285,10 @@ export function AdminCourtFormDialog({
             <Label>Location</Label>
             <Select
               value={courtFormLocationId || locations[0]?.id}
-              onValueChange={setCourtFormLocationId}
+              onValueChange={(v) => {
+                setCourtFormLocationId(v);
+                setFormErrors((prev) => ({ ...prev, locationId: undefined }));
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select location" />
@@ -267,16 +301,25 @@ export function AdminCourtFormDialog({
                 ))}
               </SelectContent>
             </Select>
+            {formErrors.locationId ? (
+              <p className="mt-1 text-xs text-destructive">{formErrors.locationId}</p>
+            ) : null}
           </div>
           <div className="max-w-[220px]">
             <Label>Court number</Label>
             <Input
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                setFormErrors((prev) => ({ ...prev, name: undefined }));
+              }}
               required
               placeholder="e.g. Court 1"
               className="max-w-full"
             />
+            {formErrors.name ? (
+              <p className="mt-1 text-xs text-destructive">{formErrors.name}</p>
+            ) : null}
           </div>
           <div className="space-y-2">
             <Label>Venue type</Label>
@@ -292,12 +335,18 @@ export function AdminCourtFormDialog({
                   variant={selectedCourtTypes.includes(t) ? "default" : "outline"}
                   size="sm"
                   className="capitalize"
-                  onClick={() => setSelectedCourtTypes((prev) => toggleEnv(prev, t))}
+                  onClick={() => {
+                    setSelectedCourtTypes((prev) => toggleEnv(prev, t));
+                    setFormErrors((prev) => ({ ...prev, courtTypes: undefined }));
+                  }}
                 >
                   {t}
                 </Button>
               ))}
             </div>
+            {formErrors.courtTypes ? (
+              <p className="text-xs text-destructive">{formErrors.courtTypes}</p>
+            ) : null}
           </div>
 
           <div className="space-y-3">
@@ -469,7 +518,16 @@ export function AdminCourtFormDialog({
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <Label className="text-xs">Window start</Label>
-                          <Select value={windowStartTime} onValueChange={setWindowStartTime}>
+                          <Select
+                            value={windowStartTime}
+                            onValueChange={(v) => {
+                              setWindowStartTime(v);
+                              setFormErrors((prev) => ({
+                                ...prev,
+                                sharedWindow: undefined,
+                              }));
+                            }}
+                          >
                             <SelectTrigger>
                               <SelectValue />
                             </SelectTrigger>
@@ -484,7 +542,16 @@ export function AdminCourtFormDialog({
                         </div>
                         <div>
                           <Label className="text-xs">Window end</Label>
-                          <Select value={windowEndTime} onValueChange={setWindowEndTime}>
+                          <Select
+                            value={windowEndTime}
+                            onValueChange={(v) => {
+                              setWindowEndTime(v);
+                              setFormErrors((prev) => ({
+                                ...prev,
+                                sharedWindow: undefined,
+                              }));
+                            }}
+                          >
                             <SelectTrigger>
                               <SelectValue />
                             </SelectTrigger>
@@ -507,7 +574,13 @@ export function AdminCourtFormDialog({
                               type="button"
                               size="sm"
                               variant={selectedSports.includes(code) ? "default" : "outline"}
-                              onClick={() => setSelectedSports((prev) => toggleSport(prev, code))}
+                              onClick={() => {
+                                setSelectedSports((prev) => toggleSport(prev, code));
+                                setFormErrors((prev) => ({
+                                  ...prev,
+                                  sharedSports: undefined,
+                                }));
+                              }}
                             >
                               {label}
                             </Button>
@@ -516,6 +589,12 @@ export function AdminCourtFormDialog({
                         <p className="text-xs text-muted-foreground">
                           Sports on this court share the same booking time grid.
                         </p>
+                        {formErrors.sharedSports ? (
+                          <p className="text-xs text-destructive">{formErrors.sharedSports}</p>
+                        ) : null}
+                        {formErrors.sharedWindow ? (
+                          <p className="text-xs text-destructive">{formErrors.sharedWindow}</p>
+                        ) : null}
                       </div>
                     </>
                   )}
@@ -569,6 +648,10 @@ export function AdminCourtFormDialog({
               const msg = validateSchedule();
               if (msg) {
                 setFormScheduleError(msg);
+                return;
+              }
+              if (!validateRequiredFields()) {
+                setFormScheduleError(null);
                 return;
               }
               setFormScheduleError(null);

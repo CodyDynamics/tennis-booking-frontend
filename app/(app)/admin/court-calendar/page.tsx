@@ -1,61 +1,61 @@
 "use client";
 
-import {
-  useMemo,
-  useRef,
-  useState,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  type ReactNode,
-} from "react";
-import {
-  addMonths,
-  format,
-  isSameDay,
-  parse,
-  startOfMonth,
-  subMonths,
-} from "date-fns";
-import { Calendar } from "@/components/ui/calendar";
-import { useAdmin } from "../admin-context";
-import {
-  useAdminCourtBookings,
-  useBookableLocations,
-  useCourtBookingWindows,
-  useCourts,
-  useLocations,
-} from "@/lib/queries";
-import type { AdminCourtBookingRowApi } from "@/lib/api/endpoints/bookings";
-import type { Court } from "@/types";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
 import {
-  Activity,
-  CalendarClock,
-  CircleDollarSign,
-  RefreshCw,
-  UserRound,
-} from "lucide-react";
-import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
-import { useSlotHold } from "@/lib/hooks/use-slot-hold";
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
+import type { AdminCourtBookingRowApi } from "@/lib/api/endpoints/bookings";
+import type { CourtBookingWindowAdminApi } from "@/lib/api/endpoints/courts";
 import { useAuth } from "@/lib/auth-store";
+import { useSlotHold } from "@/lib/hooks/use-slot-hold";
 import {
-  CourtCalendarBookingDialog,
-  type CalendarColumnMeta,
-} from "./court-calendar-booking-dialog";
+    useAdminCourtBookings,
+    useBookableLocations,
+    useCourtBookingWindows,
+    useCourts,
+    useLocations,
+} from "@/lib/queries";
+import { cn } from "@/lib/utils";
+import type { Court } from "@/types";
+import {
+    addMonths,
+    format,
+    isSameDay,
+    parse,
+    startOfMonth,
+    subMonths,
+} from "date-fns";
+import { motion } from "framer-motion";
+import {
+    Activity,
+    BadgeCheck,
+    RefreshCw,
+    UserRound
+} from "lucide-react";
+import {
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type ReactNode,
+} from "react";
+import { useAdmin } from "../admin-context";
 import { AdminCourtFormDialog } from "../components/admin-court-form-dialog";
 import {
-  CourtCalendarAvailabilityLine,
-  formatCourtBookingWindowsAsLines,
+    CourtCalendarAvailabilityLine,
+    formatCourtBookingWindowsAsLines,
 } from "../court-availability-format";
-import type { CourtBookingWindowAdminApi } from "@/lib/api/endpoints/courts";
+import {
+    CourtCalendarBookingDialog,
+    type CalendarColumnMeta,
+} from "./court-calendar-booking-dialog";
 
 const TIME_COL_WIDTH_PX = 52;
 /** Minimum total width before horizontal scroll; columns grow to fill above this. */
@@ -248,6 +248,14 @@ function initials(name: string): string {
   return `${parts[0]?.slice(0, 1) ?? ""}${parts[1]?.slice(0, 1) ?? ""}`.toUpperCase();
 }
 
+function statusTone(status: string | null | undefined): string {
+  const normalized = (status ?? "").toLowerCase();
+  if (normalized === "confirmed") return "bg-emerald-100 text-emerald-700";
+  if (normalized === "pending") return "bg-amber-100 text-amber-700";
+  if (normalized === "cancelled") return "bg-rose-100 text-rose-700";
+  return "bg-slate-100 text-slate-700";
+}
+
 function computeOverlayLanes(
   list: AdminCourtBookingRowApi[],
 ): Map<string, { lane: number }> {
@@ -338,6 +346,7 @@ export default function AdminCourtCalendarPage() {
     hour: number;
   } | null>(null);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
 
   const dateStr = ymd(selectedDate);
 
@@ -345,6 +354,15 @@ export default function AdminCourtCalendarPage() {
     setSelectedEmptySlot(null);
     setSelectedBookingId(null);
   }, [dateStr, scopedLocationId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 768px)");
+    const apply = () => setIsMobileViewport(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
 
   useEffect(() => {
     didInitialGridScrollRef.current = false;
@@ -815,7 +833,141 @@ export default function AdminCourtCalendarPage() {
                           );
                           const zIndex = 20 + Math.max(0, 600 - duration) + overlayLane;
                           const selected = selectedBookingId === b.id;
-                          return (
+                          const detailsPanel = (
+                            <>
+                              <div
+                                className="px-4 py-2 text-white"
+                                style={{
+                                  backgroundColor: visual.bgColor,
+                                  borderBottom: "1px solid rgba(255,255,255,0.25)",
+                                }}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <p className="text-xl font-bold leading-none tracking-tight">
+                                    {court.name}
+                                  </p>
+                                  <span
+                                    className={cn(
+                                      "rounded-full border border-white/35 px-3 py-1 text-sm font-semibold text-white",
+                                      statusTone(b.bookingStatus),
+                                    )}
+                                    style={{ backgroundColor: visual.badgeBg }}
+                                  >
+                                    {toTitle(b.bookingStatus)}
+                                  </span>
+                                </div>
+                                <p className="mt-1 text-sm font-bold leading-tight text-white">
+                                  {formatBookingDateLabel(
+                                    typeof b.bookingDate === "string"
+                                      ? b.bookingDate
+                                      : dateStr,
+                                  )}{" "}
+                                  · {formatTimeRange12(b.startTime, b.endTime)}
+                                </p>
+                              </div>
+                              <div className="space-y-3 p-5 text-[14px] text-slate-700 dark:text-slate-200">
+                                <p className="flex items-center gap-3 font-semibold text-slate-900 dark:text-slate-100">
+                                  <Activity className="h-4 w-4 text-pink-500" />
+                                  {formatSportCourtLine(b.sport, b.courtType)}
+                                </p>
+                                <p className="flex items-center gap-3">
+                                  <UserRound className="h-4 w-4 text-slate-500" />
+                                  <span className="font-semibold text-slate-600 dark:text-slate-300">
+                                    {isSuperAdmin ? "Owner:" : "Customer:"}
+                                  </span>
+                                  <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 dark:border-slate-700 dark:bg-slate-800">
+                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-indigo-200 text-[11px] font-bold text-indigo-700 dark:bg-indigo-700 dark:text-indigo-100">
+                                      {initials(
+                                        b.user?.fullName?.trim() ||
+                                          b.user?.email ||
+                                          "Unknown",
+                                      )}
+                                    </span>
+                                    <span className="font-semibold text-slate-900 dark:text-slate-100">
+                                      {b.user?.fullName?.trim() ||
+                                        b.user?.email ||
+                                        "Unknown"}
+                                    </span>
+                                  </span>
+                                </p>
+                                <p className="flex items-center gap-3">
+                                  <BadgeCheck className="h-4 w-4 text-slate-500" />
+                                  <span className="font-semibold text-slate-600 dark:text-slate-300">
+                                    Status:
+                                  </span>
+                                  <span className="font-semibold text-slate-900 dark:text-slate-100">
+                                    {toTitle(b.bookingStatus)}
+                                  </span>
+                                </p>
+                              </div>
+                              <div className="px-5 pb-5">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  className="ml-auto rounded-full bg-indigo-500 px-4 hover:bg-indigo-600"
+                                  onClick={() => {
+                                    setSelectedBookingId(null);
+                                    openEditBooking(court, b);
+                                  }}
+                                >
+                                  Edit
+                                </Button>
+                              </div>
+                            </>
+                          );
+                          return isMobileViewport ? (
+                            <Dialog
+                              key={b.id}
+                              open={selected}
+                              onOpenChange={(open) =>
+                                setSelectedBookingId(open ? b.id : null)
+                              }
+                            >
+                              <button
+                                type="button"
+                                className="absolute right-1 left-1 z-[3] flex cursor-pointer flex-col items-start justify-start overflow-hidden rounded-lg border-0 py-1 pr-1.5 pl-3 text-left text-[10px] leading-snug text-white shadow-sm sm:text-[11px]"
+                                style={{
+                                  ...style,
+                                  left: `${4 + laneOffsetPx}px`,
+                                  backgroundColor: visual.bgColor,
+                                  border: `1px solid ${visual.borderColor}`,
+                                  zIndex,
+                                  boxShadow: selected
+                                    ? "0 0 0 2px rgba(255,255,255,0.65)"
+                                    : undefined,
+                                }}
+                                title="Click to view details · Double-click to edit booking"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedEmptySlot(null);
+                                  setSelectedBookingId((prev) =>
+                                    prev === b.id ? null : b.id,
+                                  );
+                                }}
+                                onDoubleClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedBookingId(null);
+                                  openEditBooking(court, b);
+                                }}
+                              >
+                                <span
+                                  aria-hidden
+                                  className="absolute inset-y-0 left-0 w-1.5"
+                                  style={{ backgroundColor: visual.accentColor }}
+                                />
+                                <div className="truncate font-semibold">{name} booked</div>
+                                <div className="truncate opacity-95">
+                                  {formatTimeRange12(b.startTime, b.endTime)}
+                                </div>
+                                <div className="truncate opacity-90">
+                                  {formatSportCourtLine(b.sport, b.courtType)}
+                                </div>
+                              </button>
+                              <DialogContent className="w-[min(92vw,440px)] overflow-hidden rounded-3xl border border-slate-200 p-0 shadow-xl dark:border-slate-700">
+                                {detailsPanel}
+                              </DialogContent>
+                            </Dialog>
+                          ) : (
                             <Popover
                               key={b.id}
                               open={selected}
@@ -868,85 +1020,9 @@ export default function AdminCourtCalendarPage() {
                               <PopoverContent
                                 align="start"
                                 side="right"
-                                className="w-[320px] rounded-2xl border border-slate-200 p-4 shadow-xl dark:border-slate-700"
+                                className="w-[440px] overflow-hidden rounded-3xl border border-slate-200 p-0 shadow-xl dark:border-slate-700"
                               >
-                                <div
-                                  className="rounded-xl p-3 text-white"
-                                  style={{
-                                    backgroundColor: visual.bgColor,
-                                    borderLeft: `4px solid ${visual.accentColor}`,
-                                  }}
-                                >
-                                  <div className="flex items-center justify-between gap-3">
-                                    <p className="text-lg font-semibold">{court.name}</p>
-                                    <span
-                                      className="rounded-full border border-white/35 px-2 py-0.5 text-xs font-semibold"
-                                      style={{ backgroundColor: visual.badgeBg }}
-                                    >
-                                      {toTitle(b.bookingStatus)}
-                                    </span>
-                                  </div>
-                                  <p className="mt-1 text-sm text-white/95">
-                                    {formatBookingDateLabel(
-                                      typeof b.bookingDate === "string"
-                                        ? b.bookingDate
-                                        : dateStr,
-                                    )}{" "}
-                                    · {formatTimeRange12(b.startTime, b.endTime)}
-                                  </p>
-                                </div>
-                                <div className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-200">
-                                  <p className="flex items-center gap-2">
-                                    <Activity className="h-4 w-4 text-slate-500" />
-                                    {formatSportCourtLine(b.sport, b.courtType)}
-                                  </p>
-                                  <p className="flex items-center gap-2">
-                                    <UserRound className="h-4 w-4 text-slate-500" />
-                                    <span className="font-semibold">
-                                      {isSuperAdmin ? "Owner" : "Customer"}:
-                                    </span>{" "}
-                                    <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 dark:border-slate-700 dark:bg-slate-800">
-                                      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-700 dark:bg-slate-700 dark:text-slate-100">
-                                        {initials(
-                                          b.user?.fullName?.trim() ||
-                                            b.user?.email ||
-                                            "Unknown",
-                                        )}
-                                      </span>
-                                      {b.user?.fullName?.trim() ||
-                                        b.user?.email ||
-                                        "Unknown"}
-                                    </span>
-                                  </p>
-                                  <p className="flex items-center gap-2">
-                                    <CalendarClock className="h-4 w-4 text-slate-500" />
-                                    <span className="font-semibold">Status:</span>{" "}
-                                    {toTitle(b.bookingStatus)}
-                                  </p>
-                                  <p className="flex items-center gap-2">
-                                    <CircleDollarSign className="h-4 w-4 text-slate-500" />
-                                    <span className="font-semibold">Payment:</span>{" "}
-                                    {toTitle(b.paymentStatus)}
-                                  </p>
-                                  <p className="flex items-center gap-2">
-                                    <CircleDollarSign className="h-4 w-4 text-slate-500" />
-                                    <span className="font-semibold">Total:</span> $
-                                    {String(b.totalPrice)}
-                                  </p>
-                                </div>
-                                <div className="mt-4 flex justify-end">
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    className="rounded-xl"
-                                    onClick={() => {
-                                      setSelectedBookingId(null);
-                                      openEditBooking(court, b);
-                                    }}
-                                  >
-                                    Edit
-                                  </Button>
-                                </div>
+                                {detailsPanel}
                               </PopoverContent>
                             </Popover>
                           );
