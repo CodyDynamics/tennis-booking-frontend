@@ -7,6 +7,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  type ReactNode,
 } from "react";
 import { addMonths, format, isSameDay, startOfMonth, subMonths } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -22,7 +23,8 @@ import type { AdminCourtBookingRowApi } from "@/lib/api/endpoints/bookings";
 import type { Court } from "@/types";
 import { Button } from "@/components/ui/button";
 import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
-import { MapPin, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useSlotHold } from "@/lib/hooks/use-slot-hold";
 import { useAuth } from "@/lib/auth-store";
@@ -49,6 +51,43 @@ const GRID_HEIGHT_PX = HOUR_COUNT * PX_PER_HOUR;
 const GRID_START_MINUTES = FIRST_HOUR * 60;
 const GRID_END_MINUTES = 24 * 60;
 const GRID_SPAN_MINUTES = GRID_END_MINUTES - GRID_START_MINUTES;
+
+/** First visible hour row when opening this page (grid starts at {@link FIRST_HOUR}). */
+const INITIAL_SCROLL_HOUR = 5;
+const CALENDAR_VISUAL_SCALE = 3 / 3;
+
+function TwoThirdsCalendar({ children }: { children: ReactNode }) {
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [boxHeight, setBoxHeight] = useState<number>();
+
+  useLayoutEffect(() => {
+    const el = innerRef.current;
+    if (!el) return;
+    const update = () => setBoxHeight(el.getBoundingClientRect().height);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <div
+      className="relative flex justify-center overflow-hidden"
+      style={{ height: boxHeight, minHeight: boxHeight === undefined ? 200 : undefined }}
+    >
+      <div
+        ref={innerRef}
+        className="absolute top-0 left-0 w-full origin-top"
+        style={{
+          transform: `scale(${CALENDAR_VISUAL_SCALE})`,
+          transformOrigin: "top center",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
 function ymd(d: Date): string {
   return format(d, "yyyy-MM-dd");
@@ -217,6 +256,10 @@ export default function AdminCourtCalendarPage() {
     setSelectedEmptySlot(null);
   }, [dateStr, scopedLocationId]);
 
+  useEffect(() => {
+    didInitialGridScrollRef.current = false;
+  }, [scopedLocationId]);
+
   const { data: courts = [], isLoading: courtsLoading } = useCourts({
     locationId: scopedLocationId,
     enabled: !!scopedLocationId,
@@ -288,6 +331,8 @@ export default function AdminCourtCalendarPage() {
   const headerScrollRef = useRef<HTMLDivElement>(null);
   const bodyScrollRef = useRef<HTMLDivElement>(null);
   const scrollLock = useRef(false);
+  /** After switching location, scroll time grid so {@link INITIAL_SCROLL_HOUR} AM is at top once. */
+  const didInitialGridScrollRef = useRef(false);
 
   /**
    * Body uses overflow-y; vertical scrollbar steals width. Header has no v-scroll, so we pad it by
@@ -371,8 +416,18 @@ export default function AdminCourtCalendarPage() {
     };
   }, [scopedLocationId, loading, columns.length, n, bookings.length, rowMinWidthPx]);
 
+  useLayoutEffect(() => {
+    if (!scopedLocationId || loading || columns.length === 0) return;
+    if (didInitialGridScrollRef.current) return;
+    const body = bodyScrollRef.current;
+    if (!body) return;
+    const offsetHours = INITIAL_SCROLL_HOUR - FIRST_HOUR;
+    body.scrollTop = Math.max(0, offsetHours) * PX_PER_HOUR;
+    didInitialGridScrollRef.current = true;
+  }, [scopedLocationId, loading, columns.length]);
+
   return (
-    <div className="flex flex-col gap-6 pb-10 lg:flex-row lg:items-start">
+    <div className="flex flex-col gap-2 pb-10 lg:flex-row lg:items-start">
       {scopedLocationId ? (
         <>
           <CourtCalendarBookingDialog
@@ -405,29 +460,40 @@ export default function AdminCourtCalendarPage() {
         </>
       ) : null}
 
-      <aside className="w-full shrink-0 space-y-4 lg:w-[280px]">
+      <aside className="w-full shrink-0 space-y-3 lg:w-[220px]">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <motion.p
+            className="text-xs font-bold uppercase tracking-wider text-sky-700 drop-shadow-sm dark:text-sky-300"
+            animate={{
+              textShadow: [
+                "0 0 0px rgba(14, 165, 233, 0)",
+                "0 0 14px rgba(56, 189, 248, 0.55)",
+                "0 0 0px rgba(14, 165, 233, 0)",
+              ],
+            }}
+            transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+          >
             Select date
-          </p>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-            Two consecutive months; pick a day to load the court grid.
-          </p>
+          </motion.p>
         </div>
-        <Calendar
-          size="compact"
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
-          visibleMonth={firstVisibleMonth}
-          onVisibleMonthChange={setFirstVisibleMonth}
-        />
-        <Calendar
-          size="compact"
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
-          visibleMonth={addMonths(firstVisibleMonth, 1)}
-          onVisibleMonthChange={(m) => setFirstVisibleMonth(subMonths(m, 1))}
-        />
+        <TwoThirdsCalendar>
+          <Calendar
+            size="compact"
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+            visibleMonth={firstVisibleMonth}
+            onVisibleMonthChange={setFirstVisibleMonth}
+          />
+        </TwoThirdsCalendar>
+        <TwoThirdsCalendar>
+          <Calendar
+            size="compact"
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+            visibleMonth={addMonths(firstVisibleMonth, 1)}
+            onVisibleMonthChange={(m) => setFirstVisibleMonth(subMonths(m, 1))}
+          />
+        </TwoThirdsCalendar>
       </aside>
 
       <section className="min-w-0 flex-1 space-y-4">
@@ -438,14 +504,14 @@ export default function AdminCourtCalendarPage() {
             </h1>
             <p className="mt-1 text-slate-600 dark:text-slate-400">
               {format(selectedDate, "EEEE, MMMM d, yyyy")} ·{" "}
-              {scopedLocationId ? (
+              {/* {scopedLocationId ? (
                 <span>{bookings.length} booking(s) shown</span>
               ) : (
                 <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-300">
                   <MapPin className="h-4 w-4 shrink-0" />
                   Choose a location in the sidebar to load courts and bookings.
                 </span>
-              )}
+              )} */}
             </p>
           </div>
           {scopedLocationId ? (
@@ -491,7 +557,7 @@ export default function AdminCourtCalendarPage() {
                 style={{ minWidth: rowMinWidthPx }}
               >
                 <div
-                  className="sticky left-0 z-20 flex shrink-0 items-center justify-center border-r border-slate-200 bg-white text-xs font-bold text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                  className="sticky left-0 z-20 flex shrink-0 items-start justify-center border-r border-slate-200 bg-white pt-2 text-xs font-bold text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
                   style={{ width: TIME_COL_WIDTH_PX }}
                 >
                   Time
@@ -504,15 +570,15 @@ export default function AdminCourtCalendarPage() {
                     return (
                       <div
                         key={c.id}
-                        className="flex min-h-[56px] min-w-0 flex-1 basis-0 items-stretch justify-center border-r border-slate-100 px-1 py-2 text-center text-xs font-semibold text-slate-800 last:border-r-0 dark:border-slate-800 dark:text-slate-100"
+                        className="flex min-h-[56px] min-w-0 flex-1 basis-0 items-start justify-center border-r border-slate-100 px-1 py-2 text-center text-xs font-semibold text-slate-800 last:border-r-0 dark:border-slate-800 dark:text-slate-100"
                       >
                         {courtRow ? (
                           <button
                             type="button"
-                            className="flex w-full flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1 text-center transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/80"
-                            title={`Edit ${c.name}${availLines.length ? `\n${availLines.join("\n")}` : ""}`}
-                            aria-label={`Edit court ${c.name}`}
-                            onClick={() => {
+                            className="flex w-full flex-col items-start justify-start gap-0.5 rounded-lg px-1 py-1 text-left transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/80"
+                            title={`Double-click to edit ${c.name}${availLines.length ? `\n${availLines.join("\n")}` : ""}`}
+                            aria-label={`Court ${c.name}. Double-click to edit.`}
+                            onDoubleClick={() => {
                               setCourtToEdit(courtRow);
                               setCourtEditOpen(true);
                             }}
@@ -530,7 +596,7 @@ export default function AdminCourtCalendarPage() {
                             ) : null}
                           </button>
                         ) : (
-                          <div className="flex flex-col items-center justify-center gap-0.5" title={headerTitle}>
+                          <div className="flex flex-col items-start justify-start gap-0.5 text-left" title={headerTitle}>
                             <span className="line-clamp-2 break-words leading-tight">{c.name}</span>
                             {availLines.length ? (
                               <span className="max-w-full space-y-0.5 text-[10px] leading-tight text-slate-500 dark:text-slate-400">
@@ -644,13 +710,13 @@ export default function AdminCourtCalendarPage() {
                             <button
                               key={b.id}
                               type="button"
-                              className="absolute right-1 left-1 z-[3] cursor-pointer overflow-hidden rounded-lg border-0 px-1.5 py-1 text-left text-[10px] leading-snug text-white shadow-sm sm:text-[11px]"
+                              className="absolute right-1 left-1 z-[3] flex cursor-pointer flex-col items-start justify-start overflow-hidden rounded-lg border-0 px-1.5 py-1 text-left text-[10px] leading-snug text-white shadow-sm sm:text-[11px]"
                               style={{
                                 ...style,
                                 backgroundColor: bg,
                               }}
-                              title="Edit booking"
-                              onClick={(e) => {
+                              title="Double-click to edit booking"
+                              onDoubleClick={(e) => {
                                 e.stopPropagation();
                                 openEditBooking(court, b);
                               }}

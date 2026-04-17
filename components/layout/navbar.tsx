@@ -100,14 +100,14 @@ export function Navbar() {
               {/* <div className="w-10 h-10 justify-center items-center flex">
                 <Image
                   src="/images/home/logo.jpeg"
-                  alt="CodyActive Logo"
+                  alt="CodyReserve Logo"
                   width={50}
                   height={50}
                 />
               </div> */}
             </motion.div>
             <span className="text-2xl font-black tracking-tight text-foreground">
-              CodyActive
+              CodyReserve
             </span>
           </Link>
 

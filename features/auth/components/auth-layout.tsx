@@ -111,7 +111,7 @@ export function AuthLayout({
               <Activity className="h-5 w-5" />
             </div>
             <span className="text-xl font-black tracking-tight text-white">
-              CodyActive
+              CodyReserve
             </span>
           </Link>
         </div>
@@ -169,7 +169,7 @@ export function AuthLayout({
           <Link href="/" className="flex items-center space-x-2">
             <Activity className="h-6 w-6 text-primary" />
             <span className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
-              CodyActive
+              CodyReserve
             </span>
           </Link>
         </div>
