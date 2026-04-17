@@ -1,39 +1,47 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { addDays, endOfYear, format, getDay, isAfter, parse, startOfDay } from "date-fns";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import { DatePickerField } from "@/components/ui/date-picker-field";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
-import {
-  useAdminCancelCourtBooking,
-  useAdminCancelCourtBookingSeries,
-  useAdminCreateCourtCalendarBatch,
-  useAdminUpdateCourtBooking,
-} from "@/lib/queries";
-import type { AdminCourtBookingRowApi } from "@/lib/api/endpoints/bookings";
 import { ApiError } from "@/lib/api";
-import toast from "react-hot-toast";
-import { Loader2 } from "lucide-react";
+import type { AdminCourtBookingRowApi } from "@/lib/api/endpoints/bookings";
+import {
+    useAdminCancelCourtBooking,
+    useAdminCancelCourtBookingSeries,
+    useAdminCreateCourtCalendarBatch,
+    useAdminUpdateCourtBooking,
+} from "@/lib/queries";
 import { cn } from "@/lib/utils";
+import {
+  addDays,
+  differenceInCalendarDays,
+  endOfYear,
+  format,
+  getDay,
+  isAfter,
+  parse,
+  startOfDay,
+} from "date-fns";
+import { Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
 import { normalizeGridTime, TIME_OPTIONS, toAmPmLabel } from "../court-form-shared";
 
 export type CalendarColumnMeta = {
@@ -61,7 +69,8 @@ const WEEKDAY_BUTTONS: { label: string; dow: number }[] = [
 /** Cap per request (matches API) — avoids huge payloads/timeouts. */
 const MAX_DATES_PER_SUBMIT = 400;
 
-type WeeklyEndMode = "year_end" | "until_date" | "count";
+type RecurrencePattern = "daily" | "weekly";
+type RecurrenceEndMode = "end_by" | "end_after" | "no_end";
 
 function padTime(hour: number, minute: number): string {
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
@@ -108,67 +117,56 @@ function defaultEndSlot(startHhmm: string, minGapMinutes: number): string {
   return TIME_OPTIONS[TIME_OPTIONS.length - 1] ?? "23:30";
 }
 
-function firstDateOnOrAfterAnchor(anchorYmd: string, targetDow: number): Date {
-  let d = startOfDay(parse(anchorYmd, "yyyy-MM-dd", new Date()));
-  for (let i = 0; i < 370; i++) {
-    if (getDay(d) === targetDow) return d;
-    d = addDays(d, 1);
-  }
-  return startOfDay(parse(anchorYmd, "yyyy-MM-dd", new Date()));
-}
-
 function computeBookingDates(
   anchorYmd: string,
-  selectedDows: Set<number>,
   opts: {
-    repeatWeekly: boolean;
-    /** Google Calendar–style: repeat every N weeks (1 = weekly). */
-    intervalWeeks: number;
-    endMode: WeeklyEndMode;
-    untilYmd: string;
-    occurrencesPerWeekday: number;
+    pattern: RecurrencePattern;
+    interval: number;
+    selectedDows: Set<number>;
+    rangeStartYmd: string;
+    endMode: RecurrenceEndMode;
+    endByYmd: string;
+    endAfterOccurrences: number;
   },
 ): string[] {
   const anchor = startOfDay(parse(anchorYmd, "yyyy-MM-dd", new Date()));
-  const out = new Set<string>();
+  const start = startOfDay(parse(opts.rangeStartYmd || anchorYmd, "yyyy-MM-dd", new Date()));
+  const interval = Math.max(1, Math.min(365, Math.floor(opts.interval)));
+  const endBy = startOfDay(parse(opts.endByYmd, "yyyy-MM-dd", new Date()));
+  const maxOccurrences =
+    opts.endMode === "end_after"
+      ? Math.max(1, Math.min(MAX_DATES_PER_SUBMIT, Math.floor(opts.endAfterOccurrences)))
+      : MAX_DATES_PER_SUBMIT;
+  const allowedDows =
+    opts.pattern === "weekly"
+      ? opts.selectedDows.size > 0
+        ? opts.selectedDows
+        : new Set<number>([getDay(start)])
+      : new Set<number>();
 
-  if (selectedDows.size === 0) {
-    out.add(format(anchor, "yyyy-MM-dd"));
-    return Array.from(out).sort();
-  }
+  const out: string[] = [];
+  let cursor = start;
 
-  if (!opts.repeatWeekly) {
-    for (const dow of Array.from(selectedDows)) {
-      const d = firstDateOnOrAfterAnchor(anchorYmd, dow);
-      out.add(format(d, "yyyy-MM-dd"));
-    }
-    return Array.from(out).sort();
-  }
+  for (let safety = 0; safety < 5000; safety++) {
+    if (opts.endMode === "end_by" && isAfter(cursor, endBy)) break;
+    if (out.length >= maxOccurrences) break;
 
-  const yearEnd = endOfYear(anchor);
-  const stepDays = 7 * Math.max(1, Math.min(52, Math.floor(opts.intervalWeeks)));
-
-  for (const dow of Array.from(selectedDows)) {
-    let d = firstDateOnOrAfterAnchor(anchorYmd, dow);
-    if (opts.endMode === "count") {
-      const n = Math.max(1, Math.min(Math.floor(opts.occurrencesPerWeekday), MAX_DATES_PER_SUBMIT));
-      for (let i = 0; i < n; i++) {
-        out.add(format(d, "yyyy-MM-dd"));
-        d = addDays(d, stepDays);
-      }
+    const diffDays = differenceInCalendarDays(cursor, start);
+    let matchesPattern = false;
+    if (opts.pattern === "daily") {
+      matchesPattern = diffDays >= 0 && diffDays % interval === 0;
     } else {
-      const endBound =
-        opts.endMode === "until_date"
-          ? startOfDay(parse(opts.untilYmd, "yyyy-MM-dd", new Date()))
-          : yearEnd;
-      while (!isAfter(d, endBound)) {
-        out.add(format(d, "yyyy-MM-dd"));
-        d = addDays(d, stepDays);
-      }
+      const weekOffset = Math.floor(diffDays / 7);
+      matchesPattern =
+        diffDays >= 0 && weekOffset % interval === 0 && allowedDows.has(getDay(cursor));
     }
+    if (matchesPattern) out.push(format(cursor, "yyyy-MM-dd"));
+
+    cursor = addDays(cursor, 1);
+    if (opts.endMode === "no_end" && out.length >= MAX_DATES_PER_SUBMIT) break;
   }
 
-  return Array.from(out).sort();
+  return Array.from(new Set(out)).sort();
 }
 
 function nearestDuration(mins: number): (typeof DURATION_OPTIONS)[number] {
@@ -177,6 +175,179 @@ function nearestDuration(mins: number): (typeof DURATION_OPTIONS)[number] {
   }
   return DURATION_OPTIONS.reduce((a, b) =>
     Math.abs(b - mins) < Math.abs(a - mins) ? b : a,
+  );
+}
+
+function RecurrencePatternSection(props: {
+  pattern: RecurrencePattern;
+  onPatternChange: (v: RecurrencePattern) => void;
+  interval: number;
+  onIntervalChange: (v: number) => void;
+  selectedDows: Set<number>;
+  onToggleDow: (dow: number) => void;
+  rangeStartYmd: string;
+  onRangeStartChange: (v: string) => void;
+  endMode: RecurrenceEndMode;
+  onEndModeChange: (v: RecurrenceEndMode) => void;
+  endByYmd: string;
+  onEndByYmdChange: (v: string) => void;
+  endAfterOccurrences: number;
+  onEndAfterOccurrencesChange: (v: number) => void;
+  startMinDate: Date;
+}) {
+  const {
+    pattern,
+    onPatternChange,
+    interval,
+    onIntervalChange,
+    selectedDows,
+    onToggleDow,
+    rangeStartYmd,
+    onRangeStartChange,
+    endMode,
+    onEndModeChange,
+    endByYmd,
+    onEndByYmdChange,
+    endAfterOccurrences,
+    onEndAfterOccurrencesChange,
+    startMinDate,
+  } = props;
+
+  return (
+    <div className="space-y-3 border-t border-slate-100 pt-3 text-[15px] dark:border-slate-800">
+      <p className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        Recurrence pattern
+      </p>
+
+      <RadioGroup
+        value={pattern}
+        onValueChange={(v) => onPatternChange(v as RecurrencePattern)}
+        className="grid grid-cols-2 gap-2"
+      >
+        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-700">
+          <RadioGroupItem id="rp-daily" value="daily" />
+          <Label htmlFor="rp-daily" className="cursor-pointer text-[15px] font-medium">Daily</Label>
+        </label>
+        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-700">
+          <RadioGroupItem id="rp-weekly" value="weekly" />
+          <Label htmlFor="rp-weekly" className="cursor-pointer text-[15px] font-medium">Weekly</Label>
+        </label>
+      </RadioGroup>
+
+      <div className="rounded-md border border-slate-200 bg-slate-50/60 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/50">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[15px] text-slate-700 dark:text-slate-200">Recur every</span>
+          <Input
+            type="number"
+            min={1}
+            max={365}
+            value={interval}
+            onChange={(e) => onIntervalChange(Math.max(1, Math.min(365, Number(e.target.value) || 1)))}
+            className="h-9 w-[110px] rounded-md text-[15px]"
+            inputMode="numeric"
+            aria-label="Recurrence interval"
+          />
+          <span className="text-[15px] text-slate-700 dark:text-slate-200">
+            {pattern === "daily" ? "day(s)" : "week(s)"}
+            {pattern === "weekly" ? " on:" : ""}
+          </span>
+        </div>
+      </div>
+
+      {pattern === "weekly" ? (
+        <div className="grid grid-cols-4 gap-x-6 gap-y-2 rounded-md border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900/40">
+          {WEEKDAY_BUTTONS.map(({ label, dow }) => {
+            const on = selectedDows.has(dow);
+            return (
+              <Button
+                key={dow}
+                type="button"
+                size="sm"
+                variant="ghost"
+                className={cn(
+                  "h-8 justify-start rounded-md border px-2 text-[15px]",
+                  on
+                    ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "border-slate-300 bg-white text-slate-800 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800",
+                )}
+                onClick={() => onToggleDow(dow)}
+              >
+                {label}
+              </Button>
+            );
+          })}
+        </div>
+      ) : null}
+
+      <fieldset className="space-y-3 rounded-sm border border-slate-200 p-3 dark:border-slate-700">
+        <legend className="px-1 text-[15px] font-medium text-slate-700 dark:text-slate-300">
+          Range of recurrence
+        </legend>
+        <RadioGroup
+          value={endMode}
+          onValueChange={(v) => onEndModeChange(v as RecurrenceEndMode)}
+          className="space-y-3"
+        >
+          <div className="grid gap-2 sm:grid-cols-[64px_200px_140px_200px] sm:items-center">
+            <Label className="text-[15px]">Start:</Label>
+            <DatePickerField
+              value={rangeStartYmd}
+              onChange={onRangeStartChange}
+              minDate={startMinDate}
+              className="h-9 rounded-sm text-[15px]"
+              popoverContentClassName="z-[100]"
+            />
+            <label className="flex cursor-pointer items-center gap-2">
+              <RadioGroupItem value="end_by" id="re-end-by" />
+              <Label htmlFor="re-end-by" className="cursor-pointer text-[15px]">End by:</Label>
+            </label>
+            <DatePickerField
+              value={endByYmd}
+              onChange={onEndByYmdChange}
+              minDate={startMinDate}
+              disabled={endMode !== "end_by"}
+              className="h-9 rounded-sm text-[15px]"
+              popoverContentClassName="z-[100]"
+            />
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-[64px_200px_140px_200px] sm:items-center">
+            <div />
+            <div />
+            <label className="flex cursor-pointer items-center gap-2">
+              <RadioGroupItem value="end_after" id="re-end-after" />
+              <Label htmlFor="re-end-after" className="cursor-pointer text-[15px]">End after:</Label>
+            </label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={1}
+                max={MAX_DATES_PER_SUBMIT}
+                value={endAfterOccurrences}
+                disabled={endMode !== "end_after"}
+                onChange={(e) =>
+                  onEndAfterOccurrencesChange(
+                    Math.max(1, Math.min(MAX_DATES_PER_SUBMIT, Number(e.target.value) || 1)),
+                  )
+                }
+                className="h-9 w-20 rounded-sm text-[15px]"
+              />
+              <span className="text-[15px] text-slate-700 dark:text-slate-300">occurrences</span>
+            </div>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-[64px_200px_140px_200px] sm:items-center">
+            <div />
+            <div />
+            <label className="flex cursor-pointer items-center gap-2">
+              <RadioGroupItem value="no_end" id="re-no-end" />
+              <Label htmlFor="re-no-end" className="cursor-pointer text-[15px]">No end date</Label>
+            </label>
+            <div />
+          </div>
+        </RadioGroup>
+      </fieldset>
+    </div>
   );
 }
 
@@ -210,13 +381,14 @@ export function CourtCalendarBookingDialog(props: {
   const [startMinute, setStartMinute] = useState(0);
   const [rangeStart, setRangeStart] = useState("09:00");
   const [rangeEnd, setRangeEnd] = useState("10:00");
+  const [recurrencePattern, setRecurrencePattern] = useState<RecurrencePattern>("weekly");
+  /** Recurrence interval: repeat every N days/weeks (default 1). */
+  const [recurrenceInterval, setRecurrenceInterval] = useState(1);
   const [selectedDows, setSelectedDows] = useState<Set<number>>(new Set());
-  const [repeatWeekly, setRepeatWeekly] = useState(false);
-  /** Recurrence interval: repeat every N weeks (default 1). */
-  const [repeatIntervalWeeks, setRepeatIntervalWeeks] = useState(1);
-  const [weeklyEndMode, setWeeklyEndMode] = useState<WeeklyEndMode>("year_end");
-  const [untilDateYmd, setUntilDateYmd] = useState("");
-  const [occurrenceCount, setOccurrenceCount] = useState(12);
+  const [rangeStartYmd, setRangeStartYmd] = useState(bookingDate);
+  const [recurrenceEndMode, setRecurrenceEndMode] = useState<RecurrenceEndMode>("end_by");
+  const [endByYmd, setEndByYmd] = useState("");
+  const [endAfterOccurrences, setEndAfterOccurrences] = useState(12);
   /** When true, one summary email lists all created dates (batch only). */
   const [sendConfirmationEmail, setSendConfirmationEmail] = useState(false);
 
@@ -237,16 +409,17 @@ export function CourtCalendarBookingDialog(props: {
 
   useEffect(() => {
     if (!open || !column) return;
-    setUntilDateYmd(anchorYearEndYmd);
-    setWeeklyEndMode("year_end");
-    setOccurrenceCount(12);
-    setRepeatIntervalWeeks(1);
+    setEndByYmd(anchorYearEndYmd);
+    setRecurrenceEndMode("end_by");
+    setEndAfterOccurrences(12);
+    setRecurrenceInterval(1);
+    setRecurrencePattern("weekly");
+    setRangeStartYmd(bookingDate);
     if (editingBooking) {
-      const { h, m } = parseWallParts(editingBooking.startTime);
+      const { m } = parseWallParts(editingBooking.startTime);
       setDurationMinutes(nearestDuration(editingBooking.durationMinutes));
       setStartMinute(m);
       setSelectedDows(new Set());
-      setRepeatWeekly(false);
       setSendConfirmationEmail(false);
       if (isSuperAdmin) {
         setRangeStart(normalizeGridTime(editingBooking.startTime));
@@ -255,14 +428,13 @@ export function CourtCalendarBookingDialog(props: {
     } else {
       setDurationMinutes(60);
       setStartMinute(startMinuteProp);
-      setSelectedDows(new Set());
-      setRepeatWeekly(false);
+      setSelectedDows(new Set([getDay(parse(bookingDate, "yyyy-MM-dd", new Date()))]));
       setSendConfirmationEmail(false);
       const startHhmm = padTime(startHour, startMinuteProp);
       setRangeStart(normalizeGridTime(startHhmm));
       setRangeEnd(defaultEndSlot(normalizeGridTime(startHhmm), 60));
     }
-  }, [open, column?.id, startHour, startMinuteProp, bookingDate, editingBooking, isSuperAdmin, anchorYearEndYmd]);
+  }, [open, column, startHour, startMinuteProp, bookingDate, editingBooking, isSuperAdmin, anchorYearEndYmd]);
 
   const startTimeStandard = useMemo(
     () => padTime(startHour, startMinute),
@@ -295,23 +467,26 @@ export function CourtCalendarBookingDialog(props: {
 
   const datesPreview = useMemo(() => {
     if (isEdit) return [];
-    return computeBookingDates(bookingDate, selectedDows, {
-      repeatWeekly: selectedDows.size > 0 && repeatWeekly,
-      intervalWeeks: repeatIntervalWeeks,
-      endMode: weeklyEndMode,
-      untilYmd: untilDateYmd || anchorYearEndYmd,
-      occurrencesPerWeekday: occurrenceCount,
+    return computeBookingDates(bookingDate, {
+      pattern: recurrencePattern,
+      interval: recurrenceInterval,
+      selectedDows,
+      rangeStartYmd,
+      endMode: recurrenceEndMode,
+      endByYmd: endByYmd || anchorYearEndYmd,
+      endAfterOccurrences,
     });
   }, [
     isEdit,
     bookingDate,
+    recurrencePattern,
+    recurrenceInterval,
     selectedDows,
-    repeatWeekly,
-    repeatIntervalWeeks,
-    weeklyEndMode,
-    untilDateYmd,
+    rangeStartYmd,
+    recurrenceEndMode,
+    endByYmd,
     anchorYearEndYmd,
-    occurrenceCount,
+    endAfterOccurrences,
   ]);
 
   const dateLabel = useMemo(() => {
@@ -331,10 +506,6 @@ export function CourtCalendarBookingDialog(props: {
     updateCourt.isPending ||
     adminCancel.isPending ||
     cancelSeries.isPending;
-
-  useEffect(() => {
-    if (selectedDows.size === 0) setRepeatWeekly(false);
-  }, [selectedDows.size]);
 
   const toggleDow = (dow: number) => {
     setSelectedDows((prev) => {
@@ -356,11 +527,11 @@ export function CourtCalendarBookingDialog(props: {
       return;
     }
 
-    if (selectedDows.size > 0 && repeatWeekly && weeklyEndMode === "until_date") {
-      const anchor = startOfDay(parse(bookingDate, "yyyy-MM-dd", new Date()));
-      const until = startOfDay(parse(untilDateYmd || anchorYearEndYmd, "yyyy-MM-dd", new Date()));
-      if (isAfter(anchor, until)) {
-        toast.error("End date must be on or after the calendar date.");
+    if (!isEdit && recurrenceEndMode === "end_by") {
+      const start = startOfDay(parse(rangeStartYmd || bookingDate, "yyyy-MM-dd", new Date()));
+      const until = startOfDay(parse(endByYmd || anchorYearEndYmd, "yyyy-MM-dd", new Date()));
+      if (isAfter(start, until)) {
+        toast.error("End date must be on or after the recurrence start date.");
         return;
       }
     }
@@ -493,7 +664,7 @@ export function CourtCalendarBookingDialog(props: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[min(90vh,44rem)] max-w-md flex-col overflow-hidden rounded-2xl sm:max-w-md">
+      <DialogContent className="flex max-h-[min(92vh,48rem)] w-[min(92vw,760px)] max-w-3xl flex-col overflow-hidden rounded-2xl">
         <DialogHeader className="shrink-0">
           <DialogTitle>{isEdit ? "Edit booking" : "New booking"}</DialogTitle>
           <DialogDescription>
@@ -505,7 +676,7 @@ export function CourtCalendarBookingDialog(props: {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto py-2 pr-1 text-sm [-webkit-overflow-scrolling:touch]">
+        <div className="min-h-0 flex-1 overflow-y-auto py-2 pr-1 text-[15px] [-webkit-overflow-scrolling:touch]">
           <div className="space-y-4">
           <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/60">
             <p className="font-semibold text-slate-900 dark:text-white">{column.name}</p>
@@ -579,132 +750,23 @@ export function CourtCalendarBookingDialog(props: {
 
           {!isEdit ? (
             <div className="space-y-2">
-              <Label>Apply to weekdays</Label>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Leave none selected to book only the date shown in the calendar. Select days for the
-                next occurrence of each (on or after the calendar date). Turn on{" "}
-                <span className="font-medium text-slate-600 dark:text-slate-300">Repeat weekly</span>{" "}
-                to add more dates using the end rule below.
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {WEEKDAY_BUTTONS.map(({ label, dow }) => {
-                  const on = selectedDows.has(dow);
-                  return (
-                    <Button
-                      key={dow}
-                      type="button"
-                      size="sm"
-                      variant={on ? "default" : "outline"}
-                      className={cn("h-8 rounded-lg px-2.5 text-xs", on && "shadow-sm")}
-                      onClick={() => toggleDow(dow)}
-                    >
-                      {label.slice(0, 3)}
-                    </Button>
-                  );
-                })}
-              </div>
-
-              {selectedDows.size > 0 ? (
-                <div className="space-y-3 border-t border-slate-100 pt-3 dark:border-slate-800">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                    Custom recurrence
-                  </p>
-                  <label className="flex cursor-pointer items-center gap-2">
-                    <Checkbox
-                      checked={repeatWeekly}
-                      onCheckedChange={(c) => setRepeatWeekly(c === true)}
-                    />
-                    <span className="text-sm font-medium leading-none">Repeat weekly</span>
-                  </label>
-
-                  {repeatWeekly ? (
-                    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-100 bg-slate-50/80 px-2 py-2 dark:border-slate-800 dark:bg-slate-900/50">
-                      <span className="text-sm text-slate-600 dark:text-slate-300">Repeat every</span>
-                      <Select
-                        value={String(repeatIntervalWeeks)}
-                        onValueChange={(v) => setRepeatIntervalWeeks(Number.parseInt(v, 10) || 1)}
-                      >
-                        <SelectTrigger className="h-9 w-[140px] rounded-lg" aria-label="Weeks between occurrences">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
-                            <SelectItem key={n} value={String(n)}>
-                              {n === 1 ? "1 week" : `${n} weeks`}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  ) : null}
-
-                  {repeatWeekly ? (
-                    <RadioGroup
-                      value={weeklyEndMode}
-                      onValueChange={(v) => setWeeklyEndMode(v as WeeklyEndMode)}
-                      className="space-y-2"
-                      aria-label="Recurrence end"
-                    >
-                      <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Ends</p>
-                      <div className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-100 p-2 dark:border-slate-800">
-                        <RadioGroupItem value="year_end" id="we-year" className="mt-0.5" />
-                        <Label htmlFor="we-year" className="cursor-pointer text-sm font-normal leading-snug">
-                          <span className="font-medium">Until end of </span>
-                          {format(endOfYear(parse(bookingDate, "yyyy-MM-dd", new Date())), "yyyy")}
-                        </Label>
-                      </div>
-                      <div className="rounded-lg border border-slate-100 p-2 dark:border-slate-800">
-                        <div className="flex cursor-pointer items-start gap-2">
-                          <RadioGroupItem value="until_date" id="we-until" className="mt-0.5" />
-                          <div className="min-w-0 flex-1 space-y-1">
-                            <Label htmlFor="we-until" className="cursor-pointer text-sm font-medium leading-snug">
-                              Until a date
-                            </Label>
-                            {weeklyEndMode === "until_date" ? (
-                              <DatePickerField
-                                value={untilDateYmd}
-                                onChange={setUntilDateYmd}
-                                minDate={untilDateMin}
-                                placeholder="Pick end date"
-                                aria-label="Repeat until date"
-                                className="h-9 w-full rounded-lg"
-                                popoverContentClassName="z-[100]"
-                              />
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="rounded-lg border border-slate-100 p-2 dark:border-slate-800">
-                        <div className="flex cursor-pointer items-start gap-2">
-                          <RadioGroupItem value="count" id="we-count" className="mt-0.5" />
-                          <div className="min-w-0 flex-1 space-y-1">
-                            <Label htmlFor="we-count" className="cursor-pointer text-sm font-medium leading-snug">
-                              Number of times per weekday
-                            </Label>
-                            {weeklyEndMode === "count" ? (
-                              <Input
-                                type="number"
-                                min={1}
-                                max={MAX_DATES_PER_SUBMIT}
-                                className="h-9 rounded-lg"
-                                value={occurrenceCount}
-                                onChange={(e) =>
-                                  setOccurrenceCount(
-                                    Math.max(
-                                      1,
-                                      Math.min(MAX_DATES_PER_SUBMIT, Number(e.target.value) || 1),
-                                    ),
-                                  )
-                                }
-                              />
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
-                    </RadioGroup>
-                  ) : null}
-                </div>
-              ) : null}
+              <RecurrencePatternSection
+                pattern={recurrencePattern}
+                onPatternChange={setRecurrencePattern}
+                interval={recurrenceInterval}
+                onIntervalChange={setRecurrenceInterval}
+                selectedDows={selectedDows}
+                onToggleDow={toggleDow}
+                rangeStartYmd={rangeStartYmd}
+                onRangeStartChange={setRangeStartYmd}
+                endMode={recurrenceEndMode}
+                onEndModeChange={setRecurrenceEndMode}
+                endByYmd={endByYmd || anchorYearEndYmd}
+                onEndByYmdChange={setEndByYmd}
+                endAfterOccurrences={endAfterOccurrences}
+                onEndAfterOccurrencesChange={setEndAfterOccurrences}
+                startMinDate={untilDateMin}
+              />
 
               <p className="text-xs tabular-nums text-slate-600 dark:text-slate-400">
                 {datesPreview.length} booking{datesPreview.length === 1 ? "" : "s"} will be created
@@ -714,17 +776,13 @@ export function CourtCalendarBookingDialog(props: {
                     ? `: ${datesPreview.join(", ")}`
                     : ""}
               </p>
-              <label className="flex cursor-pointer items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+              {/* <label className="flex cursor-pointer items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
                 <Checkbox
                   checked={sendConfirmationEmail}
                   onCheckedChange={(c) => setSendConfirmationEmail(c === true)}
                 />
                 <span className="text-sm font-medium leading-none">Send confirmation email</span>
-              </label>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                If checked, the customer gets <strong>one</strong> email listing every date above. Leave
-                unchecked to avoid email when creating many slots.
-              </p>
+              </label> */}
             </div>
           ) : null}
 

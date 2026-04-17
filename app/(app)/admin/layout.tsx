@@ -127,6 +127,16 @@ export default function AdminLayout({
     if (el && "scrollTo" in el) (el as HTMLElement).scrollTo({ top: 0, left: 0 });
   }, [pathname]);
 
+  useEffect(() => {
+    if (!pathname.startsWith("/admin/court-calendar")) return;
+    setSidebarCollapsed(true);
+    try {
+      localStorage.setItem(ADMIN_SIDEBAR_COLLAPSED_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+  }, [pathname]);
+
   if (isLoading || !user) {
     return (
       <div className="fixed inset-x-0 top-20 bottom-0 z-30 bg-slate-50 dark:bg-slate-950">
