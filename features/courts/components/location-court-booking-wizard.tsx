@@ -372,7 +372,8 @@ export function LocationCourtBookingWizard({
     return slots.filter((s) => {
       const ss = toMinutes(s.startTime);
       const se = toMinutes(s.endTime);
-      return ss < toM && se > fromM;
+      // Search window is authoritative: only keep slots fully inside [from, to].
+      return ss >= fromM && se <= toM;
     });
   }, [slotsData, appliedTimeFrom, appliedTimeTo]);
 
