@@ -9,7 +9,14 @@ import {
   useLayoutEffect,
   type ReactNode,
 } from "react";
-import { addMonths, format, isSameDay, startOfMonth, subMonths } from "date-fns";
+import {
+  addMonths,
+  format,
+  isSameDay,
+  parse,
+  startOfMonth,
+  subMonths,
+} from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { useAdmin } from "../admin-context";
 import {
@@ -22,8 +29,19 @@ import {
 import type { AdminCourtBookingRowApi } from "@/lib/api/endpoints/bookings";
 import type { Court } from "@/types";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { GlobalLoadingPlaceholder } from "@/components/ui/global-loading-placeholder";
-import { RefreshCw } from "lucide-react";
+import {
+  Activity,
+  CalendarClock,
+  CircleDollarSign,
+  RefreshCw,
+  UserRound,
+} from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useSlotHold } from "@/lib/hooks/use-slot-hold";
@@ -113,6 +131,11 @@ function formatTimeRange12(startTime: string, endTime: string): string {
   return `${format(a, "h:mm a")} – ${format(b, "h:mm a")}`;
 }
 
+function formatBookingDateLabel(bookingDate: string): string {
+  const ymdOnly = bookingDate.slice(0, 10);
+  return format(parse(ymdOnly, "yyyy-MM-dd", new Date()), "EEE, MMM d, yyyy");
+}
+
 function primaryCourtType(c: Court): string {
   const t = c.courtTypes?.[0] ?? c.type ?? "outdoor";
   return t === "indoor" ? "indoor" : "outdoor";
@@ -169,30 +192,94 @@ function bookingBlockStyle(startTime: string, endTime: string): React.CSSPropert
   };
 }
 
-const USER_BOOKING_BG = [
+const USER_BOOKING_BASE = [
   "#2563eb",
-  "#0891b2",
   "#7c3aed",
-  "#c026d3",
-  "#db2777",
-  "#ea580c",
-  "#16a34a",
-  "#ca8a04",
-  "#4f46e5",
+  "#0891b2",
+  "#be185d",
   "#0d9488",
-  "#be123c",
-  "#4338ca",
+  "#4f46e5",
+  "#16a34a",
 ] as const;
 
-function stableUserColorIndex(userId: string): number {
+const BOOKING_ACCENT = [
+  "#9333ea",
+  "#ec4899",
+  "#e11d48",
+  "#f59e0b",
+  "#06b6d4",
+  "#3b82f6",
+  "#14b8a6",
+  "#22c55e",
+] as const;
+
+function stableHash(value: string): number {
   let h = 0;
-  for (let i = 0; i < userId.length; i++) h = (h * 31 + userId.charCodeAt(i)) >>> 0;
-  return h % USER_BOOKING_BG.length;
+  for (let i = 0; i < value.length; i++) h = (h * 31 + value.charCodeAt(i)) >>> 0;
+  return h >>> 0;
 }
 
-function bookingBgForUser(userId: string | undefined): string {
-  if (!userId) return "#64748b";
-  return USER_BOOKING_BG[stableUserColorIndex(userId)];
+function bookingVisual(userId: string | undefined, bookingId: string) {
+  const seed = userId?.trim() ? userId : bookingId;
+  const base = USER_BOOKING_BASE[stableHash(seed) % USER_BOOKING_BASE.length];
+  const accent = BOOKING_ACCENT[stableHash(`${bookingId}:${seed}`) % BOOKING_ACCENT.length];
+  return {
+    bgColor: base,
+    accentColor: accent,
+    borderColor: "rgba(255,255,255,0.34)",
+    badgeBg: "rgba(255,255,255,0.16)",
+  };
+}
+
+function toTitle(value: string | null | undefined): string {
+  if (!value) return "Unknown";
+  return value
+    .replace(/_/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function initials(name: string): string {
+  const parts = name.split(" ").filter(Boolean);
+  if (parts.length === 0) return "U";
+  if (parts.length === 1) return parts[0]?.slice(0, 1).toUpperCase() ?? "U";
+  return `${parts[0]?.slice(0, 1) ?? ""}${parts[1]?.slice(0, 1) ?? ""}`.toUpperCase();
+}
+
+function computeOverlayLanes(
+  list: AdminCourtBookingRowApi[],
+): Map<string, { lane: number }> {
+  const rows = [...list]
+    .map((b) => ({
+      id: b.id,
+      start: timeToMinutes(b.startTime),
+      end: timeToMinutes(b.endTime),
+      duration: Math.max(1, timeToMinutes(b.endTime) - timeToMinutes(b.startTime)),
+    }))
+    .sort((a, b) => {
+      if (a.start !== b.start) return a.start - b.start;
+      if (a.duration !== b.duration) return b.duration - a.duration;
+      return a.id.localeCompare(b.id);
+    });
+
+  const active: { end: number; lane: number }[] = [];
+  const lanes = new Map<string, { lane: number }>();
+
+  for (const row of rows) {
+    for (let i = active.length - 1; i >= 0; i--) {
+      if (active[i] && active[i].end <= row.start) {
+        active.splice(i, 1);
+      }
+    }
+    const used = new Set(active.map((x) => x.lane));
+    let lane = 0;
+    while (used.has(lane)) lane++;
+    active.push({ end: row.end, lane });
+    lanes.set(row.id, { lane });
+  }
+  return lanes;
 }
 
 function formatSportCourtLine(
@@ -221,6 +308,7 @@ function parseStartHourMinute(startTime: string): { hour: number; minute: number
 
 export default function AdminCourtCalendarPage() {
   const { user } = useAuth();
+  const isSuperAdmin = user?.role === "super_admin";
   const { locationId: adminLocationId } = useAdmin();
   const scopedLocationId = adminLocationId !== "all" ? adminLocationId : undefined;
 
@@ -249,11 +337,13 @@ export default function AdminCourtCalendarPage() {
     courtId: string;
     hour: number;
   } | null>(null);
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
 
   const dateStr = ymd(selectedDate);
 
   useEffect(() => {
     setSelectedEmptySlot(null);
+    setSelectedBookingId(null);
   }, [dateStr, scopedLocationId]);
 
   useEffect(() => {
@@ -327,6 +417,14 @@ export default function AdminCourtCalendarPage() {
     });
     return m;
   }, [bookings]);
+  const bookingOverlayByCourt = useMemo(() => {
+    const m = new Map<string, Map<string, { lane: number }>>();
+    for (const c of columns) {
+      const list = bookingsByCourt.get(c.id) ?? [];
+      m.set(c.id, computeOverlayLanes(list));
+    }
+    return m;
+  }, [columns, bookingsByCourt]);
 
   const headerScrollRef = useRef<HTMLDivElement>(null);
   const bodyScrollRef = useRef<HTMLDivElement>(null);
@@ -365,6 +463,7 @@ export default function AdminCourtCalendarPage() {
 
   const openBookingDialog = (court: CalendarColumnMeta, hour: number) => {
     setSelectedEmptySlot(null);
+    setSelectedBookingId(null);
     setDialogEditingBooking(null);
     setDialogCourt(court);
     setDialogStartHour(hour);
@@ -374,6 +473,7 @@ export default function AdminCourtCalendarPage() {
 
   const openEditBooking = (court: CalendarColumnMeta, booking: AdminCourtBookingRowApi) => {
     setSelectedEmptySlot(null);
+    setSelectedBookingId(null);
     const { hour, minute } = parseStartHourMinute(booking.startTime);
     setDialogEditingBooking(booking);
     setDialogCourt(court);
@@ -445,7 +545,7 @@ export default function AdminCourtCalendarPage() {
             startHour={dialogStartHour}
             startMinute={dialogStartMinute}
             editingBooking={dialogEditingBooking}
-            isSuperAdmin={user?.role === "super_admin"}
+            isSuperAdmin={isSuperAdmin}
           />
           <AdminCourtFormDialog
             open={courtEditOpen}
@@ -705,30 +805,150 @@ export default function AdminCourtCalendarPage() {
                             b.user?.fullName?.trim() ||
                             b.user?.email ||
                             "Booked";
-                          const bg = bookingBgForUser(b.userId);
+                          const visual = bookingVisual(b.userId, b.id);
+                          const overlayLane =
+                            bookingOverlayByCourt.get(court.id)?.get(b.id)?.lane ?? 0;
+                          const laneOffsetPx = Math.min(overlayLane * 8, 24);
+                          const duration = Math.max(
+                            1,
+                            timeToMinutes(b.endTime) - timeToMinutes(b.startTime),
+                          );
+                          const zIndex = 20 + Math.max(0, 600 - duration) + overlayLane;
+                          const selected = selectedBookingId === b.id;
                           return (
-                            <button
+                            <Popover
                               key={b.id}
-                              type="button"
-                              className="absolute right-1 left-1 z-[3] flex cursor-pointer flex-col items-start justify-start overflow-hidden rounded-lg border-0 px-1.5 py-1 text-left text-[10px] leading-snug text-white shadow-sm sm:text-[11px]"
-                              style={{
-                                ...style,
-                                backgroundColor: bg,
-                              }}
-                              title="Double-click to edit booking"
-                              onDoubleClick={(e) => {
-                                e.stopPropagation();
-                                openEditBooking(court, b);
-                              }}
+                              open={selected}
+                              onOpenChange={(open) =>
+                                setSelectedBookingId(open ? b.id : null)
+                              }
                             >
-                              <div className="truncate font-semibold">{name} booked</div>
-                              <div className="truncate opacity-95">
-                                {formatTimeRange12(b.startTime, b.endTime)}
-                              </div>
-                              <div className="truncate opacity-90">
-                                {formatSportCourtLine(b.sport, b.courtType)}
-                              </div>
-                            </button>
+                              <PopoverTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="absolute right-1 left-1 z-[3] flex cursor-pointer flex-col items-start justify-start overflow-hidden rounded-lg border-0 py-1 pr-1.5 pl-3 text-left text-[10px] leading-snug text-white shadow-sm sm:text-[11px]"
+                                  style={{
+                                    ...style,
+                                    left: `${4 + laneOffsetPx}px`,
+                                    backgroundColor: visual.bgColor,
+                                    border: `1px solid ${visual.borderColor}`,
+                                    zIndex,
+                                    boxShadow: selected
+                                      ? "0 0 0 2px rgba(255,255,255,0.65)"
+                                      : undefined,
+                                  }}
+                                  title="Click to view details · Double-click to edit booking"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedEmptySlot(null);
+                                    setSelectedBookingId((prev) =>
+                                      prev === b.id ? null : b.id,
+                                    );
+                                  }}
+                                  onDoubleClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedBookingId(null);
+                                    openEditBooking(court, b);
+                                  }}
+                                >
+                                  <span
+                                    aria-hidden
+                                    className="absolute inset-y-0 left-0 w-1.5"
+                                    style={{ backgroundColor: visual.accentColor }}
+                                  />
+                                  <div className="truncate font-semibold">{name} booked</div>
+                                  <div className="truncate opacity-95">
+                                    {formatTimeRange12(b.startTime, b.endTime)}
+                                  </div>
+                                  <div className="truncate opacity-90">
+                                    {formatSportCourtLine(b.sport, b.courtType)}
+                                  </div>
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent
+                                align="start"
+                                side="right"
+                                className="w-[320px] rounded-2xl border border-slate-200 p-4 shadow-xl dark:border-slate-700"
+                              >
+                                <div
+                                  className="rounded-xl p-3 text-white"
+                                  style={{
+                                    backgroundColor: visual.bgColor,
+                                    borderLeft: `4px solid ${visual.accentColor}`,
+                                  }}
+                                >
+                                  <div className="flex items-center justify-between gap-3">
+                                    <p className="text-lg font-semibold">{court.name}</p>
+                                    <span
+                                      className="rounded-full border border-white/35 px-2 py-0.5 text-xs font-semibold"
+                                      style={{ backgroundColor: visual.badgeBg }}
+                                    >
+                                      {toTitle(b.bookingStatus)}
+                                    </span>
+                                  </div>
+                                  <p className="mt-1 text-sm text-white/95">
+                                    {formatBookingDateLabel(
+                                      typeof b.bookingDate === "string"
+                                        ? b.bookingDate
+                                        : dateStr,
+                                    )}{" "}
+                                    · {formatTimeRange12(b.startTime, b.endTime)}
+                                  </p>
+                                </div>
+                                <div className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-200">
+                                  <p className="flex items-center gap-2">
+                                    <Activity className="h-4 w-4 text-slate-500" />
+                                    {formatSportCourtLine(b.sport, b.courtType)}
+                                  </p>
+                                  <p className="flex items-center gap-2">
+                                    <UserRound className="h-4 w-4 text-slate-500" />
+                                    <span className="font-semibold">
+                                      {isSuperAdmin ? "Owner" : "Customer"}:
+                                    </span>{" "}
+                                    <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 dark:border-slate-700 dark:bg-slate-800">
+                                      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-700 dark:bg-slate-700 dark:text-slate-100">
+                                        {initials(
+                                          b.user?.fullName?.trim() ||
+                                            b.user?.email ||
+                                            "Unknown",
+                                        )}
+                                      </span>
+                                      {b.user?.fullName?.trim() ||
+                                        b.user?.email ||
+                                        "Unknown"}
+                                    </span>
+                                  </p>
+                                  <p className="flex items-center gap-2">
+                                    <CalendarClock className="h-4 w-4 text-slate-500" />
+                                    <span className="font-semibold">Status:</span>{" "}
+                                    {toTitle(b.bookingStatus)}
+                                  </p>
+                                  <p className="flex items-center gap-2">
+                                    <CircleDollarSign className="h-4 w-4 text-slate-500" />
+                                    <span className="font-semibold">Payment:</span>{" "}
+                                    {toTitle(b.paymentStatus)}
+                                  </p>
+                                  <p className="flex items-center gap-2">
+                                    <CircleDollarSign className="h-4 w-4 text-slate-500" />
+                                    <span className="font-semibold">Total:</span> $
+                                    {String(b.totalPrice)}
+                                  </p>
+                                </div>
+                                <div className="mt-4 flex justify-end">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    className="rounded-xl"
+                                    onClick={() => {
+                                      setSelectedBookingId(null);
+                                      openEditBooking(court, b);
+                                    }}
+                                  >
+                                    Edit
+                                  </Button>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
                           );
                         })}
                       </div>

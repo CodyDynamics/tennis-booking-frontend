@@ -233,6 +233,7 @@ export function useAdminUpdateCourtBooking() {
         bookingDate?: string;
         startTime?: string;
         endTime?: string;
+        allowOverlap?: boolean;
       };
     }) => api.bookings.adminUpdateCourtBooking(id, body),
     onSuccess: () => {
@@ -546,6 +547,7 @@ export function useAdminCreateCourtCalendarBatch() {
       durationMinutes?: number;
       adminCalendarSeriesId?: string;
       sendConfirmationEmail?: boolean;
+      allowOverlap?: boolean;
     }) => api.bookings.adminCreateCourtCalendarBatch(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });

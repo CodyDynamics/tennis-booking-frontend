@@ -164,6 +164,7 @@ export function createBookingsEndpoints(client: ApiClient) {
         bookingDate?: string;
         startTime?: string;
         endTime?: string;
+        allowOverlap?: boolean;
       },
     ) => client.patch<AdminCourtBookingRowApi>(`/bookings/admin/court/${id}`, body),
 
@@ -180,6 +181,7 @@ export function createBookingsEndpoints(client: ApiClient) {
       locationBookingWindowId?: string;
       adminCalendarSeriesId?: string;
       sendConfirmationEmail?: boolean;
+      allowOverlap?: boolean;
     }) => client.post<CreateBookingResult>("/bookings/admin/court", body),
 
     adminCreateCourtCalendarBatch: (body: {
@@ -190,6 +192,7 @@ export function createBookingsEndpoints(client: ApiClient) {
       durationMinutes?: number;
       adminCalendarSeriesId?: string;
       sendConfirmationEmail?: boolean;
+      allowOverlap?: boolean;
     }) =>
       client.post<{
         created: CreateBookingResult[];

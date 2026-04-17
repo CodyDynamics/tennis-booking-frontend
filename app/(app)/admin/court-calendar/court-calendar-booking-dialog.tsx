@@ -71,6 +71,7 @@ const MAX_DATES_PER_SUBMIT = 400;
 
 type RecurrencePattern = "daily" | "weekly";
 type RecurrenceEndMode = "end_by" | "end_after" | "no_end";
+type ConfirmAction = "cancel_series" | "cancel_booking";
 
 function padTime(hour: number, minute: number): string {
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
@@ -255,7 +256,7 @@ function RecurrencePatternSection(props: {
       </div>
 
       {pattern === "weekly" ? (
-        <div className="grid grid-cols-4 gap-x-6 gap-y-2 rounded-md border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900/40">
+        <div className="grid grid-cols-2 gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 sm:grid-cols-3 lg:grid-cols-4 dark:border-slate-700 dark:bg-slate-900/40">
           {WEEKDAY_BUTTONS.map(({ label, dow }) => {
             const on = selectedDows.has(dow);
             return (
@@ -288,7 +289,7 @@ function RecurrencePatternSection(props: {
           onValueChange={(v) => onEndModeChange(v as RecurrenceEndMode)}
           className="space-y-3"
         >
-          <div className="grid gap-2 sm:grid-cols-[64px_200px_140px_200px] sm:items-center">
+          <div className="grid gap-2 md:grid-cols-2 md:items-center">
             <Label className="text-[15px]">Start:</Label>
             <DatePickerField
               value={rangeStartYmd}
@@ -311,9 +312,7 @@ function RecurrencePatternSection(props: {
             />
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-[64px_200px_140px_200px] sm:items-center">
-            <div />
-            <div />
+          <div className="grid gap-2 md:grid-cols-2 md:items-center">
             <label className="flex cursor-pointer items-center gap-2">
               <RadioGroupItem value="end_after" id="re-end-after" />
               <Label htmlFor="re-end-after" className="cursor-pointer text-[15px]">End after:</Label>
@@ -336,9 +335,7 @@ function RecurrencePatternSection(props: {
             </div>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-[64px_200px_140px_200px] sm:items-center">
-            <div />
-            <div />
+          <div className="grid gap-2 md:grid-cols-2 md:items-center">
             <label className="flex cursor-pointer items-center gap-2">
               <RadioGroupItem value="no_end" id="re-no-end" />
               <Label htmlFor="re-no-end" className="cursor-pointer text-[15px]">No end date</Label>
@@ -389,6 +386,9 @@ export function CourtCalendarBookingDialog(props: {
   const [recurrenceEndMode, setRecurrenceEndMode] = useState<RecurrenceEndMode>("end_by");
   const [endByYmd, setEndByYmd] = useState("");
   const [endAfterOccurrences, setEndAfterOccurrences] = useState(12);
+  const [recurrenceDialogOpen, setRecurrenceDialogOpen] = useState(false);
+  const [recurrenceConfirmed, setRecurrenceConfirmed] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
   /** When true, one summary email lists all created dates (batch only). */
   const [sendConfirmationEmail, setSendConfirmationEmail] = useState(false);
 
@@ -397,14 +397,25 @@ export function CourtCalendarBookingDialog(props: {
   const adminCancel = useAdminCancelCourtBooking();
   const cancelSeries = useAdminCancelCourtBookingSeries();
 
+  const anchorBookingYmd = useMemo(() => {
+    if (!editingBooking?.bookingDate) return bookingDate;
+    return typeof editingBooking.bookingDate === "string"
+      ? editingBooking.bookingDate.slice(0, 10)
+      : format(editingBooking.bookingDate as Date, "yyyy-MM-dd");
+  }, [editingBooking, bookingDate]);
+
   const anchorYearEndYmd = useMemo(
-    () => format(endOfYear(parse(bookingDate, "yyyy-MM-dd", new Date())), "yyyy-MM-dd"),
-    [bookingDate],
+    () =>
+      format(
+        endOfYear(parse(anchorBookingYmd, "yyyy-MM-dd", new Date())),
+        "yyyy-MM-dd",
+      ),
+    [anchorBookingYmd],
   );
 
   const untilDateMin = useMemo(
-    () => startOfDay(parse(bookingDate, "yyyy-MM-dd", new Date())),
-    [bookingDate],
+    () => startOfDay(parse(anchorBookingYmd, "yyyy-MM-dd", new Date())),
+    [anchorBookingYmd],
   );
 
   useEffect(() => {
@@ -414,12 +425,15 @@ export function CourtCalendarBookingDialog(props: {
     setEndAfterOccurrences(12);
     setRecurrenceInterval(1);
     setRecurrencePattern("weekly");
-    setRangeStartYmd(bookingDate);
+    setRangeStartYmd(anchorBookingYmd);
+    setRecurrenceDialogOpen(false);
+    setRecurrenceConfirmed(false);
+    setConfirmAction(null);
     if (editingBooking) {
       const { m } = parseWallParts(editingBooking.startTime);
       setDurationMinutes(nearestDuration(editingBooking.durationMinutes));
       setStartMinute(m);
-      setSelectedDows(new Set());
+      setSelectedDows(new Set([getDay(parse(anchorBookingYmd, "yyyy-MM-dd", new Date()))]));
       setSendConfirmationEmail(false);
       if (isSuperAdmin) {
         setRangeStart(normalizeGridTime(editingBooking.startTime));
@@ -434,7 +448,17 @@ export function CourtCalendarBookingDialog(props: {
       setRangeStart(normalizeGridTime(startHhmm));
       setRangeEnd(defaultEndSlot(normalizeGridTime(startHhmm), 60));
     }
-  }, [open, column, startHour, startMinuteProp, bookingDate, editingBooking, isSuperAdmin, anchorYearEndYmd]);
+  }, [
+    open,
+    column,
+    startHour,
+    startMinuteProp,
+    anchorBookingYmd,
+    bookingDate,
+    editingBooking,
+    isSuperAdmin,
+    anchorYearEndYmd,
+  ]);
 
   const startTimeStandard = useMemo(
     () => padTime(startHour, startMinute),
@@ -466,8 +490,7 @@ export function CourtCalendarBookingDialog(props: {
   }, [isSuperAdmin, rangeEnd, rangeStart, durationMinutes]);
 
   const datesPreview = useMemo(() => {
-    if (isEdit) return [];
-    return computeBookingDates(bookingDate, {
+    return computeBookingDates(anchorBookingYmd, {
       pattern: recurrencePattern,
       interval: recurrenceInterval,
       selectedDows,
@@ -477,8 +500,7 @@ export function CourtCalendarBookingDialog(props: {
       endAfterOccurrences,
     });
   }, [
-    isEdit,
-    bookingDate,
+    anchorBookingYmd,
     recurrencePattern,
     recurrenceInterval,
     selectedDows,
@@ -488,6 +510,10 @@ export function CourtCalendarBookingDialog(props: {
     anchorYearEndYmd,
     endAfterOccurrences,
   ]);
+  const datesToSubmit = useMemo(() => {
+    if (!recurrenceConfirmed) return [anchorBookingYmd];
+    return datesPreview.length > 0 ? datesPreview : [anchorBookingYmd];
+  }, [recurrenceConfirmed, anchorBookingYmd, datesPreview]);
 
   const dateLabel = useMemo(() => {
     const d = parse(bookingDate, "yyyy-MM-dd", new Date());
@@ -527,8 +553,10 @@ export function CourtCalendarBookingDialog(props: {
       return;
     }
 
-    if (!isEdit && recurrenceEndMode === "end_by") {
-      const start = startOfDay(parse(rangeStartYmd || bookingDate, "yyyy-MM-dd", new Date()));
+    if (recurrenceConfirmed && recurrenceEndMode === "end_by") {
+      const start = startOfDay(
+        parse(rangeStartYmd || anchorBookingYmd, "yyyy-MM-dd", new Date()),
+      );
       const until = startOfDay(parse(endByYmd || anchorYearEndYmd, "yyyy-MM-dd", new Date()));
       if (isAfter(start, until)) {
         toast.error("End date must be on or after the recurrence start date.");
@@ -538,43 +566,87 @@ export function CourtCalendarBookingDialog(props: {
 
     try {
       if (isEdit && editingBooking) {
-        const ymd =
-          typeof editingBooking.bookingDate === "string"
-            ? editingBooking.bookingDate.slice(0, 10)
-            : format(editingBooking.bookingDate as Date, "yyyy-MM-dd");
         await updateCourt.mutateAsync({
           id: editingBooking.id,
           body: {
-            bookingDate: ymd,
+            bookingDate: anchorBookingYmd,
             startTime,
             endTime,
+            ...(isSuperAdmin ? { allowOverlap: true } : {}),
           },
         });
-        toast.success("Booking updated.");
-        onOpenChange(false);
+        if (!recurrenceConfirmed) {
+          toast.success("Booking updated.");
+          onOpenChange(false);
+          return;
+        }
+
+        const additionalDates = datesToSubmit.filter((d) => d !== anchorBookingYmd);
+        if (additionalDates.length === 0) {
+          toast.success("Booking updated.");
+          onOpenChange(false);
+          return;
+        }
+        if (additionalDates.length > MAX_DATES_PER_SUBMIT) {
+          toast.error(
+            `Too many dates (${additionalDates.length}). Max ${MAX_DATES_PER_SUBMIT}.`,
+          );
+          return;
+        }
+
+        const generatedSeriesId =
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : undefined;
+        const seriesId = editingBooking.adminCalendarSeriesId ?? generatedSeriesId;
+        const res = await adminBatch.mutateAsync({
+          courtId: column.id,
+          bookingDates: additionalDates,
+          startTime,
+          endTime,
+          durationMinutes: effectiveDurationMinutes,
+          ...(seriesId ? { adminCalendarSeriesId: seriesId } : {}),
+          sendConfirmationEmail,
+          ...(isSuperAdmin ? { allowOverlap: true } : {}),
+        });
+
+        for (const err of res.errors) {
+          toast.error(`${err.bookingDate}: ${err.message}`);
+        }
+        if (res.created.length > 0) {
+          toast.success(
+            `Booking updated + ${res.created.length} recurring booking${
+              res.created.length === 1 ? "" : "s"
+            } created.`,
+          );
+        }
+        if (res.errors.length === 0 && res.created.length === additionalDates.length) {
+          onOpenChange(false);
+        }
         return;
       }
 
-      if (datesPreview.length > MAX_DATES_PER_SUBMIT) {
+      if (datesToSubmit.length > MAX_DATES_PER_SUBMIT) {
         toast.error(
-          `Too many dates (${datesPreview.length}). Max ${MAX_DATES_PER_SUBMIT}. Narrow weekdays, end sooner, or lower the occurrence count.`,
+          `Too many dates (${datesToSubmit.length}). Max ${MAX_DATES_PER_SUBMIT}. Narrow weekdays, end sooner, or lower the occurrence count.`,
         );
         return;
       }
 
       const seriesId =
-        datesPreview.length > 1 && typeof crypto !== "undefined" && "randomUUID" in crypto
+        datesToSubmit.length > 1 && typeof crypto !== "undefined" && "randomUUID" in crypto
           ? crypto.randomUUID()
           : undefined;
 
       const res = await adminBatch.mutateAsync({
         courtId: column.id,
-        bookingDates: datesPreview,
+        bookingDates: datesToSubmit,
         startTime,
         endTime,
         durationMinutes: effectiveDurationMinutes,
         ...(seriesId ? { adminCalendarSeriesId: seriesId } : {}),
         sendConfirmationEmail,
+        ...(isSuperAdmin ? { allowOverlap: true } : {}),
       });
 
       for (const err of res.errors) {
@@ -591,7 +663,7 @@ export function CourtCalendarBookingDialog(props: {
               }`,
         );
       }
-      if (res.errors.length === 0 && res.created.length === datesPreview.length) {
+      if (res.errors.length === 0 && res.created.length === datesToSubmit.length) {
         onOpenChange(false);
       }
     } catch (e) {
@@ -608,13 +680,6 @@ export function CourtCalendarBookingDialog(props: {
   const handleCancelSeries = async () => {
     const sid = editingBooking?.adminCalendarSeriesId;
     if (!sid) return;
-    if (
-      !window.confirm(
-        "Cancel every booking in this series (same recurring / multi-date batch)? This removes all linked slots; confirmation emails are not sent for each date.",
-      )
-    ) {
-      return;
-    }
     try {
       const res = await cancelSeries.mutateAsync(sid);
       toast.success(
@@ -636,13 +701,6 @@ export function CourtCalendarBookingDialog(props: {
 
   const handleAdminCancel = async () => {
     if (!editingBooking || !isSuperAdmin) return;
-    if (
-      !window.confirm(
-        "Cancel this booking for the customer? This cannot be undone from the calendar.",
-      )
-    ) {
-      return;
-    }
     try {
       await adminCancel.mutateAsync(editingBooking.id);
       toast.success("Booking cancelled.");
@@ -748,34 +806,79 @@ export function CourtCalendarBookingDialog(props: {
             </div>
           )}
 
-          {!isEdit ? (
-            <div className="space-y-2">
-              <RecurrencePatternSection
-                pattern={recurrencePattern}
-                onPatternChange={setRecurrencePattern}
-                interval={recurrenceInterval}
-                onIntervalChange={setRecurrenceInterval}
-                selectedDows={selectedDows}
-                onToggleDow={toggleDow}
-                rangeStartYmd={rangeStartYmd}
-                onRangeStartChange={setRangeStartYmd}
-                endMode={recurrenceEndMode}
-                onEndModeChange={setRecurrenceEndMode}
-                endByYmd={endByYmd || anchorYearEndYmd}
-                onEndByYmdChange={setEndByYmd}
-                endAfterOccurrences={endAfterOccurrences}
-                onEndAfterOccurrencesChange={setEndAfterOccurrences}
-                startMinDate={untilDateMin}
-              />
-
-              <p className="text-xs tabular-nums text-slate-600 dark:text-slate-400">
-                {datesPreview.length} booking{datesPreview.length === 1 ? "" : "s"} will be created
-                {datesPreview.length > 12
-                  ? ` (first: ${datesPreview[0]}, …)`
-                  : datesPreview.length
-                    ? `: ${datesPreview.join(", ")}`
-                    : ""}
-              </p>
+          <div className="space-y-2">
+              <button
+                type="button"
+                className="text-sm font-medium text-blue-600 underline underline-offset-2 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                onClick={() => setRecurrenceDialogOpen(true)}
+              >
+                Recurrence
+              </button>
+              <Dialog
+                open={recurrenceDialogOpen}
+                onOpenChange={setRecurrenceDialogOpen}
+              >
+                <DialogContent className="max-h-[90vh] w-[min(94vw,760px)] overflow-y-auto rounded-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Recurrence</DialogTitle>
+                    <DialogDescription>
+                      Configure recurring booking pattern and date range.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <RecurrencePatternSection
+                    pattern={recurrencePattern}
+                    onPatternChange={setRecurrencePattern}
+                    interval={recurrenceInterval}
+                    onIntervalChange={setRecurrenceInterval}
+                    selectedDows={selectedDows}
+                    onToggleDow={toggleDow}
+                    rangeStartYmd={rangeStartYmd}
+                    onRangeStartChange={setRangeStartYmd}
+                    endMode={recurrenceEndMode}
+                    onEndModeChange={setRecurrenceEndMode}
+                    endByYmd={endByYmd || anchorYearEndYmd}
+                    onEndByYmdChange={setEndByYmd}
+                    endAfterOccurrences={endAfterOccurrences}
+                    onEndAfterOccurrencesChange={setEndAfterOccurrences}
+                    startMinDate={untilDateMin}
+                  />
+                  <p className="text-xs tabular-nums text-slate-600 dark:text-slate-400">
+                    {datesPreview.length} booking{datesPreview.length === 1 ? "" : "s"} will be created
+                    {datesPreview.length > 12
+                      ? ` (first: ${datesPreview[0]}, …)`
+                      : datesPreview.length
+                        ? `: ${datesPreview.join(", ")}`
+                        : ""}
+                  </p>
+                  <DialogFooter className="pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-xl"
+                      onClick={() => setRecurrenceDialogOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      className="rounded-xl"
+                      onClick={() => {
+                        setRecurrenceConfirmed(true);
+                        setRecurrenceDialogOpen(false);
+                      }}
+                    >
+                      Confirm
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              {recurrenceConfirmed ? (
+                <p className="text-xs text-slate-600 dark:text-slate-400">
+                  Recurrence enabled: {datesToSubmit.length} booking
+                  {datesToSubmit.length === 1 ? "" : "s"}
+                  {isEdit ? " (includes current booking)." : ""}.
+                </p>
+              ) : null}
               {/* <label className="flex cursor-pointer items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
                 <Checkbox
                   checked={sendConfirmationEmail}
@@ -784,7 +887,6 @@ export function CourtCalendarBookingDialog(props: {
                 <span className="text-sm font-medium leading-none">Send confirmation email</span>
               </label> */}
             </div>
-          ) : null}
 
           {isEdit && editingBooking?.adminCalendarSeriesId ? (
             <div className="border-t border-slate-100 pt-3 dark:border-slate-800">
@@ -793,7 +895,7 @@ export function CourtCalendarBookingDialog(props: {
                 variant="outline"
                 className="w-full rounded-xl border-amber-600/70 text-amber-900 hover:bg-amber-50 dark:border-amber-500/60 dark:text-amber-100 dark:hover:bg-amber-950/40"
                 disabled={busy}
-                onClick={() => void handleCancelSeries()}
+                onClick={() => setConfirmAction("cancel_series")}
               >
                 Cancel entire series (all linked dates)
               </Button>
@@ -811,7 +913,7 @@ export function CourtCalendarBookingDialog(props: {
                 variant="destructive"
                 className="w-full rounded-xl"
                 disabled={busy}
-                onClick={() => void handleAdminCancel()}
+                onClick={() => setConfirmAction("cancel_booking")}
               >
                 Cancel this booking only (customer)
               </Button>
@@ -849,6 +951,60 @@ export function CourtCalendarBookingDialog(props: {
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <Dialog
+        open={confirmAction !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmAction(null);
+        }}
+      >
+        <DialogContent className="max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {confirmAction === "cancel_series"
+                ? "Cancel entire series?"
+                : "Cancel this booking?"}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmAction === "cancel_series"
+                ? "This removes all linked bookings in the recurring or multi-date batch. Confirmation emails are not sent for each date."
+                : "Cancel this booking for the customer? This action cannot be undone from the calendar."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl"
+              onClick={() => setConfirmAction(null)}
+              disabled={busy}
+            >
+              Keep booking
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="rounded-xl"
+              disabled={busy}
+              onClick={() => {
+                const action = confirmAction;
+                setConfirmAction(null);
+                if (action === "cancel_series") {
+                  void handleCancelSeries();
+                  return;
+                }
+                if (action === "cancel_booking") {
+                  void handleAdminCancel();
+                }
+              }}
+            >
+              {confirmAction === "cancel_series"
+                ? "Cancel series"
+                : "Cancel booking"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
