@@ -225,6 +225,7 @@ export default function AdminUserMembershipPage() {
     lastName: "",
     phone: "",
     homeAddress: "",
+    roleId: "",
     membershipLocationId: "__none__" as string,
     accountType: "membership" as "membership" | "normal",
     membershipJoinDate: "",
@@ -247,6 +248,7 @@ export default function AdminUserMembershipPage() {
     const allowed = new Set(locationOptionsForCreate.map((l) => l.id));
     setEditForm((f) => ({
       ...f,
+      roleId: editingUser.roleId,
       membershipLocationId:
         locId && allowed.has(locId) ? locId : "__none__",
       accountType:
@@ -265,6 +267,7 @@ export default function AdminUserMembershipPage() {
       lastName: u.lastName ?? "",
       phone: u.phone ?? "",
       homeAddress: u.homeAddress ?? "",
+      roleId: u.roleId,
       membershipLocationId: "__none__",
       accountType: u.accountType === "membership" ? "membership" : "normal",
       membershipJoinDate: u.memberships?.[0]?.joinDate ?? "",
@@ -290,6 +293,7 @@ export default function AdminUserMembershipPage() {
       lastName: editForm.lastName,
       phone: editForm.phone,
       homeAddress: editForm.homeAddress || undefined,
+      roleId: editForm.roleId || undefined,
       membershipLocationId:
         editForm.membershipLocationId === "__none__"
           ? null
@@ -829,6 +833,28 @@ export default function AdminUserMembershipPage() {
                     setEditForm((f) => ({ ...f, homeAddress: e.target.value }));
                   }}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Role</Label>
+                <Select
+                  value={editForm.roleId}
+                  onValueChange={(v) => {
+                    setEditError(null);
+                    setEditForm((f) => ({ ...f, roleId: v }));
+                  }}
+                  disabled={!editFormReady}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roles.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {titleCaseFilterLabel(r.name)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               {(editingUser.accountType === "membership" ||
                 editingUser.accountType === "normal") && (

@@ -105,6 +105,12 @@ function toMinutes(t: string) {
   return h * 60 + m;
 }
 
+function minutesToTime(totalMinutes: number): string {
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 /** Compact time dropdown; width follows label text (e.g. 8:00 AM). */
 function WizardTimeSelect({
   value,
@@ -223,7 +229,19 @@ export function LocationCourtBookingWizard({
   }, [timeFrom]);
 
   useEffect(() => {
-    if (!timeFrom || !timeTo) return;
+    if (!timeFrom) return;
+    if (durationMinutes != null) {
+      const target = toMinutes(timeFrom) + durationMinutes;
+      const exact = minutesToTime(target);
+      if (TIME_OPTIONS.includes(exact)) {
+        setTimeTo(exact);
+        return;
+      }
+      const laterOrEqual = TIME_OPTIONS.find((t) => toMinutes(t) >= target);
+      setTimeTo(laterOrEqual ?? TIME_OPTIONS[TIME_OPTIONS.length - 1] ?? DEFAULT_TIME_TO);
+      return;
+    }
+    if (!timeTo) return;
     if (toMinutes(timeTo) <= toMinutes(timeFrom)) {
       const later = TIME_OPTIONS.filter(
         (t) => toMinutes(t) > toMinutes(timeFrom),
@@ -232,7 +250,7 @@ export function LocationCourtBookingWizard({
         later[0] ?? TIME_OPTIONS[TIME_OPTIONS.length - 1] ?? DEFAULT_TIME_TO,
       );
     }
-  }, [timeFrom, timeTo]);
+  }, [timeFrom, timeTo, durationMinutes]);
 
   // Clear selection when filters change (skip once after prefill applies — same render updates all filters)
   useEffect(() => {

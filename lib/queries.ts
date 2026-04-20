@@ -189,6 +189,19 @@ export function useCoaches() {
   });
 }
 
+export function useAssignableCoaches(locationId?: string, enabled = true) {
+  return useQuery<Coach[]>({
+    queryKey: ["coaches", "assignable", locationId],
+    queryFn: async () => {
+      const res = await api.coaches.getAssignableCoaches(
+        locationId ? { locationId } : undefined,
+      );
+      return res.map(mapCoachApiToCoach);
+    },
+    enabled,
+  });
+}
+
 // Bookings queries (court bookings for current user)
 export function useBookings(userId?: string) {
   return useQuery<CourtBookingRow[]>({
@@ -219,6 +232,19 @@ export function useAdminCourtBookings(params?: {
   });
 }
 
+export function useCoachCalendarBookings(params?: {
+  from?: string;
+  to?: string;
+  enabled?: boolean;
+}) {
+  const { enabled = true, ...rest } = params ?? {};
+  return useQuery<AdminCourtBookingRowApi[]>({
+    queryKey: ["coach", "calendar", "bookings", rest.from, rest.to],
+    queryFn: () => api.bookings.coachCalendarBookings(rest),
+    enabled,
+  });
+}
+
 export function useAdminUpdateCourtBooking() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -233,6 +259,7 @@ export function useAdminUpdateCourtBooking() {
         bookingDate?: string;
         startTime?: string;
         endTime?: string;
+        coachId?: string | null;
         allowOverlap?: boolean;
       };
     }) => api.bookings.adminUpdateCourtBooking(id, body),

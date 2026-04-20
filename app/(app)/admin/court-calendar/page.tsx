@@ -32,10 +32,7 @@ import {
 } from "date-fns";
 import { motion } from "framer-motion";
 import {
-    Activity,
-    BadgeCheck,
     RefreshCw,
-    UserRound
 } from "lucide-react";
 import {
     useCallback,
@@ -56,6 +53,7 @@ import {
     CourtCalendarBookingDialog,
     type CalendarColumnMeta,
 } from "./court-calendar-booking-dialog";
+import { CourtBookingDetailsCard } from "@/components/calendar/court-booking-details-card";
 
 const TIME_COL_WIDTH_PX = 52;
 /** Minimum total width before horizontal scroll; columns grow to fill above this. */
@@ -129,11 +127,6 @@ function formatTimeRange12(startTime: string, endTime: string): string {
   const b = new Date(base);
   b.setHours(eh, em ?? 0, 0, 0);
   return `${format(a, "h:mm a")} – ${format(b, "h:mm a")}`;
-}
-
-function formatBookingDateLabel(bookingDate: string): string {
-  const ymdOnly = bookingDate.slice(0, 10);
-  return format(parse(ymdOnly, "yyyy-MM-dd", new Date()), "EEE, MMM d, yyyy");
 }
 
 function primaryCourtType(c: Court): string {
@@ -229,31 +222,6 @@ function bookingVisual(userId: string | undefined, bookingId: string) {
     borderColor: "rgba(255,255,255,0.34)",
     badgeBg: "rgba(255,255,255,0.16)",
   };
-}
-
-function toTitle(value: string | null | undefined): string {
-  if (!value) return "Unknown";
-  return value
-    .replace(/_/g, " ")
-    .split(" ")
-    .filter(Boolean)
-    .map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
-    .join(" ");
-}
-
-function initials(name: string): string {
-  const parts = name.split(" ").filter(Boolean);
-  if (parts.length === 0) return "U";
-  if (parts.length === 1) return parts[0]?.slice(0, 1).toUpperCase() ?? "U";
-  return `${parts[0]?.slice(0, 1) ?? ""}${parts[1]?.slice(0, 1) ?? ""}`.toUpperCase();
-}
-
-function statusTone(status: string | null | undefined): string {
-  const normalized = (status ?? "").toLowerCase();
-  if (normalized === "confirmed") return "bg-emerald-100 text-emerald-700";
-  if (normalized === "pending") return "bg-amber-100 text-amber-700";
-  if (normalized === "cancelled") return "bg-rose-100 text-rose-700";
-  return "bg-slate-100 text-slate-700";
 }
 
 function computeOverlayLanes(
@@ -558,6 +526,7 @@ export default function AdminCourtCalendarPage() {
               }
             }}
             locationTimezone={locationTimezone}
+            coachLocationId={scopedLocationId ?? null}
             bookingDate={dateStr}
             column={dialogCourt}
             startHour={dialogStartHour}
@@ -618,7 +587,7 @@ export default function AdminCourtCalendarPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-              Court calendar
+              Court Calendar
             </h1>
             <p className="mt-1 text-slate-600 dark:text-slate-400">
               {format(selectedDate, "EEEE, MMMM d, yyyy")} ·{" "}
@@ -834,86 +803,26 @@ export default function AdminCourtCalendarPage() {
                           const zIndex = 20 + Math.max(0, 600 - duration) + overlayLane;
                           const selected = selectedBookingId === b.id;
                           const detailsPanel = (
-                            <>
-                              <div
-                                className="px-4 py-2 text-white"
-                                style={{
-                                  backgroundColor: visual.bgColor,
-                                  borderBottom: "1px solid rgba(255,255,255,0.25)",
-                                }}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <p className="text-xl font-bold leading-none tracking-tight">
-                                    {court.name}
-                                  </p>
-                                  <span
-                                    className={cn(
-                                      "rounded-full border border-white/35 px-3 py-1 text-sm font-semibold text-white",
-                                      statusTone(b.bookingStatus),
-                                    )}
-                                    style={{ backgroundColor: visual.badgeBg }}
-                                  >
-                                    {toTitle(b.bookingStatus)}
-                                  </span>
-                                </div>
-                                <p className="mt-1 text-sm font-bold leading-tight text-white">
-                                  {formatBookingDateLabel(
-                                    typeof b.bookingDate === "string"
-                                      ? b.bookingDate
-                                      : dateStr,
-                                  )}{" "}
-                                  · {formatTimeRange12(b.startTime, b.endTime)}
-                                </p>
-                              </div>
-                              <div className="space-y-3 p-5 text-[14px] text-slate-700 dark:text-slate-200">
-                                <p className="flex items-center gap-3 font-semibold text-slate-900 dark:text-slate-100">
-                                  <Activity className="h-4 w-4 text-pink-500" />
-                                  {formatSportCourtLine(b.sport, b.courtType)}
-                                </p>
-                                <p className="flex items-center gap-3">
-                                  <UserRound className="h-4 w-4 text-slate-500" />
-                                  <span className="font-semibold text-slate-600 dark:text-slate-300">
-                                    {isSuperAdmin ? "Owner:" : "Customer:"}
-                                  </span>
-                                  <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 dark:border-slate-700 dark:bg-slate-800">
-                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-indigo-200 text-[11px] font-bold text-indigo-700 dark:bg-indigo-700 dark:text-indigo-100">
-                                      {initials(
-                                        b.user?.fullName?.trim() ||
-                                          b.user?.email ||
-                                          "Unknown",
-                                      )}
-                                    </span>
-                                    <span className="font-semibold text-slate-900 dark:text-slate-100">
-                                      {b.user?.fullName?.trim() ||
-                                        b.user?.email ||
-                                        "Unknown"}
-                                    </span>
-                                  </span>
-                                </p>
-                                <p className="flex items-center gap-3">
-                                  <BadgeCheck className="h-4 w-4 text-slate-500" />
-                                  <span className="font-semibold text-slate-600 dark:text-slate-300">
-                                    Status:
-                                  </span>
-                                  <span className="font-semibold text-slate-900 dark:text-slate-100">
-                                    {toTitle(b.bookingStatus)}
-                                  </span>
-                                </p>
-                              </div>
-                              <div className="px-5 pb-5">
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  className="ml-auto rounded-full bg-indigo-500 px-4 hover:bg-indigo-600"
-                                  onClick={() => {
-                                    setSelectedBookingId(null);
-                                    openEditBooking(court, b);
-                                  }}
-                                >
-                                  Edit
-                                </Button>
-                              </div>
-                            </>
+                            <CourtBookingDetailsCard
+                              courtName={court.name}
+                              bookingDate={
+                                typeof b.bookingDate === "string" ? b.bookingDate : dateStr
+                              }
+                              startTime={b.startTime}
+                              endTime={b.endTime}
+                              bookingStatus={b.bookingStatus}
+                              sport={b.sport}
+                              courtType={b.courtType}
+                              ownerLabel={isSuperAdmin ? "Owner" : "Customer"}
+                              ownerName={b.user?.fullName?.trim() || b.user?.email || "Unknown"}
+                              topColor={visual.bgColor}
+                              badgeBg={visual.badgeBg}
+                              onEdit={() => {
+                                setSelectedBookingId(null);
+                                openEditBooking(court, b);
+                              }}
+                              editLabel="Edit"
+                            />
                           );
                           return isMobileViewport ? (
                             <Dialog

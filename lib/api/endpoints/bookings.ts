@@ -156,6 +156,14 @@ export function createBookingsEndpoints(client: ApiClient) {
         params: Object.keys(q).length ? q : undefined,
       });
     },
+    coachCalendarBookings: (params?: { from?: string; to?: string }) => {
+      const q: Record<string, string> = {};
+      if (params?.from) q.from = params.from;
+      if (params?.to) q.to = params.to;
+      return client.get<AdminCourtBookingRowApi[]>("/bookings/coach/calendar", {
+        params: Object.keys(q).length ? q : undefined,
+      });
+    },
     adminUpdateCourtBooking: (
       id: string,
       body: {
@@ -164,6 +172,7 @@ export function createBookingsEndpoints(client: ApiClient) {
         bookingDate?: string;
         startTime?: string;
         endTime?: string;
+        coachId?: string | null;
         allowOverlap?: boolean;
       },
     ) => client.patch<AdminCourtBookingRowApi>(`/bookings/admin/court/${id}`, body),

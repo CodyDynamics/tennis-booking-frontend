@@ -29,6 +29,13 @@ export function createCoachesEndpoints(client: ApiClient) {
         params: Object.keys(q).length ? q : undefined,
       });
     },
+    getAssignableCoaches: (params?: { locationId?: string }) => {
+      const q: Record<string, string> = {};
+      if (params?.locationId) q.locationId = params.locationId;
+      return client.get<CoachApi[]>("/coaches/assignable", {
+        params: Object.keys(q).length ? q : undefined,
+      });
+    },
     getCoach: (id: string) => client.get<CoachApi>(`/coaches/${id}`),
   };
 }

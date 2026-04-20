@@ -26,6 +26,7 @@ import {
     useAdminCancelCourtBooking,
     useAdminCancelCourtBookingSeries,
     useAdminCreateCourtCalendarBatch,
+    useAssignableCoaches,
     useAdminUpdateCourtBooking,
 } from "@/lib/queries";
 import { cn } from "@/lib/utils";
@@ -352,6 +353,7 @@ export function CourtCalendarBookingDialog(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   locationTimezone?: string | null;
+  coachLocationId?: string | null;
   bookingDate: string;
   column: CalendarColumnMeta | null;
   startHour: number;
@@ -363,6 +365,7 @@ export function CourtCalendarBookingDialog(props: {
     open,
     onOpenChange,
     locationTimezone,
+    coachLocationId,
     bookingDate,
     column,
     startHour,
@@ -389,6 +392,7 @@ export function CourtCalendarBookingDialog(props: {
   const [recurrenceDialogOpen, setRecurrenceDialogOpen] = useState(false);
   const [recurrenceConfirmed, setRecurrenceConfirmed] = useState(false);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
+  const [selectedCoachId, setSelectedCoachId] = useState<string>("none");
   /** When true, one summary email lists all created dates (batch only). */
   const [sendConfirmationEmail, setSendConfirmationEmail] = useState(false);
 
@@ -396,6 +400,10 @@ export function CourtCalendarBookingDialog(props: {
   const updateCourt = useAdminUpdateCourtBooking();
   const adminCancel = useAdminCancelCourtBooking();
   const cancelSeries = useAdminCancelCourtBookingSeries();
+  const { data: coaches = [] } = useAssignableCoaches(
+    coachLocationId ?? undefined,
+    open,
+  );
 
   const anchorBookingYmd = useMemo(() => {
     if (!editingBooking?.bookingDate) return bookingDate;
@@ -439,6 +447,7 @@ export function CourtCalendarBookingDialog(props: {
         setRangeStart(normalizeGridTime(editingBooking.startTime));
         setRangeEnd(normalizeGridTime(editingBooking.endTime));
       }
+      setSelectedCoachId(editingBooking.coachId ?? "none");
     } else {
       setDurationMinutes(60);
       setStartMinute(startMinuteProp);
@@ -447,6 +456,7 @@ export function CourtCalendarBookingDialog(props: {
       const startHhmm = padTime(startHour, startMinuteProp);
       setRangeStart(normalizeGridTime(startHhmm));
       setRangeEnd(defaultEndSlot(normalizeGridTime(startHhmm), 60));
+      setSelectedCoachId("none");
     }
   }, [
     open,
@@ -572,6 +582,7 @@ export function CourtCalendarBookingDialog(props: {
             bookingDate: anchorBookingYmd,
             startTime,
             endTime,
+            coachId: selectedCoachId === "none" ? null : selectedCoachId,
             ...(isSuperAdmin ? { allowOverlap: true } : {}),
           },
         });
@@ -805,6 +816,25 @@ export function CourtCalendarBookingDialog(props: {
               </div>
             </div>
           )}
+
+          {isEdit ? (
+            <div className="space-y-1.5">
+              <Label>Assigned coach</Label>
+              <Select value={selectedCoachId} onValueChange={setSelectedCoachId}>
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue placeholder="Choose coach" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No coach assigned</SelectItem>
+                  {coaches.map((coach) => (
+                    <SelectItem key={coach.id} value={coach.id}>
+                      {coach.user?.fullName || coach.user?.email || `Coach ${coach.id.slice(0, 8)}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
 
           <div className="space-y-2">
               <button
