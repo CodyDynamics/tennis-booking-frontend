@@ -1,12 +1,17 @@
 "use client";
 
 /**
- * Global loading overlay (tennis balls) for:
- * - Next.js App Router segment transitions (via RouteSegmentLoadingBridge in app/(app)/loading.tsx)
- * - React Query: initial fetches + mutations (background refetch excluded)
+ * Global loading overlay for:
+ * - App Router segment transitions (RouteSegmentLoadingBridge in app/(app)/loading.tsx)
+ * - React Query: *first* fetch of active queries only (status pending + no data). Background
+ *   refetches after invalidateQueries keep status "success" while fetching — not counted.
+ *
+ * Mutations are intentionally *not* driven here: use per-action spinners. Otherwise the overlay
+ * outlasts a fast 200ms API when invalidateQueries starts other first-time fetches, or
+ * isMutating stacks oddly with the rest of the work.
  */
 
-import { useIsFetching, useIsMutating } from "@tanstack/react-query";
+import { useIsFetching, type Query } from "@tanstack/react-query";
 import {
   createContext,
   useCallback,
@@ -16,7 +21,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { TennisBallsLoader2 } from "../ui/tennis-balls-loader-2";
+import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type AppLoadingContextValue = {
   registerRouteLoading: (delta: number) => void;
@@ -27,15 +33,11 @@ const AppLoadingContext = createContext<AppLoadingContextValue | null>(null);
 /** Query keys that should not dim the whole app (inline / modal polling). */
 const SKIP_GLOBAL_LOADER_KEYS = new Set(["courtAvailability"]);
 
-function shouldCountQueryForGlobalLoader(query: {
-  queryKey: readonly unknown[];
-  state: { status: string; fetchStatus: string };
-}): boolean {
+function shouldCountQueryForGlobalLoader(query: Query): boolean {
   const key = query.queryKey[0];
   if (typeof key === "string" && SKIP_GLOBAL_LOADER_KEYS.has(key)) {
     return false;
   }
-  /* Initial load / no cached data yet */
   return (
     query.state.status === "pending" && query.state.fetchStatus === "fetching"
   );
@@ -58,45 +60,42 @@ export function AppLoadingProvider({ children }: { children: React.ReactNode }) 
     setRouteDepth((d) => Math.max(0, d + delta));
   }, []);
 
-  const pendingQueries = useIsFetching({
+  const pendingFirstFetches = useIsFetching({
+    type: "active",
     predicate: shouldCountQueryForGlobalLoader,
   });
-  const pendingMutations = useIsMutating();
-  const queryBusy = pendingQueries > 0 || pendingMutations > 0;
   const routeBusy = routeDepth > 0;
-  const rawBusy = routeBusy || queryBusy;
+  const rawBusy = routeBusy || pendingFirstFetches > 0;
 
   const [showOverlay, setShowOverlay] = useState(false);
   const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (rawBusy) {
-      if (hideTimerRef.current) {
-        clearTimeout(hideTimerRef.current);
-        hideTimerRef.current = null;
-      }
       if (showTimerRef.current) clearTimeout(showTimerRef.current);
-      showTimerRef.current = setTimeout(() => setShowOverlay(true), 160);
+      showTimerRef.current = setTimeout(() => setShowOverlay(true), 200);
     } else {
       if (showTimerRef.current) {
         clearTimeout(showTimerRef.current);
         showTimerRef.current = null;
       }
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = setTimeout(() => setShowOverlay(false), 140);
+      setShowOverlay(false);
     }
     return () => {
       if (showTimerRef.current) clearTimeout(showTimerRef.current);
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     };
   }, [rawBusy]);
 
-  const message = routeBusy
-    ? "Loading page…"
-    : pendingMutations > 0
-      ? "Working…"
-      : "Loading data…";
+  useEffect(() => {
+    if (!showOverlay) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [showOverlay]);
+
+  const message = routeBusy ? "Loading page…" : "Loading data…";
 
   const contextValue = useMemo<AppLoadingContextValue>(
     () => ({ registerRouteLoading }),
@@ -106,12 +105,32 @@ export function AppLoadingProvider({ children }: { children: React.ReactNode }) 
   return (
     <AppLoadingContext.Provider value={contextValue}>
       {children}
-      <TennisBallsLoader2
-        open={showOverlay}
-        message={message}
-        lockScroll={showOverlay}
-        zIndex={110}
-      />
+      {showOverlay ? (
+        <div
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+          aria-label={message}
+          className={cn(
+            "pointer-events-auto fixed inset-0 z-[110] flex flex-col items-center justify-center",
+            "animate-in fade-in-0 duration-200",
+          )}
+        >
+          <div
+            className="absolute inset-0 bg-background/80 backdrop-blur-sm dark:bg-black/60"
+            aria-hidden
+          />
+          <div className="relative flex flex-col items-center gap-4">
+            <Loader2
+              className="h-8 w-8 shrink-0 animate-spin text-primary drop-shadow-sm"
+              strokeWidth={2.5}
+            />
+            <p className="max-w-[min(90vw,20rem)] text-center text-sm font-medium text-foreground">
+              {message}
+            </p>
+          </div>
+        </div>
+      ) : null}
     </AppLoadingContext.Provider>
   );
 }
