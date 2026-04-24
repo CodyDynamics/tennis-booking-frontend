@@ -1,6 +1,12 @@
+const { version: packageVersion } = require("./package.json");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
+  env: {
+    NEXT_PUBLIC_APP_VERSION:
+      process.env.NEXT_PUBLIC_APP_VERSION || packageVersion,
+  },
   images: {
     remotePatterns: [
       {
@@ -17,4 +23,4 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;

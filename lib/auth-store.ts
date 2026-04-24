@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { User } from "@/types";
 import type { AuthUser, AuthUserMembership, RegisterInput } from "@/types/api";
+import { setStoredAccessToken } from "@/lib/auth-tokens";
 import { api, ApiError } from "@/lib/api";
 
 function parseRolePermissions(role: unknown): string[] {
@@ -156,6 +157,7 @@ export function useAuth() {
   const logoutMutation = useMutation({
     mutationFn: () => api.auth.logout(),
     onSuccess: () => {
+      setStoredAccessToken(null);
       queryClient.setQueryData(["auth", "user"], null);
       queryClient.clear();
     },

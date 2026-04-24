@@ -1,3 +1,4 @@
+import { getStoredAccessToken } from "@/lib/auth-tokens";
 import { API_BASE_URL } from "./config";
 import { createApiClient, type GetAccessToken } from "./client";
 import { createAuthEndpoints } from "./endpoints/auth";
@@ -13,19 +14,19 @@ import { createOrganizationsEndpoints } from "./endpoints/organizations";
 import { createAdminEndpoints } from "./endpoints/admin";
 import { createAreasEndpoints } from "./endpoints/areas";
 
-let accessTokenGetter: GetAccessToken = () => null;
+let accessTokenGetter: GetAccessToken | null = null;
 
 /**
- * Set the function used to get the access token for authenticated requests.
- * Call this from your auth layer (e.g. auth-store) when the app initializes.
+ * Optional override (e.g. tests). When unset, the access token is read from
+ * sessionStorage after login/refresh (see `lib/auth-tokens.ts`).
  */
-export function setAccessTokenGetter(getter: GetAccessToken): void {
+export function setAccessTokenGetter(getter: GetAccessToken | null): void {
   accessTokenGetter = getter;
 }
 
 const client = createApiClient({
   baseURL: API_BASE_URL,
-  getAccessToken: () => accessTokenGetter?.() ?? null,
+  getAccessToken: () => accessTokenGetter?.() ?? getStoredAccessToken(),
 });
 
 export const api = {

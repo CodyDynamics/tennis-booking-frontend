@@ -1,3 +1,4 @@
+import { setStoredAccessToken } from "@/lib/auth-tokens";
 import type { ApiErrorBody } from "@/types/api";
 
 export type GetAccessToken = (() => string | null) | null;
@@ -89,6 +90,13 @@ export async function request<T>(
 
     const data = await parseResponse<T>(res);
 
+    if (res.ok && data && typeof data === "object" && "accessToken" in data) {
+      const at = (data as { accessToken?: unknown }).accessToken;
+      if (typeof at === "string" && at.length > 0) {
+        setStoredAccessToken(at);
+      }
+    }
+
     // Auto-refresh once on 401 for non-auth-refresh endpoints
     if (
       res.status === 401 &&
@@ -108,7 +116,18 @@ export async function request<T>(
           headers: { "Content-Type": "application/json" },
           body: "{}",
         })
-          .then((r) => r.ok)
+          .then(async (r) => {
+            if (r.ok) {
+              const rtData = (await r.json().catch(() => null)) as {
+                accessToken?: string;
+              } | null;
+              if (rtData && typeof rtData.accessToken === "string" && rtData.accessToken) {
+                setStoredAccessToken(rtData.accessToken);
+              }
+              return true;
+            }
+            return false;
+          })
           .catch(() => false)
           .finally(() => {
             refreshPromise = null;
